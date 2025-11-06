@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zooma Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 10px;
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-element {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .ui-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .ui-value {
+            font-size: 24px;
+            margin-top: 5px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+
+        #gameOver h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ff6b6b;
+        }
+
+        #gameOver .stats {
+            margin: 20px 0;
+            font-size: 20px;
+        }
+
+        #restartBtn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #restartBtn:hover {
+            transform: scale(1.1);
+        }
+
+        #restartBtn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            #gameContainer {
+                padding: 10px;
+            }
+
+            #ui {
+                top: 15px;
+                left: 15px;
+                right: 15px;
+            }
+
+            .ui-element {
+                padding: 8px 15px;
+            }
+
+            .ui-value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="ui">
+            <div class="ui-element">
+                <div class="ui-label">СЧЁТ</div>
+                <div class="ui-value" id="score">0</div>
+            </div>
+            <div class="ui-element">
+                <div class="ui-label">УРОВЕНЬ</div>
+                <div class="ui-value" id="level">1</div>
+            </div>
+        </div>
+
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <div class="stats">
+                <p>Итоговый счёт: <span id="finalScore">0</span></p>
+                <p>Достигнут уровень: <span id="finalLevel">1</span></p>
+            </div>
+            <button id="restartBtn">НАЧАТЬ ЗАНОВО</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            CANVAS_WIDTH: 800,
+            CANVAS_HEIGHT: 600,
+            BALL_RADIUS: 15,
+            BALL_COLORS: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'],
+            INITIAL_SPEED: 0.3,
+            SPEED_INCREMENT: 0.05,
+            CANNON_RADIUS: 20,
+            SHOT_SPEED: 8,
+            MIN_MATCH: 3,
+            POINTS_PER_BALL: 10,
+            LEVEL_THRESHOLD: 500
+        };
+
+        // ============================================
+        // GAME SETUP
+        // ============================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CONFIG.CANVAS_WIDTH;
+        canvas.height = CONFIG.CANVAS_HEIGHT;
+
+        // ============================================
+        // AUDIO SYSTEM
+        // ============================================
+        class AudioSystem {
+            constructor() {
+                this.audioContext = null;
+                this.enabled = true;
+                this.initAudio();
+            }
+
+            initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API не поддерживается');
+                    this.enabled = false;
+                }
+            }
+
+            playShoot() {
+                if (!this.enabled) return;
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator.frequency.value = 400;
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.1);
+            }
+
+            playMatch() {
+                if (!this.enabled) return;
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(800, this.audioContext.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.2);
+            }
+
+            playGameOver() {
+                if (!this.enabled) return;
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.5);
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.5);
+            }
+        }
+
+        // ============================================
+        // SPIRAL PATH GENERATOR
+        // ============================================
+        class SpiralPath {
+            constructor(centerX, centerY, startRadius, endRadius, turns) {
+                this.centerX = centerX;
+                this.centerY = centerY;
+                this.startRadius = startRadius;
+                this.endRadius = endRadius;
+                this.turns = turns;
+                this.points = [];
+                this.generate();
+            }
+
+            generate() {
+                const totalAngle = this.turns * Math.PI * 2;
+                const steps = 1000;
+
+                for (let i = 0; i <= steps; i++) {
+                    const t = i / steps;
+                    const angle = totalAngle * t;
+                    const radius = this.startRadius + (this.endRadius - this.startRadius) * t;
+
+                    const x = this.centerX + Math.cos(angle) * radius;
+                    const y = this.centerY + Math.sin(angle) * radius;
+
+                    this.points.push({ x, y, distance: t });
+                }
+            }
+
+            getPointAt(distance) {
+                const index = Math.min(Math.floor(distance * (this.points.length - 1)), this.points.length - 1);
+                return this.points[index];
+            }
+
+            getLength() {
+                return this.points.length;
+            }
+
+            draw(ctx) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                for (let i = 0; i < this.points.length; i++) {
+                    const point = this.points[i];
+                    if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                }
+
+                ctx.stroke();
+            }
+        }
+
+        // ============================================
+        // BALL CLASS
+        // ============================================
+        class Ball {
+            constructor(color, distance) {
+                this.color = color;
+                this.distance = distance; // Position on path (0 to 1)
+                this.radius = CONFIG.BALL_RADIUS;
+                this.x = 0;
+                this.y = 0;
+                this.marked = false;
+            }
+
+            update(path) {
+                const point = path.getPointAt(this.distance);
+                this.x = point.x;
+                this.y = point.y;
+            }
+
+            draw(ctx) {
+                // Outer glow
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius * 1.5
+                );
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(0.7, this.color);
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Main ball
+                const ballGradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    this.radius * 0.1,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+                ballGradient.addColorStop(0, 'white');
+                ballGradient.addColorStop(0.3, this.color);
+                ballGradient.addColorStop(1, this.darkenColor(this.color, 0.5));
+
+                ctx.fillStyle = ballGradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.arc(
+                    this.x - this.radius * 0.4,
+                    this.y - this.radius * 0.4,
+                    this.radius * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+
+            darkenColor(color, factor) {
+                const r = parseInt(color.slice(1, 3), 16);
+                const g = parseInt(color.slice(3, 5), 16);
+                const b = parseInt(color.slice(5, 7), 16);
+
+                return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`;
+            }
+        }
+
+        // ============================================
+        // BALL CHAIN
+        // ============================================
+        class BallChain {
+            constructor(path, speed) {
+                this.path = path;
+                this.speed = speed;
+                this.balls = [];
+                this.spacing = (CONFIG.BALL_RADIUS * 2.5) / path.getLength();
+                this.initBalls();
+            }
+
+            initBalls() {
+                const numBalls = 40;
+                for (let i = 0; i < numBalls; i++) {
+                    const color = CONFIG.BALL_COLORS[Math.floor(Math.random() * CONFIG.BALL_COLORS.length)];
+                    const distance = -i * this.spacing;
+                    this.balls.push(new Ball(color, distance));
+                }
+            }
+
+            update() {
+                // Move all balls forward
+                for (let ball of this.balls) {
+                    ball.distance += this.speed * 0.001;
+                    ball.update(this.path);
+                }
+
+                // Add new balls at the start if needed
+                if (this.balls.length > 0 && this.balls[0].distance > this.spacing * 2) {
+                    const color = CONFIG.BALL_COLORS[Math.floor(Math.random() * CONFIG.BALL_COLORS.length)];
+                    this.balls.unshift(new Ball(color, 0));
+                }
+
+                // Remove balls that are too far
+                this.balls = this.balls.filter(ball => ball.distance < 1.2);
+            }
+
+            draw(ctx) {
+                for (let ball of this.balls) {
+                    if (ball.distance >= 0 && ball.distance <= 1) {
+                        ball.draw(ctx);
+                    }
+                }
+            }
+
+            insertBall(ball, insertIndex) {
+                this.balls.splice(insertIndex, 0, ball);
+
+                // Adjust positions to maintain spacing
+                for (let i = insertIndex + 1; i < this.balls.length; i++) {
+                    if (this.balls[i].distance - this.balls[i - 1].distance < this.spacing) {
+                        this.balls[i].distance = this.balls[i - 1].distance + this.spacing;
+                    }
+                }
+            }
+
+            checkMatches() {
+                let matchCount = 0;
+
+                for (let i = 0; i < this.balls.length; i++) {
+                    if (this.balls[i].marked) continue;
+
+                    let j = i;
+                    while (j < this.balls.length && this.balls[j].color === this.balls[i].color && !this.balls[j].marked) {
+                        j++;
+                    }
+
+                    const groupSize = j - i;
+                    if (groupSize >= CONFIG.MIN_MATCH) {
+                        for (let k = i; k < j; k++) {
+                            this.balls[k].marked = true;
+                        }
+                        matchCount += groupSize;
+                    }
+                }
+
+                // Remove marked balls
+                this.balls = this.balls.filter(ball => !ball.marked);
+
+                return matchCount;
+            }
+
+            hasReachedEnd() {
+                return this.balls.some(ball => ball.distance >= 1.0);
+            }
+
+            getFirstBallDistance() {
+                return this.balls.length > 0 ? this.balls[0].distance : 0;
+            }
+        }
+
+        // ============================================
+        // SHOT BALL
+        // ============================================
+        class ShotBall {
+            constructor(x, y, angle, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * CONFIG.SHOT_SPEED;
+                this.vy = Math.sin(angle) * CONFIG.SHOT_SPEED;
+                this.color = color;
+                this.radius = CONFIG.BALL_RADIUS;
+                this.active = true;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall bouncing
+                if (this.x - this.radius < 0 || this.x + this.radius > CONFIG.CANVAS_WIDTH) {
+                    this.vx *= -1;
+                    this.x = this.x < CONFIG.CANVAS_WIDTH / 2 ? this.radius : CONFIG.CANVAS_WIDTH - this.radius;
+                }
+
+                if (this.y - this.radius < 0) {
+                    this.vy *= -1;
+                    this.y = this.radius;
+                }
+
+                // Remove if out of bounds
+                if (this.y > CONFIG.CANVAS_HEIGHT + this.radius) {
+                    this.active = false;
+                }
+            }
+
+            draw(ctx) {
+                const ball = new Ball(this.color, 0);
+                ball.x = this.x;
+                ball.y = this.y;
+                ball.draw(ctx);
+            }
+
+            checkCollision(ballChain) {
+                for (let i = 0; i < ballChain.balls.length; i++) {
+                    const ball = ballChain.balls[i];
+                    if (ball.distance < 0 || ball.distance > 1) continue;
+
+                    const dx = this.x - ball.x;
+                    const dy = this.y - ball.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < this.radius + ball.radius) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+        }
+
+        // ============================================
+        // CANNON
+        // ============================================
+        class Cannon {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = -Math.PI / 2;
+                this.radius = CONFIG.CANNON_RADIUS;
+                this.currentColor = this.getRandomColor();
+                this.nextColor = this.getRandomColor();
+            }
+
+            getRandomColor() {
+                return CONFIG.BALL_COLORS[Math.floor(Math.random() * CONFIG.BALL_COLORS.length)];
+            }
+
+            setAngle(targetX, targetY) {
+                this.angle = Math.atan2(targetY - this.y, targetX - this.x);
+            }
+
+            shoot() {
+                const shot = new ShotBall(this.x, this.y, this.angle, this.currentColor);
+                this.currentColor = this.nextColor;
+                this.nextColor = this.getRandomColor();
+                return shot;
+            }
+
+            draw(ctx) {
+                // Cannon base
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cannon barrel
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = this.radius;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(
+                    this.x + Math.cos(this.angle) * this.radius * 3,
+                    this.y + Math.sin(this.angle) * this.radius * 3
+                );
+                ctx.stroke();
+
+                // Current ball
+                const currentBall = new Ball(this.currentColor, 0);
+                currentBall.x = this.x;
+                currentBall.y = this.y;
+                currentBall.draw(ctx);
+
+                // Next ball indicator
+                const nextBall = new Ball(this.nextColor, 0);
+                nextBall.x = this.x;
+                nextBall.y = this.y + this.radius * 4;
+                nextBall.radius = CONFIG.BALL_RADIUS * 0.7;
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+
+                // Small ball
+                const smallGradient = ctx.createRadialGradient(
+                    nextBall.x,
+                    nextBall.y,
+                    0,
+                    nextBall.x,
+                    nextBall.y,
+                    nextBall.radius
+                );
+                smallGradient.addColorStop(0, 'white');
+                smallGradient.addColorStop(0.3, this.nextColor);
+                smallGradient.addColorStop(1, nextBall.darkenColor(this.nextColor, 0.5));
+
+                ctx.fillStyle = smallGradient;
+                ctx.beginPath();
+                ctx.arc(nextBall.x, nextBall.y, nextBall.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        class Game {
+            constructor() {
+                this.score = 0;
+                this.level = 1;
+                this.isGameOver = false;
+                this.isPaused = false;
+
+                this.audio = new AudioSystem();
+                this.path = new SpiralPath(
+                    CONFIG.CANVAS_WIDTH / 2,
+                    CONFIG.CANVAS_HEIGHT / 2,
+                    250,
+                    30,
+                    4
+                );
+
+                this.speed = CONFIG.INITIAL_SPEED;
+                this.ballChain = new BallChain(this.path, this.speed);
+                this.cannon = new Cannon(CONFIG.CANVAS_WIDTH / 2, CONFIG.CANVAS_HEIGHT - 50);
+                this.shots = [];
+
+                this.mouseX = CONFIG.CANVAS_WIDTH / 2;
+                this.mouseY = CONFIG.CANVAS_HEIGHT / 2;
+
+                this.setupEventListeners();
+                this.updateUI();
+            }
+
+            setupEventListeners() {
+                canvas.addEventListener('mousemove', (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    this.mouseX = e.clientX - rect.left;
+                    this.mouseY = e.clientY - rect.top;
+                });
+
+                canvas.addEventListener('click', () => {
+                    if (!this.isGameOver && !this.isPaused) {
+                        this.shoot();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (this.isGameOver) return;
+
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.shoot();
+                    } else if (e.code === 'ArrowLeft') {
+                        this.mouseX = Math.max(50, this.mouseX - 30);
+                    } else if (e.code === 'ArrowRight') {
+                        this.mouseX = Math.min(CONFIG.CANVAS_WIDTH - 50, this.mouseX + 30);
+                    }
+                });
+
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.restart();
+                });
+            }
+
+            shoot() {
+                this.shots.push(this.cannon.shoot());
+                this.audio.playShoot();
+            }
+
+            update() {
+                if (this.isGameOver || this.isPaused) return;
+
+                // Update cannon aim
+                this.cannon.setAngle(this.mouseX, this.mouseY);
+
+                // Update ball chain
+                this.ballChain.update();
+
+                // Update shots
+                for (let shot of this.shots) {
+                    shot.update();
+
+                    const collisionIndex = shot.checkCollision(this.ballChain);
+                    if (collisionIndex !== -1) {
+                        shot.active = false;
+
+                        // Insert ball into chain
+                        const newBall = new Ball(shot.color, this.ballChain.balls[collisionIndex].distance);
+                        this.ballChain.insertBall(newBall, collisionIndex);
+
+                        // Check for matches
+                        const matchedBalls = this.ballChain.checkMatches();
+                        if (matchedBalls > 0) {
+                            this.score += matchedBalls * CONFIG.POINTS_PER_BALL;
+                            this.updateUI();
+                            this.audio.playMatch();
+
+                            // Level up
+                            const newLevel = Math.floor(this.score / CONFIG.LEVEL_THRESHOLD) + 1;
+                            if (newLevel > this.level) {
+                                this.level = newLevel;
+                                this.speed = CONFIG.INITIAL_SPEED + (this.level - 1) * CONFIG.SPEED_INCREMENT;
+                                this.ballChain.speed = this.speed;
+                                this.updateUI();
+                            }
+                        }
+                    }
+                }
+
+                // Remove inactive shots
+                this.shots = this.shots.filter(shot => shot.active);
+
+                // Check game over
+                if (this.ballChain.hasReachedEnd()) {
+                    this.gameOver();
+                }
+            }
+
+            draw() {
+                // Clear canvas
+                ctx.fillStyle = 'rgba(26, 26, 46, 1)';
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+                // Draw path (optional, for debugging)
+                // this.path.draw(ctx);
+
+                // Draw ball chain
+                this.ballChain.draw(ctx);
+
+                // Draw shots
+                for (let shot of this.shots) {
+                    shot.draw(ctx);
+                }
+
+                // Draw cannon
+                this.cannon.draw(ctx);
+
+                // Draw aim line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(this.cannon.x, this.cannon.y);
+                ctx.lineTo(this.mouseX, this.mouseY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                this.audio.playGameOver();
+
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalLevel').textContent = this.level;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+
+            restart() {
+                document.getElementById('gameOver').style.display = 'none';
+
+                this.score = 0;
+                this.level = 1;
+                this.isGameOver = false;
+                this.speed = CONFIG.INITIAL_SPEED;
+
+                this.ballChain = new BallChain(this.path, this.speed);
+                this.cannon = new Cannon(CONFIG.CANVAS_WIDTH / 2, CONFIG.CANVAS_HEIGHT - 50);
+                this.shots = [];
+
+                this.updateUI();
+            }
+        }
+
+        // ============================================
+        // GAME LOOP
+        // ============================================
+        const game = new Game();
+
+        function gameLoop() {
+            game.update();
+            game.draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
