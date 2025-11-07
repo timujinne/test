@@ -1,0 +1,48 @@
+# Gitignore для Elixir Umbrella проекта
+
+# Elixir
+/_build
+/cover
+/deps
+/doc
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+/config/*.secret.exs
+.elixir_ls/
+
+# Phoenix
+/priv/static/
+/priv/assets/
+
+# Database
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Node
+/apps/*/assets/node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.log

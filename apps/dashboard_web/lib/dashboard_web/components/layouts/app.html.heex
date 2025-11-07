@@ -1,0 +1,21 @@
+<header class="px-4 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between border-b border-zinc-100 py-3">
+    <div class="flex items-center gap-4">
+      <a href="/">
+        <h1 class="text-xl font-semibold">Binance Trading System</h1>
+      </a>
+    </div>
+    <nav class="flex gap-4">
+      <.link navigate="/" class="text-sm hover:underline">Trading</.link>
+      <.link navigate="/portfolio" class="text-sm hover:underline">Portfolio</.link>
+      <.link navigate="/history" class="text-sm hover:underline">History</.link>
+      <.link navigate="/settings" class="text-sm hover:underline">Settings</.link>
+    </nav>
+  </div>
+</header>
+<main class="px-4 py-20 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-7xl">
+    <.flash_group flash={@flash} />
+    <%= @inner_content %>
+  </div>
+</main>
