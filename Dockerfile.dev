@@ -1,49 +1,297 @@
-# Dockerfile для разработки
-FROM elixir:1.14-alpine
+# ================================================
+# Multi-stage Dockerfile для полноценной разработки
+# Elixir + Phoenix + Go + Python + Node.js + Dev Tools
+# ================================================
 
-# Установка зависимостей
-RUN apk add --no-cache \
-    build-base \
+FROM elixir:1.18.4-otp-28
+
+# Установка переменных окружения
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TERM=xterm-256color
+
+# ================================================
+# СИСТЕМНЫЕ ПАКЕТЫ И БАЗОВЫЕ ИНСТРУМЕНТЫ
+# ================================================
+RUN apt-get update && apt-get install -y \
+    # Build tools
+    build-essential \
+    cmake \
+    automake \
+    autoconf \
+    # Version control
     git \
-    nodejs \
-    npm \
+    git-lfs \
+    # Network tools
+    curl \
+    wget \
+    net-tools \
+    iputils-ping \
+    # System utilities
+    vim \
+    nano \
+    tmux \
+    screen \
+    htop \
+    tree \
+    jq \
+    unzip \
+    zip \
+    # Database clients
     postgresql-client \
-    inotify-tools
+    redis-tools \
+    # SSL/TLS
+    ca-certificates \
+    openssl \
+    libssl-dev \
+    # Для компиляции нативных зависимостей
+    libncurses5-dev \
+    libreadline-dev \
+    zlib1g-dev \
+    # Supervisor для управления процессами
+    supervisor \
+    # inotify для file watching
+    inotify-tools \
+    # Для работы с изображениями (если нужно)
+    imagemagick \
+    && rm -rf /var/lib/apt/lists/*
 
-# Установка hex и rebar
+# ================================================
+# NODE.JS И NPM (latest LTS)
+# ================================================
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest && \
+    # Полезные глобальные пакеты
+    npm install -g \
+    yarn \
+    pnpm \
+    @anthropic-ai/claude-code \
+    eslint \
+    prettier \
+    typescript \
+    ts-node \
+    && rm -rf /var/lib/apt/lists/*
+
+# ================================================
+# PYTHON (latest stable)
+# ================================================
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && python3 -m pip install --upgrade pip setuptools wheel \
+    && python3 -m pip install \
+    # Популярные библиотеки для анализа данных
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    pytest \
+    ipython \
+    # Для работы с крипто API
+    python-binance \
+    ccxt \
+    && rm -rf /var/lib/apt/lists/*
+
+# ================================================
+# GO (latest stable version)
+# ================================================
+ARG GO_VERSION=1.23.5
+RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION}.linux-amd64.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}" \
+    GOPATH="/go" \
+    GOBIN="/go/bin"
+
+# Установка популярных Go инструментов
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && \
+    go install github.com/cosmtrek/air@latest && \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# ================================================
+# ELIXIR ИНСТРУМЕНТЫ
+# ================================================
+# Установка Hex и Rebar
 RUN mix local.hex --force && \
     mix local.rebar --force
 
-# Создание рабочей директории
+# Установка Phoenix и других архивов
+RUN mix archive.install hex phx_new --force && \
+    mix archive.install hex nerves_bootstrap --force
+
+# ================================================
+# ДОПОЛНИТЕЛЬНЫЕ ИНСТРУМЕНТЫ ДЛЯ РАЗРАБОТКИ
+# ================================================
+
+# Установка ExDoc для генерации документации
+RUN mix escript.install hex ex_doc --force
+
+# Установка watchexec для автоматического перезапуска
+RUN wget -qO- https://github.com/watchexec/watchexec/releases/latest/download/watchexec-1.25.1-x86_64-unknown-linux-musl.tar.xz | \
+    tar xJv -C /usr/local/bin --strip-components=1 watchexec-1.25.1-x86_64-unknown-linux-musl/watchexec || \
+    echo "watchexec install failed, skipping"
+
+# Установка lazygit (удобный TUI для Git)
+RUN LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*') && \
+    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" && \
+    tar xf lazygit.tar.gz -C /usr/local/bin lazygit && \
+    rm lazygit.tar.gz
+
+# ================================================
+# НАСТРОЙКА РАБОЧЕЙ ДИРЕКТОРИИ
+# ================================================
 WORKDIR /app
 
-# Установка Phoenix
-RUN mix archive.install hex phx_new --force
+# Конфигурация supervisor
+COPY <<EOF /etc/supervisor/conf.d/supervisord.conf
+[supervisord]
+nodaemon=true
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
 
-# Копирование зависимостей
-COPY mix.exs mix.lock ./
-COPY apps/*/mix.exs ./apps/
+[program:shell]
+command=/bin/bash
+autostart=false
+autorestart=false
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+EOF
 
-# Установка зависимостей
-RUN mix deps.get
+# Создание необходимых директорий
+RUN mkdir -p /var/log/supervisor
 
-# Копирование конфигурации
-COPY config ./config
+# ================================================
+# НАСТРОЙКА TMUX
+# ================================================
+COPY <<EOF /root/.tmux.conf
+# Основные настройки tmux для разработки
+set -g default-terminal "screen-256color"
+set -g history-limit 10000
+set -g mouse on
+set -g base-index 1
+setw -g pane-base-index 1
 
-# Копирование приложений
-COPY apps ./apps
+# Префикс команд (Ctrl+a вместо Ctrl+b)
+unbind C-b
+set -g prefix C-a
+bind C-a send-prefix
 
-# Копирование остальных файлов
-COPY . .
+# Быстрая перезагрузка конфига
+bind r source-file ~/.tmux.conf \; display "Конфиг перезагружен!"
 
-# Компиляция
-RUN mix deps.compile
+# Разделение окон
+bind | split-window -h
+bind - split-window -v
 
-# Установка зависимостей для assets
-RUN cd apps/dashboard_web/assets && npm install
+# Статус бар
+set -g status-style bg=colour235,fg=colour136
+set -g status-left '[#S] '
+set -g status-right '%Y-%m-%d %H:%M'
+EOF
 
-# Открытие порта
+# ================================================
+# НАСТРОЙКА VIM (базовая)
+# ================================================
+COPY <<EOF /root/.vimrc
+" Базовые настройки Vim
+syntax on
+set number
+set relativenumber
+set tabstop=2
+set shiftwidth=2
+set expandtab
+set autoindent
+set smartindent
+set ruler
+set showcmd
+set incsearch
+set hlsearch
+set ignorecase
+set smartcase
+set background=dark
+colorscheme desert
+EOF
+
+# ================================================
+# ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ДЛЯ РАЗРАБОТКИ
+# ================================================
+ENV PATH="${PATH}:${GOBIN}:/root/.mix/escripts" \
+    ERL_AFLAGS="-kernel shell_history enabled" \
+    MIX_ENV=dev \
+    NODE_ENV=development
+
+# ================================================
+# EXPOSE PORTS
+# ================================================
+# Phoenix server
 EXPOSE 4000
+# Phoenix LiveReload
+EXPOSE 4001
+# Дополнительные порты для микросервисов
+EXPOSE 4002 4003 4004
 
-# Команда по умолчанию
-CMD ["mix", "phx.server"]
+# ================================================
+# HEALTH CHECK
+# ================================================
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:4000/api/health || exit 1
+
+# ================================================
+# ENTRYPOINT
+# ================================================
+# Скрипт для инициализации при старте контейнера
+COPY <<'EOF' /docker-entrypoint.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting Binance Trading System Development Environment"
+echo "================================================"
+
+# Проверка переменных окружения
+if [ -z "$DATABASE_URL" ] && [ -z "$POSTGRES_HOST" ]; then
+    echo "⚠️  WARNING: Database configuration not found"
+fi
+
+# Установка зависимостей если их нет
+if [ -f "mix.exs" ]; then
+    echo "📦 Installing Elixir dependencies..."
+    mix deps.get
+
+    # Установка Node.js зависимостей для Phoenix
+    if [ -d "assets" ]; then
+        echo "📦 Installing Node.js dependencies..."
+        cd assets && npm install && cd ..
+    fi
+fi
+
+echo "================================================"
+echo "✅ Environment ready!"
+echo ""
+echo "Available commands:"
+echo "  mix phx.server      - Start Phoenix server"
+echo "  mix test            - Run tests"
+echo "  iex -S mix          - Start IEx with project"
+echo "  lazygit             - Git TUI"
+echo "  claude-code         - Start Claude Code"
+echo ""
+echo "Tmux shortcuts:"
+echo "  Ctrl+a |  - Split vertically"
+echo "  Ctrl+a -  - Split horizontally"
+echo "  Ctrl+a d  - Detach session"
+echo "================================================"
+
+exec "$@"
+EOF
+
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["sleep", "infinity"]

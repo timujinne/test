@@ -21,9 +21,13 @@ setup: ## Первичная настройка проекта
 	@echo "$(GREEN)Готово! Теперь создайте umbrella проект:$(NC)"
 	@echo "  mix new binance_system --umbrella"
 
-start: ## Запустить все сервисы
+start: ## Запустить основные сервисы (postgres, redis, dev)
 	@echo "$(GREEN)Запуск сервисов...$(NC)"
-	docker-compose up -d
+	docker-compose up -d postgres redis dev
+
+start-all: ## Запустить все сервисы включая мониторинг и инструменты
+	@echo "$(GREEN)Запуск всех сервисов...$(NC)"
+	docker-compose --profile monitoring --profile tools up -d
 
 start-monitoring: ## Запустить с мониторингом (Grafana + Prometheus)
 	@echo "$(GREEN)Запуск с мониторингом...$(NC)"
@@ -107,7 +111,20 @@ db-seed: ## Заполнить БД тестовыми данными
 	mix run priv/repo/seeds.exs
 
 db-shell: ## Открыть psql консоль
-	docker-compose exec postgres psql -U postgres -d binance_trading_dev
+	docker exec -it binance_postgres psql -U postgres -d binance_trading_dev
+
+db-shell-dev: ## Открыть psql из контейнера dev
+	docker exec -it binance_dev psql -h postgres -U postgres -d binance_trading_dev
+
+db-backup: ## Создать бэкап базы данных
+	@echo "$(GREEN)Создание бэкапа...$(NC)"
+	docker exec -t binance_postgres pg_dump -U postgres binance_trading_dev > backup_$$(date +%Y%m%d_%H%M%S).sql
+	@echo "$(GREEN)Бэкап создан!$(NC)"
+
+db-restore: ## Восстановить базу из бэкапа (использование: make db-restore file=backup.sql)
+	@echo "$(YELLOW)Восстановление из $(file)...$(NC)"
+	docker exec -i binance_postgres psql -U postgres -d binance_trading_dev < $(file)
+	@echo "$(GREEN)Готово!$(NC)"
 
 # === Phoenix команды ===
 
@@ -122,14 +139,29 @@ routes: ## Показать все маршруты
 
 # === Docker команды ===
 
-docker-build: ## Собрать Docker образ
-	docker-compose build
+docker-build: ## Собрать Docker образ для разработки
+	docker-compose build dev
 
-docker-shell: ## Открыть shell в контейнере приложения
-	docker-compose exec app sh
+docker-rebuild: ## Пересобрать образ без кеша
+	docker-compose build --no-cache dev
+
+docker-shell: ## Открыть bash shell в контейнере разработки
+	docker exec -it binance_dev bash
+
+docker-tmux: ## Открыть tmux сессию в контейнере
+	docker exec -it binance_dev tmux new -s dev
 
 docker-iex: ## Открыть IEx в контейнере
-	docker-compose exec app iex -S mix
+	docker exec -it binance_dev iex -S mix
+
+docker-exec: ## Выполнить команду в контейнере (использование: make docker-exec cmd="mix test")
+	docker exec -it binance_dev $(cmd)
+
+docker-logs-dev: ## Показать логи контейнера разработки
+	docker-compose logs -f dev
+
+docker-stats: ## Показать использование ресурсов контейнерами
+	docker stats binance_dev binance_postgres binance_redis
 
 # === Генерация ===
 

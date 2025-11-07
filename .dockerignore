@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+.github
+
+# Elixir
+_build/
+deps/
+*.ez
+*.beam
+.fetch
+erl_crash.dump
+
+# Mix
+/cover/
+/doc/
+/.mix/
+
+# Phoenix
+/priv/static/
+/assets/node_modules/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+!README.md
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Tests
+/test/
+/cover/
+
+# Temporary files
+*.log
+*.tmp
+tmp/
+temp/
+
+# Backups
+*.sql
+backup_*
+
+# Monitoring
+/monitoring/
+
+# Build artifacts
+/priv/plts/
+dialyzer_*
