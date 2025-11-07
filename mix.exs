@@ -49,11 +49,15 @@ defmodule BinanceSystem.MixProject do
       # Decimal for financial calculations
       {:decimal, "~> 2.1"},
 
+      # SSL certificates for HTTPS
+      {:castore, "~> 1.0"},
+
       # Development and Testing
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.1", only: [:dev, :test], runtime: false},
       {:mox, "~> 1.1", only: :test}
     ]

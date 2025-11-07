@@ -3,13 +3,17 @@
 
 [
   # Import dependencies for proper formatting
-  import_deps: [:ecto, :ecto_sql, :phoenix, :phoenix_live_view],
+  # Note: Add dependencies here once they are installed in mix.exs
+  # import_deps: [:ecto, :ecto_sql, :phoenix, :phoenix_live_view],
+  import_deps: [],
 
   # Subdirectories to format (umbrella apps)
   subdirectories: ["apps/*"],
 
   # Plugins for special formatting
-  plugins: [Phoenix.LiveView.HTMLFormatter],
+  # Note: Enable once Phoenix LiveView is installed
+  # plugins: [Phoenix.LiveView.HTMLFormatter],
+  plugins: [],
 
   # Input files and patterns
   inputs: [
