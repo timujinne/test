@@ -13,7 +13,7 @@ defmodule DataCollector.Application do
       # Rate limiter to respect Binance API limits
       DataCollector.RateLimiter,
       # Market data aggregator
-      DataCollector.MarketData,
+      DataCollector.MarketData
       # WebSocket connection manager (commented for now - will be implemented)
       # {DataCollector.WebSocket.Supervisor, []}
     ]

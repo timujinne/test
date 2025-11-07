@@ -71,9 +71,7 @@ defmodule TradingEngine.RiskManager do
     max_position_value = account_balance * (state.max_position_size_percent / 100)
     max_quantity = Decimal.div(Decimal.new(max_position_value), Decimal.new(price))
 
-    Logger.debug(
-      "Calculated position size for user #{user_id}: #{max_quantity} (max value: $#{max_position_value})"
-    )
+    Logger.debug("Calculated position size for user #{user_id}: #{max_quantity} (max value: $#{max_position_value})")
 
     {:reply, {:ok, max_quantity}, state}
   end

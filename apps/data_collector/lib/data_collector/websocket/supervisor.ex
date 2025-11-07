@@ -15,8 +15,7 @@ defmodule DataCollector.WebSocket.Supervisor do
   def init(_opts) do
     children = [
       # Main ticker stream for popular pairs
-      {DataCollector.WebSocket.Client,
-       streams: ["btcusdt@ticker", "ethusdt@ticker", "bnbusdt@ticker"]}
+      {DataCollector.WebSocket.Client, streams: ["btcusdt@ticker", "ethusdt@ticker", "bnbusdt@ticker"]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

@@ -9,7 +9,8 @@ defmodule SharedData.Schemas.Setting do
   schema "settings" do
     field :key, :string
     field :value, :map
-    field :category, :string # "trading", "notification", "risk_management", etc.
+    # "trading", "notification", "risk_management", etc.
+    field :category, :string
     field :is_active, :boolean, default: true
 
     belongs_to :user, SharedData.Schemas.User

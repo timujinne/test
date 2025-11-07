@@ -6,7 +6,8 @@ defmodule DataCollector.MarketData do
   use GenServer
   require Logger
 
-  @update_interval 5_000 # 5 seconds
+  # 5 seconds
+  @update_interval 5_000
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)

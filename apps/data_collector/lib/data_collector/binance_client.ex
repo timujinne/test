@@ -72,5 +72,6 @@ defmodule DataCollector.BinanceClient do
   defp mask_api_key(api_key) when is_binary(api_key) do
     String.slice(api_key, 0..7) <> "..." <> String.slice(api_key, -4..-1)
   end
+
   defp mask_api_key(_), do: "***"
 end
