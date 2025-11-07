@@ -7,7 +7,7 @@
 # The directory Mix downloads your dependencies sources to.
 /deps/
 
-# Where 3rd-party dependencies like ExDoc output generated docs.
+# Where third-party dependencies like ExDoc output generated docs.
 /doc/
 
 # Ignore .fetch files in case you like to edit your project deps locally.
@@ -22,87 +22,58 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 binance_system-*.tar
 
-# Temporary files for e.g. tests
-/tmp
+# Temporary files, for example, from tests.
+/tmp/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# Secret files
-config/*.secret.exs
-priv/cert/*.key
-priv/cert/*.crt
-
-# Editor config
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Node.js dependencies
+# NPM dependencies
 node_modules/
 npm-debug.log
-yarn-error.log
 
-# Phoenix static artifacts
+# Static files
+/priv/static/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Ignore development certificates
+priv/cert/*.key
+priv/cert/*.crt
 /apps/*/priv/static/
 /apps/*/priv/static/cache/
-
-# Phoenix assets
-/apps/*/assets/node_modules/
-
-# Phoenix LiveView uploads
 /apps/*/priv/static/uploads/
 
-# Database dumps
-*.dump
-*.sql
+# Dialyzer PLT files
+/priv/plts/
+priv/cert/selfsigned*
 
-# Docker volumes
-postgres_data/
-redis_data/
-grafana_data/
+# Backup files
+/priv/backup/
+/priv/exports/
 
-# Logs
-*.log
-logs/
-
-# Release artifacts
-_build/prod/rel/
-
-# Ignore database files
-*.db
-*.sqlite
+# IDE
+.vscode/
+.idea/
+*.iml
+.DS_Store
 
 # Elixir LS
 .elixir_ls/
 
-# Dialyzer
-/priv/plts/
+# Ignore compiled files
+*.beam
+*.so
+*.o
+*.a
 
-# Test coverage
-coverage/
+# Coverage
+/coverage/
 
-# Backup files
-*.bak
-*.backup
-
-# OS files
-Thumbs.db
-
-# Documentation artifacts
-/apps/*/doc/
-
-# Mix local
-mix.lock.local
-
-# Generated certificates
-priv/cert/selfsigned*
-
-# Application specific
-/priv/backup/
-/priv/exports/
+# Mix lock conflicts
+mix.lock.orig
