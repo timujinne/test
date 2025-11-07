@@ -106,3 +106,4 @@ priv/cert/selfsigned*
 # Application specific
 /priv/backup/
 /priv/exports/
+/.worktrees/
