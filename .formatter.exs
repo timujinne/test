@@ -29,9 +29,8 @@
   # Line length (default: 98)
   line_length: 120,
 
-  # Export configuration for local deps
-  export: [
-    locals_without_parens: [
+  # Local functions without parentheses (doesn't require dependencies)
+  locals_without_parens: [
       # Phoenix
       plug: 1,
       plug: 2,
@@ -85,7 +84,12 @@
       assert_receive: 1,
       assert_receive: 2,
       refute_receive: 1,
-      refute_receive: 2
+      refute_receive: 2,
+
+      # Phoenix LiveView components
+      attr: 2,
+      attr: 3,
+      slot: 1,
+      slot: 2
     ]
-  ]
 ]
