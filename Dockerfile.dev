@@ -1,0 +1,49 @@
+# Dockerfile для разработки
+FROM elixir:1.14-alpine
+
+# Установка зависимостей
+RUN apk add --no-cache \
+    build-base \
+    git \
+    nodejs \
+    npm \
+    postgresql-client \
+    inotify-tools
+
+# Установка hex и rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Создание рабочей директории
+WORKDIR /app
+
+# Установка Phoenix
+RUN mix archive.install hex phx_new --force
+
+# Копирование зависимостей
+COPY mix.exs mix.lock ./
+COPY apps/*/mix.exs ./apps/
+
+# Установка зависимостей
+RUN mix deps.get
+
+# Копирование конфигурации
+COPY config ./config
+
+# Копирование приложений
+COPY apps ./apps
+
+# Копирование остальных файлов
+COPY . .
+
+# Компиляция
+RUN mix deps.compile
+
+# Установка зависимостей для assets
+RUN cd apps/dashboard_web/assets && npm install
+
+# Открытие порта
+EXPOSE 4000
+
+# Команда по умолчанию
+CMD ["mix", "phx.server"]

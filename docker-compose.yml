@@ -1,0 +1,158 @@
+version: '3.8'
+
+services:
+  # PostgreSQL с TimescaleDB расширением
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: binance_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: binance_trading_dev
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - binance_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis для кеширования и PubSub
+  redis:
+    image: redis:7-alpine
+    container_name: binance_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - binance_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Elixir/Phoenix приложение (раскомментировать после создания проекта)
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: binance_app
+  #   environment:
+  #     DATABASE_URL: postgres://postgres:postgres@postgres:5432/binance_trading_dev
+  #     REDIS_URL: redis://redis:6379/0
+  #     SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+  #     BINANCE_API_KEY: ${BINANCE_API_KEY}
+  #     BINANCE_SECRET_KEY: ${BINANCE_SECRET_KEY}
+  #     BINANCE_BASE_URL: ${BINANCE_BASE_URL}
+  #     CLOAK_KEY: ${CLOAK_KEY}
+  #     PHX_HOST: localhost
+  #     PORT: 4000
+  #   ports:
+  #     - "4000:4000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   volumes:
+  #     - .:/app
+  #     - app_build:/app/_build
+  #     - app_deps:/app/deps
+  #   networks:
+  #     - binance_network
+  #   command: mix phx.server
+
+  # Grafana для визуализации метрик (опционально)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: binance_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - binance_network
+    profiles:
+      - monitoring
+
+  # Prometheus для сбора метрик (опционально)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: binance_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - binance_network
+    profiles:
+      - monitoring
+
+  # pgAdmin для управления БД (опционально)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: binance_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - binance_network
+    profiles:
+      - tools
+
+  # Redis Commander для просмотра Redis данных (опционально)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: binance_redis_commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - binance_network
+    profiles:
+      - tools
+
+networks:
+  binance_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  app_build:
+    driver: local
+  app_deps:
+    driver: local
