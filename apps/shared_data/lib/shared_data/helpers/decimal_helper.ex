@@ -31,9 +31,14 @@ defmodule SharedData.Helpers.DecimalHelper do
   @doc """
   Безопасное деление с обработкой деления на ноль.
   """
-  def safe_div(_, %Decimal{coef: 0}), do: Decimal.new(0)
   def safe_div(numerator, denominator) do
-    Decimal.div(to_decimal(numerator), to_decimal(denominator))
+    denom = to_decimal(denominator)
+    
+    if zero?(denom) do
+      Decimal.new(0)
+    else
+      Decimal.div(to_decimal(numerator), denom)
+    end
   end
 
   @doc """
@@ -67,8 +72,8 @@ defmodule SharedData.Helpers.DecimalHelper do
     if zero?(old) do
       Decimal.new(0)
     else
-      old
-      |> Decimal.sub(new)
+      new
+      |> Decimal.sub(old)
       |> Decimal.div(old)
       |> Decimal.mult(100)
     end

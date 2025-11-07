@@ -1,5 +1,22 @@
 import Config
 
+# Binance API configuration for testing (mock values)
+config :binance,
+  api_key: "test_api_key",
+  secret_key: "test_secret_key",
+  end_point: "https://testnet.binance.vision"
+
+# Cloak encryption for testing
+config :shared_data, SharedData.Vault,
+  ciphers: [
+    default: {
+      Cloak.Ciphers.AES.GCM,
+      tag: "AES.GCM.V1",
+      key: Base.decode64!("tJq/RQzw8QV9dJFELmKwEiCq0lTFqe0y9fKDnSdmUm8="),
+      iv_length: 12
+    }
+  ]
+
 # Configure shared_data repository for testing
 config :shared_data, SharedData.Repo,
   username: "postgres",
