@@ -10,13 +10,17 @@ defmodule SharedData.Schemas.Order do
     field :exchange_order_id, :string
     field :client_order_id, :string
     field :symbol, :string
-    field :side, :string # "BUY" or "SELL"
-    field :type, :string # "LIMIT", "MARKET", "STOP_LOSS", etc.
-    field :time_in_force, :string # "GTC", "IOC", "FOK"
+    # "BUY" or "SELL"
+    field :side, :string
+    # "LIMIT", "MARKET", "STOP_LOSS", etc.
+    field :type, :string
+    # "GTC", "IOC", "FOK"
+    field :time_in_force, :string
     field :price, :decimal
     field :quantity, :decimal
     field :stop_price, :decimal
-    field :status, :string # "NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", etc.
+    # "NEW", "FILLED", "PARTIALLY_FILLED", "CANCELED", etc.
+    field :status, :string
     field :executed_quantity, :decimal
     field :cumulative_quote_quantity, :decimal
     field :strategy, :string

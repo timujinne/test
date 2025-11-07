@@ -101,8 +101,7 @@ defmodule TradingEngine.Strategies.Grid do
   """
   def evaluate(%__MODULE__{} = grid, current_price, balance) do
     # Calculate order size if not set
-    order_size =
-      grid.order_size || calculate_order_size(balance, grid.grid_levels)
+    order_size = grid.order_size || calculate_order_size(balance, grid.grid_levels)
 
     # Get current grid levels
     {_grid, levels} = calculate_grid_levels(grid)
@@ -183,7 +182,7 @@ defmodule TradingEngine.Strategies.Grid do
   defp calculate_order_size(balance, grid_levels) when is_number(balance) do
     # Use @default_order_size_percent of balance per order
     # Divided by grid levels to ensure we don't over-allocate
-    (balance * @default_order_size_percent / 100) / grid_levels
+    balance * @default_order_size_percent / 100 / grid_levels
   end
 
   defp calculate_order_size(_balance, _grid_levels), do: 0

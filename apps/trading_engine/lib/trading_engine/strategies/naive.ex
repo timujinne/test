@@ -43,14 +43,15 @@ defmodule TradingEngine.Strategies.Naive do
   end
 
   defp calculate_price_change_percent(current, last) when is_number(current) and is_number(last) do
-    ((current - last) / last) * 100
+    (current - last) / last * 100
   end
 
   defp calculate_price_change_percent(_current, _last), do: 0.0
 
   defp has_balance?(balance) when is_map(balance) do
     usdt = Map.get(balance, "USDT", 0)
-    usdt > 10.0 # Minimum balance to trade
+    # Minimum balance to trade
+    usdt > 10.0
   end
 
   defp has_balance?(_), do: false
@@ -71,7 +72,7 @@ defmodule TradingEngine.Strategies.Naive do
   defp calculate_buy_quantity(price, balance) when is_number(price) and is_map(balance) do
     usdt = Map.get(balance, "USDT", 0)
     # Use 50% of available balance
-    (usdt * 0.5) / price
+    usdt * 0.5 / price
   end
 
   defp calculate_buy_quantity(_price, _balance), do: 0

@@ -10,7 +10,8 @@ defmodule SharedData.Schemas.Trade do
   schema "trades" do
     field :exchange_trade_id, :string
     field :symbol, :string
-    field :side, :string # "BUY" or "SELL"
+    # "BUY" or "SELL"
+    field :side, :string
     field :price, :decimal
     field :quantity, :decimal
     field :quote_quantity, :decimal
