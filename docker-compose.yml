@@ -1,158 +1,335 @@
 version: '3.8'
 
+# ================================================
+# BINANCE TRADING SYSTEM - DEVELOPMENT ENVIRONMENT
+# Улучшенная конфигурация для стабильной разработки
+# ================================================
+
 services:
-  # PostgreSQL с TimescaleDB расширением
+  # ================================================
+  # POSTGRESQL С TIMESCALEDB
+  # ================================================
   postgres:
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb:latest-pg16
     container_name: binance_postgres
+    init: true
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: binance_trading_dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-binance_trading_dev}
       PGDATA: /var/lib/postgresql/data/pgdata
+      # Оптимизация для разработки
+      POSTGRES_MAX_CONNECTIONS: 100
+      POSTGRES_SHARED_BUFFERS: 256MB
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Инициализационные скрипты (если есть)
+      - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - binance_network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-binance_trading_dev}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=timescaledb"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
 
-  # Redis для кеширования и PubSub
+  # ================================================
+  # REDIS ДЛЯ КЕШИРОВАНИЯ И PUBSUB
+  # ================================================
   redis:
     image: redis:7-alpine
     container_name: binance_redis
-    command: redis-server --appendonly yes
+    init: true
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - binance_network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
 
-  # Elixir/Phoenix приложение (раскомментировать после создания проекта)
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: binance_app
-  #   environment:
-  #     DATABASE_URL: postgres://postgres:postgres@postgres:5432/binance_trading_dev
-  #     REDIS_URL: redis://redis:6379/0
-  #     SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-  #     BINANCE_API_KEY: ${BINANCE_API_KEY}
-  #     BINANCE_SECRET_KEY: ${BINANCE_SECRET_KEY}
-  #     BINANCE_BASE_URL: ${BINANCE_BASE_URL}
-  #     CLOAK_KEY: ${CLOAK_KEY}
-  #     PHX_HOST: localhost
-  #     PORT: 4000
-  #   ports:
-  #     - "4000:4000"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   volumes:
-  #     - .:/app
-  #     - app_build:/app/_build
-  #     - app_deps:/app/deps
-  #   networks:
-  #     - binance_network
-  #   command: mix phx.server
+  # ================================================
+  # DEVELOPMENT ENVIRONMENT (ГЛАВНЫЙ СЕРВИС)
+  # ================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        GO_VERSION: 1.23.5
+    image: binance-trading-dev:latest
+    container_name: binance_dev
+    init: true
+    stdin_open: true
+    tty: true
+    ports:
+      # Phoenix server
+      - "4000:4000"
+      # Phoenix LiveReload
+      - "4001:4001"
+      # Дополнительные порты для микросервисов/отладки
+      - "4002:4002"
+      - "4003:4003"
+    volumes:
+      # Монтирование кода проекта
+      - .:/app:cached
+      # Volumes для кеширования зависимостей (ускоряет работу)
+      - elixir_build:/app/_build
+      - elixir_deps:/app/deps
+      - node_modules:/app/assets/node_modules
+      # Сохранение истории командной строки
+      - shell_history:/root/.bash_history
+      # Git конфигурация с хоста (опционально)
+      - ~/.gitconfig:/root/.gitconfig:ro
+      # SSH ключи для git операций (опционально)
+      # - ~/.ssh:/root/.ssh:ro
+    working_dir: /app
+    environment:
+      # Database
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-binance_trading_dev}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-binance_trading_dev}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
 
-  # Grafana для визуализации метрик (опционально)
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      REDIS_POOL_SIZE: ${REDIS_POOL_SIZE:-5}
+
+      # Phoenix
+      PHX_HOST: ${PHX_HOST:-localhost}
+      PHX_SERVER: "true"
+      PORT: 4000
+      MIX_ENV: ${MIX_ENV:-dev}
+      NODE_ENV: ${NODE_ENV:-development}
+
+      # Security (из .env файла)
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-dev_secret_key_base_change_in_production}
+      CLOAK_KEY: ${CLOAK_KEY:-}
+
+      # Binance API
+      BINANCE_API_KEY: ${BINANCE_API_KEY:-}
+      BINANCE_SECRET_KEY: ${BINANCE_SECRET_KEY:-}
+      BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://testnet.binance.vision}
+      BINANCE_WS_URL: ${BINANCE_WS_URL:-wss://testnet.binance.vision/ws}
+
+      # Trading settings
+      MAX_POSITION_SIZE: ${MAX_POSITION_SIZE:-1000}
+      TRADE_SIZE_PERCENT: ${TRADE_SIZE_PERCENT:-2.0}
+      STOP_LOSS_PERCENT: ${STOP_LOSS_PERCENT:-2.0}
+      TAKE_PROFIT_PERCENT: ${TAKE_PROFIT_PERCENT:-3.0}
+      PAPER_TRADING: ${PAPER_TRADING:-true}
+
+      # Development settings
+      ENABLE_LIVE_DASHBOARD: ${ENABLE_LIVE_DASHBOARD:-true}
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_SQL_QUERIES: ${LOG_SQL_QUERIES:-false}
+      WS_DEBUG: ${WS_DEBUG:-false}
+
+      # Elixir runtime
+      ERL_AFLAGS: "-kernel shell_history enabled"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - binance_network
+    restart: unless-stopped
+    # Команда по умолчанию - держать контейнер запущенным
+    # Вы можете войти через: docker exec -it binance_dev bash
+    command: sleep infinity
+
+    # Healthcheck для проверки доступности контейнера
+    healthcheck:
+      test: ["CMD", "mix", "do", "compile"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+
+  # ================================================
+  # GRAFANA ДЛЯ ВИЗУАЛИЗАЦИИ (ОПЦИОНАЛЬНО)
+  # ================================================
   grafana:
     image: grafana/grafana:latest
     container_name: binance_grafana
+    init: true
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_INSTALL_PLUGINS: redis-datasource
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: redis-datasource,postgres-datasource
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     networks:
       - binance_network
+    restart: unless-stopped
     profiles:
       - monitoring
+    depends_on:
+      - postgres
+      - prometheus
 
-  # Prometheus для сбора метрик (опционально)
+  # ================================================
+  # PROMETHEUS ДЛЯ СБОРА МЕТРИК (ОПЦИОНАЛЬНО)
+  # ================================================
   prometheus:
     image: prom/prometheus:latest
     container_name: binance_prometheus
+    init: true
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    networks:
+      - binance_network
+    restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-    networks:
-      - binance_network
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
     profiles:
       - monitoring
 
-  # pgAdmin для управления БД (опционально)
+  # ================================================
+  # PGADMIN ДЛЯ УПРАВЛЕНИЯ БД (ОПЦИОНАЛЬНО)
+  # ================================================
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: binance_pgadmin
+    init: true
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
       - "5050:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
       - binance_network
+    restart: unless-stopped
     profiles:
       - tools
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # Redis Commander для просмотра Redis данных (опционально)
+  # ================================================
+  # REDIS COMMANDER ДЛЯ ПРОСМОТРА REDIS (ОПЦИОНАЛЬНО)
+  # ================================================
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: binance_redis_commander
+    init: true
     environment:
       REDIS_HOSTS: local:redis:6379
+      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-admin}
     ports:
       - "8081:8081"
     networks:
       - binance_network
+    restart: unless-stopped
     profiles:
       - tools
+    depends_on:
+      redis:
+        condition: service_healthy
 
+# ================================================
+# NETWORKS
+# ================================================
 networks:
   binance_network:
+    name: binance_network
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
 
+# ================================================
+# VOLUMES (ПЕРСИСТЕНТНОЕ ХРАНИЛИЩЕ)
+# ================================================
 volumes:
+  # Database
   postgres_data:
     driver: local
+    name: binance_postgres_data
+
+  # Cache
   redis_data:
     driver: local
+    name: binance_redis_data
+
+  # Monitoring
   grafana_data:
     driver: local
+    name: binance_grafana_data
+
   prometheus_data:
     driver: local
+    name: binance_prometheus_data
+
+  # Tools
   pgadmin_data:
     driver: local
-  app_build:
+    name: binance_pgadmin_data
+
+  # Development dependencies (для ускорения)
+  elixir_build:
     driver: local
-  app_deps:
+    name: binance_elixir_build
+
+  elixir_deps:
     driver: local
+    name: binance_elixir_deps
+
+  node_modules:
+    driver: local
+    name: binance_node_modules
+
+  shell_history:
+    driver: local
+    name: binance_shell_history
