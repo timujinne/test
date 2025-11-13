@@ -1,0 +1,159 @@
+# ================================================
+# PROMETHEUS CONFIGURATION
+# Binance Trading System Monitoring
+# ================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'binance-trading-dev'
+    env: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+  # - "recording_rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ================================================
+  # PROMETHEUS SELF-MONITORING
+  # ================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # ================================================
+  # PHOENIX APPLICATION METRICS
+  # ================================================
+  - job_name: 'phoenix'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['dev:4000']
+        labels:
+          service: 'phoenix-app'
+          app: 'dashboard_web'
+    # Если используется LiveDashboard metrics endpoint
+    # relabel_configs:
+    #   - source_labels: [__address__]
+    #     target_label: instance
+
+  # ================================================
+  # PHOENIX LIVEVIEW METRICS (если настроен endpoint)
+  # ================================================
+  - job_name: 'phoenix-liveview'
+    metrics_path: '/live-metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['dev:4000']
+        labels:
+          service: 'liveview'
+          app: 'dashboard_web'
+
+  # ================================================
+  # ERLANG/OTP VM METRICS
+  # ================================================
+  - job_name: 'beam-metrics'
+    metrics_path: '/metrics/beam'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['dev:4000']
+        labels:
+          service: 'beam-vm'
+          runtime: 'erlang-otp'
+
+  # ================================================
+  # POSTGRESQL EXPORTER (если установлен)
+  # ================================================
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgresql'
+  #         database: 'binance_trading_dev'
+
+  # ================================================
+  # REDIS EXPORTER (если установлен)
+  # ================================================
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis'
+  #         cache: 'main'
+
+  # ================================================
+  # CUSTOM APPLICATION METRICS
+  # ================================================
+  - job_name: 'trading-engine'
+    metrics_path: '/api/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['dev:4000']
+        labels:
+          service: 'trading-engine'
+          component: 'core'
+    # Опциональная basic auth
+    # basic_auth:
+    #   username: 'prometheus'
+    #   password: 'your-password'
+
+  # ================================================
+  # BINANCE API METRICS (custom exporter)
+  # ================================================
+  - job_name: 'binance-api'
+    metrics_path: '/api/binance/metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['dev:4000']
+        labels:
+          service: 'binance-integration'
+          api: 'rest-websocket'
+
+  # ================================================
+  # DOCKER CONTAINER METRICS (если cadvisor установлен)
+  # ================================================
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #       labels:
+  #         service: 'container-metrics'
+
+  # ================================================
+  # NODE EXPORTER (если установлен)
+  # ================================================
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'system-metrics'
+
+# ================================================
+# REMOTE WRITE CONFIGURATION (для долгосрочного хранения)
+# ================================================
+# remote_write:
+#   - url: "http://thanos-receiver:10908/api/v1/receive"
+#     queue_config:
+#       capacity: 10000
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       max_shards: 10
+
+# ================================================
+# REMOTE READ CONFIGURATION
+# ================================================
+# remote_read:
+#   - url: "http://thanos-querier:10901/api/v1/read"
+#     read_recent: true
