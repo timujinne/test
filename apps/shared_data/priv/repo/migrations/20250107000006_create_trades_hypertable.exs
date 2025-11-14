@@ -42,6 +42,7 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
       SUM(pnl) as total_pnl
     FROM trades
     GROUP BY bucket, account_id, symbol
+    WITH NO DATA
     """
 
     # Refresh policy for the continuous aggregate
