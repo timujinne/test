@@ -3,7 +3,7 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
 
   def up do
     create table(:trades, primary_key: false) do
-      add :id, :binary_id, primary_key: true
+      add :id, :binary_id, null: false
       add :symbol, :string, null: false
       add :side, :string, null: false
       add :price, :decimal, precision: 20, scale: 8, null: false
@@ -17,6 +17,9 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
 
       timestamps()
     end
+
+    # Create composite primary key with timestamp for TimescaleDB hypertable
+    execute "ALTER TABLE trades ADD PRIMARY KEY (id, timestamp)"
 
     create index(:trades, [:account_id])
     create index(:trades, [:symbol])
@@ -39,6 +42,7 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
       SUM(pnl) as total_pnl
     FROM trades
     GROUP BY bucket, account_id, symbol
+    WITH NO DATA
     """
 
     # Refresh policy for the continuous aggregate

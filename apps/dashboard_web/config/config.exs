@@ -1,5 +1,8 @@
 import Config
 
+config :dashboard_web,
+  ecto_repos: [SharedData.Repo]
+
 config :dashboard_web, DashboardWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Phoenix.Endpoint.Cowboy2Adapter,
@@ -7,7 +10,7 @@ config :dashboard_web, DashboardWeb.Endpoint,
     formats: [html: DashboardWeb.ErrorHTML],
     layout: false
   ],
-  pubsub_server: DashboardWeb.PubSub,
+  pubsub_server: BinanceSystem.PubSub,
   live_view: [signing_salt: "your_signing_salt"]
 
 config :dashboard_web,

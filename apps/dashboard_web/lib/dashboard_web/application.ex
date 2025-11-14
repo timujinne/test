@@ -7,7 +7,7 @@ defmodule DashboardWeb.Application do
   def start(_type, _args) do
     children = [
       DashboardWeb.Telemetry,
-      {Phoenix.PubSub, name: DashboardWeb.PubSub},
+      # PubSub is started in DataCollector.Application as BinanceSystem.PubSub
       DashboardWeb.Endpoint
     ]
 

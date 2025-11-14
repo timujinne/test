@@ -4,10 +4,14 @@ defmodule TradingEngine.RiskManager do
   """
   require Logger
 
+  alias SharedData.Types
+
   @max_position_size Decimal.new("1.0")  # 1 BTC
   @max_order_size Decimal.new("0.1")     # 0.1 BTC
-  @max_daily_loss Decimal.new("1000")    # $1000 USDT
+  # TODO: Implement daily loss tracking
+  # @max_daily_loss Decimal.new("1000")    # $1000 USDT
 
+  @spec check_order(Types.order_params(), map()) :: :ok | {:error, String.t()}
   def check_order(order_params, state) do
     with :ok <- check_order_size(order_params),
          :ok <- check_position_size(order_params, state),
@@ -16,6 +20,7 @@ defmodule TradingEngine.RiskManager do
     end
   end
 
+  @spec check_order_size(Types.order_params()) :: :ok | {:error, String.t()}
   defp check_order_size(%{quantity: quantity}) do
     qty = Decimal.new(quantity)
 
@@ -28,6 +33,7 @@ defmodule TradingEngine.RiskManager do
 
   defp check_order_size(_), do: :ok
 
+  @spec check_position_size(Types.order_params(), map()) :: :ok | {:error, String.t()}
   defp check_position_size(%{side: "BUY", quantity: quantity}, state) do
     current_position_size = calculate_position_size(state.positions)
     new_qty = Decimal.new(quantity)
@@ -42,12 +48,15 @@ defmodule TradingEngine.RiskManager do
 
   defp check_position_size(_, _), do: :ok
 
-  defp check_daily_loss(state) do
+  @spec check_daily_loss(map()) :: :ok | {:error, String.t()}
+  defp check_daily_loss(_state) do
     # This would need to query database for today's trades
     # For now, simplified implementation
+    # TODO: Implement actual daily loss check using @max_daily_loss
     :ok
   end
 
+  @spec calculate_position_size(map()) :: Decimal.t()
   defp calculate_position_size(positions) do
     Enum.reduce(positions, Decimal.new(0), fn {_symbol, pos}, acc ->
       Decimal.add(acc, pos.quantity || Decimal.new(0))

@@ -2,10 +2,12 @@ defmodule SharedData.Schemas.Trade do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :binary_id, autogenerate: true}
+  @primary_key false
   @foreign_key_type :binary_id
 
   schema "trades" do
+    field :id, :binary_id, primary_key: true, autogenerate: true
+    field :timestamp, :utc_datetime_usec, primary_key: true
     field :symbol, :string
     field :side, :string
     field :price, :decimal
@@ -13,7 +15,6 @@ defmodule SharedData.Schemas.Trade do
     field :commission, :decimal
     field :commission_asset, :string
     field :pnl, :decimal
-    field :timestamp, :utc_datetime_usec
 
     belongs_to :account, SharedData.Schemas.Account
     belongs_to :order, SharedData.Schemas.Order

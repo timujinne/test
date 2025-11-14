@@ -1,7 +1,6 @@
 defmodule DashboardWeb.HistoryLive do
   use DashboardWeb, :live_view
-  
-  alias SharedData.{Trading}
+
   alias SharedData.Helpers.DecimalHelper
 
   @impl true

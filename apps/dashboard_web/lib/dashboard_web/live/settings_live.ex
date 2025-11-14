@@ -1,7 +1,5 @@
 defmodule DashboardWeb.SettingsLive do
   use DashboardWeb, :live_view
-  
-  alias SharedData.{Accounts, Trading}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,7 +20,7 @@ defmodule DashboardWeb.SettingsLive do
   end
 
   @impl true
-  def handle_event("activate_strategy", %{"id" => strategy_id}, socket) do
+  def handle_event("activate_strategy", %{"id" => _strategy_id}, socket) do
     # TODO: Implement strategy activation
     {:noreply, put_flash(socket, :info, "Strategy activation requested")}
   end
