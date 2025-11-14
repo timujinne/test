@@ -8,7 +8,7 @@ defmodule SharedData.PubSub do
   ## Topics
 
   ### Market Data
-  - `market:\#{symbol}` - Ticker and trade updates for a specific symbol
+  - `market:\\#{symbol}` - Ticker and trade updates for a specific symbol
     - Messages: `{:ticker, data}`, `{:trade, data}`
     - Publishers: BinanceWebSocket
     - Subscribers: MarketData, Trader, TradingLive
