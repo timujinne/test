@@ -10,7 +10,10 @@ config :binance_system, BinanceSystem.PubSub,
   adapter: Phoenix.PubSub.PG2
 
 # Import configuration for each application
-import_config "../apps/*/config/config.exs"
+import_config "../apps/shared_data/config/config.exs"
+import_config "../apps/data_collector/config/config.exs"
+import_config "../apps/trading_engine/config/config.exs"
+import_config "../apps/dashboard_web/config/config.exs"
 
 # Import environment specific config
 import_config "#{config_env()}.exs"
