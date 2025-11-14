@@ -1,6 +1,5 @@
 defmodule DataCollector.BinanceClientTest do
   use ExUnit.Case, async: true
-  alias DataCollector.BinanceClient
 
   # Note: These tests verify the signature generation logic
   # without making actual HTTP requests to Binance API
