@@ -47,9 +47,12 @@ jobs:
         path: |
           deps
           _build
-        key: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('**/mix.lock') }}
+        key: ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-v2-${{ hashFiles('**/mix.lock') }}
         restore-keys: |
-          ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+          ${{ runner.os }}-mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-v2-
+
+    - name: Clean dependencies
+      run: mix deps.clean --all || true
 
     - name: Install dependencies
       run: mix deps.get
