@@ -1,7 +1,7 @@
 import Config
 
 # Shared configuration for all applications
-config :binance_system,
+config :shared_data,
   ecto_repos: [SharedData.Repo]
 
 # Phoenix PubSub is configured in each application's supervision tree

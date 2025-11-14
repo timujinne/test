@@ -1,5 +1,5 @@
 defmodule SharedData.PubSub do
-  @moduledoc """
+  @moduledoc ~S"""
   Centralized PubSub module for the Binance Trading System.
 
   All applications in the umbrella project use a single Phoenix.PubSub instance
@@ -8,7 +8,7 @@ defmodule SharedData.PubSub do
   ## Topics
 
   ### Market Data
-  - `market:\#{symbol}` - Ticker and trade updates for a specific symbol
+  - `market:#{symbol}` - Ticker and trade updates for a specific symbol
     - Messages: `{:ticker, data}`, `{:trade, data}`
     - Publishers: BinanceWebSocket
     - Subscribers: MarketData, Trader, TradingLive

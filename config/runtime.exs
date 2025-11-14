@@ -45,6 +45,6 @@ if config_env() == :prod do
 
   # Redis configuration (optional)
   if redis_url = System.get_env("REDIS_URL") do
-    config :binance_system, :redis_url, redis_url
+    config :shared_data, :redis_url, redis_url
   end
 end

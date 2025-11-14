@@ -6,10 +6,10 @@ defmodule DataCollector.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      {Phoenix.PubSub, name: BinanceSystem.PubSub},
       DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
-      DataCollector.MarketData,
-      {Phoenix.PubSub, name: BinanceSystem.PubSub}
+      DataCollector.MarketData
     ]
 
     opts = [strategy: :one_for_one, name: DataCollector.Supervisor]
