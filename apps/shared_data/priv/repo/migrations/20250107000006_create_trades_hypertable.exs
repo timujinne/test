@@ -19,7 +19,7 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
     end
 
     # Create composite primary key with timestamp for TimescaleDB hypertable
-    create unique_index(:trades, [:id, :timestamp], primary: true)
+    execute "ALTER TABLE trades ADD PRIMARY KEY (id, timestamp)"
 
     create index(:trades, [:account_id])
     create index(:trades, [:symbol])
