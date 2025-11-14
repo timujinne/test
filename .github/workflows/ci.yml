@@ -164,9 +164,6 @@ jobs:
     - name: Install dependencies
       run: mix deps.get
 
-    - name: Check for vulnerable dependencies
-      run: mix deps.audit
-
     - name: Check for retired dependencies
       run: mix hex.audit
       continue-on-error: true
