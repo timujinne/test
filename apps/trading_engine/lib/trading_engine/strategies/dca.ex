@@ -33,33 +33,31 @@ defmodule TradingEngine.Strategies.Dca do
   end
 
   @impl true
-  def on_execution(execution, state) do
-    case {execution["x"], execution["S"]} do
-      {"TRADE", "BUY"} ->
-        price = Decimal.new(execution["L"])
-        qty = Decimal.new(execution["l"])
+  def on_execution(%{"x" => "TRADE", "S" => "BUY"} = execution, state) do
+    price = Decimal.new(execution["L"])
+    qty = Decimal.new(execution["l"])
 
-        Logger.info("DCA: Bought #{qty} at #{price}")
+    Logger.info("DCA: Bought #{qty} at #{price}")
 
-        new_position = %{
-          entry_price: price,
-          quantity: qty,
-          timestamp: System.system_time(:millisecond)
-        }
+    new_position = %{
+      entry_price: price,
+      quantity: qty,
+      timestamp: System.system_time(:millisecond)
+    }
 
-        new_state = %{state |
-          positions: [new_position | state.positions],
-          last_buy_time: System.system_time(:millisecond)
-        }
+    new_state = %{state |
+      positions: [new_position | state.positions],
+      last_buy_time: System.system_time(:millisecond)
+    }
 
-        # Schedule next buy
-        Process.send_after(self(), :dca_buy, state.interval_ms)
+    # Schedule next buy
+    Process.send_after(self(), :dca_buy, state.interval_ms)
 
-        {:noop, new_state}
+    {:noop, new_state}
+  end
 
-      _ ->
-        {:noop, state}
-    end
+  def on_execution(_execution, state) do
+    {:noop, state}
   end
 
   def handle_info(:dca_buy, state) do
