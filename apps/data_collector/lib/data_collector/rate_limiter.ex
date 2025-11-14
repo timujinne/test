@@ -1,11 +1,13 @@
 defmodule DataCollector.RateLimiter do
   @moduledoc """
   GenServer for managing Binance API rate limits.
-  
+
   Implements sliding window algorithm to prevent 429 errors.
   """
   use GenServer
   require Logger
+
+  alias SharedData.Config
 
   # Client API
 
@@ -14,7 +16,8 @@ defmodule DataCollector.RateLimiter do
   end
 
   def check_limit(weight \\ 1) do
-    GenServer.call(__MODULE__, {:check_limit, weight})
+    # Fast timeout for rate limit check
+    GenServer.call(__MODULE__, {:check_limit, weight}, Config.timeout(:fast))
   end
 
   # Server Callbacks
