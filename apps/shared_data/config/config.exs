@@ -1,5 +1,9 @@
 import Config
 
+# Ecto repos configuration
+config :shared_data,
+  ecto_repos: [SharedData.Repo]
+
 # Configure SharedData Repo
 config :shared_data, SharedData.Repo,
   database: "binance_trading_repo",
