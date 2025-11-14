@@ -48,9 +48,10 @@ defmodule TradingEngine.RiskManager do
   defp check_position_size(_, _), do: :ok
 
   @spec check_daily_loss(map()) :: :ok | {:error, String.t()}
-  defp check_daily_loss(state) do
+  defp check_daily_loss(_state) do
     # This would need to query database for today's trades
     # For now, simplified implementation
+    # TODO: Implement actual daily loss check using @max_daily_loss
     :ok
   end
 
