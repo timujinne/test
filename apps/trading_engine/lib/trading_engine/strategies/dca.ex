@@ -27,7 +27,7 @@ defmodule TradingEngine.Strategies.Dca do
   end
 
   @impl true
-  def on_tick(market_data, state) do
+  def on_tick(_market_data, state) do
     # DCA is timer-based, not price-based
     {:noop, state}
   end

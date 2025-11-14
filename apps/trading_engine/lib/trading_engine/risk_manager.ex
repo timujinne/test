@@ -6,7 +6,8 @@ defmodule TradingEngine.RiskManager do
 
   @max_position_size Decimal.new("1.0")  # 1 BTC
   @max_order_size Decimal.new("0.1")     # 0.1 BTC
-  @max_daily_loss Decimal.new("1000")    # $1000 USDT
+  # TODO: Implement daily loss tracking
+  # @max_daily_loss Decimal.new("1000")    # $1000 USDT
 
   def check_order(order_params, state) do
     with :ok <- check_order_size(order_params),
@@ -42,7 +43,7 @@ defmodule TradingEngine.RiskManager do
 
   defp check_position_size(_, _), do: :ok
 
-  defp check_daily_loss(state) do
+  defp check_daily_loss(_state) do
     # This would need to query database for today's trades
     # For now, simplified implementation
     :ok

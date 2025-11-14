@@ -83,7 +83,7 @@ defmodule TradingEngine.Strategies.Naive do
 
   # Private functions
 
-  defp should_buy?(current_price, %{last_price: nil}), do: false
+  defp should_buy?(_current_price, %{last_price: nil}), do: false
   
   defp should_buy?(current_price, state) do
     price_change = Decimal.div(
@@ -94,7 +94,7 @@ defmodule TradingEngine.Strategies.Naive do
     Decimal.compare(price_change, Decimal.minus(state.buy_down_interval)) == :lt
   end
 
-  defp should_sell?(current_price, %{position: nil}), do: false
+  defp should_sell?(_current_price, %{position: nil}), do: false
   
   defp should_sell?(current_price, state) do
     entry_price = state.position.entry_price
