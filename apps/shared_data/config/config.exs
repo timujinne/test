@@ -5,8 +5,5 @@ config :shared_data, SharedData.Repo,
   database: "binance_trading_repo",
   pool_size: 10
 
-# Configure Cloak Vault
-config :shared_data, SharedData.Vault,
-  ciphers: [
-    default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: Base.decode64!("your-key-here"), iv_length: 12}
-  ]
+# Cloak Vault configuration is handled in environment-specific config files
+# (dev.exs, test.exs, runtime.exs) to avoid compile-time decoding issues
