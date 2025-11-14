@@ -90,20 +90,20 @@ defmodule TradingEngine.Strategies.Naive do
       Decimal.sub(current_price, state.last_price),
       state.last_price
     )
-    
-    Decimal.compare(price_change, Decimal.minus(state.buy_down_interval)) == :lt
+
+    Decimal.compare(price_change, Decimal.negate(state.buy_down_interval)) == :lt
   end
 
   defp should_sell?(_current_price, %{position: nil}), do: false
   
   defp should_sell?(current_price, state) do
     entry_price = state.position.entry_price
-    
+
     price_change = Decimal.div(
       Decimal.sub(current_price, entry_price),
       entry_price
     )
-    
+
     Decimal.compare(price_change, state.sell_up_interval) == :gt
   end
 end

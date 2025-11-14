@@ -28,7 +28,7 @@ defmodule DataCollector.MixProject do
 
   defp deps do
     [
-      {:binance, "~> 1.0"},
+      {:binance, "~> 2.0"},
       {:websockex, "~> 0.4"},
       # httpoison is already included as a dependency of binance (~> 1.4)
       {:jason, "~> 1.4"},

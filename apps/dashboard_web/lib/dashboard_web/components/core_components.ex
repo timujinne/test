@@ -126,7 +126,7 @@ defmodule DashboardWeb.CoreComponents do
     )
   end
 
-  defp hide(js \\ %JS{}, selector) do
+  defp hide(js, selector) do
     JS.hide(js,
       to: selector,
       time: 200,

@@ -1,7 +1,6 @@
 defmodule DashboardWeb.TradingLive do
   use DashboardWeb, :live_view
-  
-  alias SharedData.{Accounts, Trading}
+
   alias SharedData.Helpers.DecimalHelper
 
   @impl true
@@ -28,7 +27,7 @@ defmodule DashboardWeb.TradingLive do
   end
 
   @impl true
-  def handle_info({:execution_report, data}, socket) do
+  def handle_info({:execution_report, _data}, socket) do
     # Reload orders when execution report received
     {:noreply, load_data(socket)}
   end
@@ -42,7 +41,7 @@ defmodule DashboardWeb.TradingLive do
   def handle_info(_, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("cancel_order", %{"id" => order_id}, socket) do
+  def handle_event("cancel_order", %{"id" => _order_id}, socket) do
     # TODO: Implement order cancellation
     {:noreply, put_flash(socket, :info, "Order cancellation requested")}
   end
