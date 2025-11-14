@@ -9,8 +9,6 @@ defmodule TradingEngine.Trader do
   require Logger
 
   alias DataCollector.BinanceClient
-  alias TradingEngine.OrderManager
-  alias TradingEngine.PositionTracker
   alias TradingEngine.RiskManager
   alias SharedData.{Config, Types}
 

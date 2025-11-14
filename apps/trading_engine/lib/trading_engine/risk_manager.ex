@@ -8,7 +8,7 @@ defmodule TradingEngine.RiskManager do
 
   @max_position_size Decimal.new("1.0")  # 1 BTC
   @max_order_size Decimal.new("0.1")     # 0.1 BTC
-  @max_daily_loss Decimal.new("1000")    # $1000 USDT
+  # @max_daily_loss Decimal.new("1000")    # $1000 USDT - Reserved for future use
 
   @spec check_order(Types.order_params(), map()) :: :ok | {:error, String.t()}
   def check_order(order_params, state) do

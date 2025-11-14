@@ -91,7 +91,7 @@ defmodule TradingEngine.Strategies.Naive do
       state.last_price
     )
 
-    Decimal.compare(price_change, Decimal.minus(state.buy_down_interval)) == :lt
+    Decimal.compare(price_change, Decimal.negate(state.buy_down_interval)) == :lt
   end
 
   defp should_sell?(_current_price, %{position: nil}), do: false

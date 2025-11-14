@@ -1,7 +1,6 @@
 defmodule DashboardWeb.PortfolioLive do
   use DashboardWeb, :live_view
-  
-  alias SharedData.{Accounts, Trading}
+
   alias SharedData.Helpers.DecimalHelper
 
   @impl true
@@ -154,7 +153,7 @@ defmodule DashboardWeb.PortfolioLive do
     |> assign(total_pnl: Decimal.new(0))
   end
 
-  defp calculate_value(balance) do
+  defp calculate_value(_balance) do
     # TODO: Calculate USDT value based on current prices
     # For now, return dash
     "-"
