@@ -12,20 +12,26 @@ defmodule TradingEngine.Trader do
   alias TradingEngine.OrderManager
   alias TradingEngine.PositionTracker
   alias TradingEngine.RiskManager
+  alias SharedData.{Config, Types}
 
   # Client API
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     account_id = Keyword.fetch!(opts, :account_id)
     GenServer.start_link(__MODULE__, opts, name: via_tuple(account_id))
   end
 
+  @spec get_state(Types.account_id()) :: map()
   def get_state(account_id) do
-    GenServer.call(via_tuple(account_id), :get_state)
+    # Fast timeout for simple state read
+    GenServer.call(via_tuple(account_id), :get_state, Config.timeout(:fast))
   end
 
+  @spec place_order(Types.account_id(), Types.order_params()) :: Types.result(Types.order())
   def place_order(account_id, order_params) do
-    GenServer.call(via_tuple(account_id), {:place_order, order_params})
+    # Longer timeout because involves external API call
+    GenServer.call(via_tuple(account_id), {:place_order, order_params}, Config.timeout(:api))
   end
 
   # Server Callbacks
@@ -121,6 +127,7 @@ defmodule TradingEngine.Trader do
 
   # Private functions
 
+  @spec execute_action(Types.strategy_action(), map()) :: map()
   defp execute_action(:noop, state), do: state
 
   defp execute_action({:place_order, order_params}, state) do
@@ -129,6 +136,7 @@ defmodule TradingEngine.Trader do
     end
   end
 
+  @spec via_tuple(Types.account_id()) :: Types.genserver_name()
   defp via_tuple(account_id) do
     {:via, Registry, {TradingEngine.TraderRegistry, account_id}}
   end

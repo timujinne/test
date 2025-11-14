@@ -6,6 +6,7 @@ defmodule DataCollector.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
       DataCollector.MarketData,
       {Phoenix.PubSub, name: BinanceSystem.PubSub}

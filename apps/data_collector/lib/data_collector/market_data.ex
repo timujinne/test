@@ -6,14 +6,18 @@ defmodule DataCollector.MarketData do
   use GenServer
   require Logger
 
+  alias SharedData.Types
+
   @table_name :market_data
 
   # Client API
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec get_price(Types.symbol()) :: {:ok, Types.price()} | {:error, :not_found}
   def get_price(symbol) do
     case :ets.lookup(@table_name, {:price, symbol}) do
       [{_, price}] -> {:ok, price}
@@ -21,6 +25,7 @@ defmodule DataCollector.MarketData do
     end
   end
 
+  @spec get_ticker(Types.symbol()) :: {:ok, Types.ticker()} | {:error, :not_found}
   def get_ticker(symbol) do
     case :ets.lookup(@table_name, {:ticker, symbol}) do
       [{_, ticker}] -> {:ok, ticker}
@@ -28,10 +33,12 @@ defmodule DataCollector.MarketData do
     end
   end
 
+  @spec update_price(Types.symbol(), Types.price()) :: :ok
   def update_price(symbol, price) do
     GenServer.cast(__MODULE__, {:update_price, symbol, price})
   end
 
+  @spec update_ticker(Types.symbol(), Types.ticker()) :: :ok
   def update_ticker(symbol, ticker) do
     GenServer.cast(__MODULE__, {:update_ticker, symbol, ticker})
   end
