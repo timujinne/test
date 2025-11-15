@@ -14,19 +14,7 @@ defmodule DashboardWeb.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      test_coverage: [
-        summary: [threshold: 0],
-        ignore_modules: [
-          ~r/\.Endpoint$/,
-          ~r/\.Router$/,
-          ~r/\.Telemetry$/,
-          ~r/\.Layouts$/,
-          ~r/\.Gettext$/,
-          ~r/\.ErrorHTML$/,
-          ~r/\.CoreComponents$/,
-          ~r/Live$/
-        ]
-      ]
+      test_coverage: [summary: false]
     ]
   end
 
