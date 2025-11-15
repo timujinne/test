@@ -8,20 +8,7 @@ defmodule BinanceSystem.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      releases: releases(),
-      test_coverage: [
-        summary: [threshold: 70],
-        ignore_modules: [
-          # Ignore Phoenix/LiveView generated modules
-          ~r/\.Endpoint$/,
-          ~r/\.Router$/,
-          ~r/\.Telemetry$/,
-          ~r/\.Layouts$/,
-          ~r/\.Gettext$/,
-          ~r/\.ErrorHTML$/,
-          ~r/\.CoreComponents$/
-        ]
-      ]
+      releases: releases()
     ]
   end
 
