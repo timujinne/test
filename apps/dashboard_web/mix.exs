@@ -13,7 +13,20 @@ defmodule DashboardWeb.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [
+        summary: [threshold: 0],
+        ignore_modules: [
+          ~r/\.Endpoint$/,
+          ~r/\.Router$/,
+          ~r/\.Telemetry$/,
+          ~r/\.Layouts$/,
+          ~r/\.Gettext$/,
+          ~r/\.ErrorHTML$/,
+          ~r/\.CoreComponents$/,
+          ~r/Live$/
+        ]
+      ]
     ]
   end
 

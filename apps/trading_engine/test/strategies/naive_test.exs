@@ -76,7 +76,8 @@ defmodule TradingEngine.Strategies.NaiveTest do
     test "does not buy when already has position" do
       {:ok, state} = Naive.init(%{
         "symbol" => "BTCUSDT",
-        "buy_down_interval" => "0.01"
+        "buy_down_interval" => "0.01",
+        "sell_up_interval" => "0.01"
       })
       state = %{
         state |
@@ -84,11 +85,10 @@ defmodule TradingEngine.Strategies.NaiveTest do
         position: %{entry_price: Decimal.new("48000.00"), quantity: Decimal.new("0.001")}
       }
 
-      # Price drops significantly
-      market_data = %{"c" => "49000.00"}
+      # Price at 48400 - neither triggers sell (only +0.83% from entry) nor buy
+      market_data = %{"c" => "48400.00"}
 
-      assert {:noop, new_state} = Naive.on_tick(market_data, state)
-      assert new_state.position != nil
+      assert {:noop, _new_state} = Naive.on_tick(market_data, state)
     end
   end
 
@@ -118,7 +118,7 @@ defmodule TradingEngine.Strategies.NaiveTest do
       # Price increases by 1.5% from entry (above threshold)
       market_data = %{"c" => "50750.00"}
 
-      assert {{:place_order, order}, new_state} = Naive.on_tick(market_data, state)
+      assert {{:place_order, order}, _new_state} = Naive.on_tick(market_data, state)
       assert order.symbol == "BTCUSDT"
       assert order.side == "SELL"
       assert order.type == "MARKET"

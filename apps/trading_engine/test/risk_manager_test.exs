@@ -74,13 +74,13 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.5"
+        quantity: "0.1"  # Within order size limit
       }
 
-      # Already have 0.8 BTC position, adding 0.5 would exceed 1.0 limit
+      # Already have 0.95 BTC position, adding 0.1 would exceed 1.0 limit
       state = %{
         positions: %{
-          "BTCUSDT" => %{quantity: Decimal.new("0.8")}
+          "BTCUSDT" => %{quantity: Decimal.new("0.95")}
         }
       }
 
@@ -92,7 +92,7 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "SELL",
-        quantity: "0.5"
+        quantity: "0.05"  # Within order size limit
       }
 
       state = %{
@@ -108,18 +108,18 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.3"
+        quantity: "0.08"  # Within order size limit
       }
 
-      # Already have 0.4 BTC + 0.4 ETH (converted to BTC equivalent)
+      # Already have 0.47 BTC + 0.47 ETH (calculated as BTC equivalent)
+      # Total: 0.94, adding 0.08 would be 1.02, exceeding 1.0 limit
       state = %{
         positions: %{
-          "BTCUSDT" => %{quantity: Decimal.new("0.4")},
-          "ETHUSDT" => %{quantity: Decimal.new("0.4")}
+          "BTCUSDT" => %{quantity: Decimal.new("0.47")},
+          "ETHUSDT" => %{quantity: Decimal.new("0.47")}
         }
       }
 
-      # Total would be 1.1, exceeding 1.0 limit
       assert {:error, message} = RiskManager.check_order(order_params, state)
       assert message =~ "Position size would exceed maximum"
     end

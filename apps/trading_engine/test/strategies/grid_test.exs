@@ -288,7 +288,7 @@ defmodule TradingEngine.Strategies.GridTest do
         "S" => "SELL",
         "L" => "50000.00"
       }
-      {{:place_order, buy_order}, state} = Grid.on_execution(sell_execution, state)
+      {{:place_order, buy_order}, _state} = Grid.on_execution(sell_execution, state)
       assert buy_order.side == "BUY"
       assert Decimal.equal?(buy_order.price, Decimal.mult(Decimal.new("50000.00"), Decimal.new("0.99")))
     end
