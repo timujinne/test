@@ -2,12 +2,16 @@ defmodule DashboardWeb.TradingLive do
   use DashboardWeb, :live_view
 
   alias SharedData.Helpers.DecimalHelper
+  alias SharedData.Repo
+  alias SharedData.Schemas.Order
+
+  import Ecto.Query
 
   @impl true
   def mount(_params, _session, socket) do
-    # TODO: Get current user from session
-    # For now, using mock data
-    
+    # Note: User authentication will be added in Phase 8
+    # For now, account_id should be passed via session or params
+
     if connected?(socket) do
       # Subscribe to market and order updates
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
@@ -41,9 +45,62 @@ defmodule DashboardWeb.TradingLive do
   def handle_info(_, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("cancel_order", %{"id" => _order_id}, socket) do
-    # TODO: Implement order cancellation
-    {:noreply, put_flash(socket, :info, "Order cancellation requested")}
+  def handle_event("cancel_order", %{"id" => order_id}, socket) do
+    case cancel_order(order_id) do
+      {:ok, _} ->
+        socket =
+          socket
+          |> put_flash(:info, "Order cancelled successfully")
+          |> load_data()
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to cancel order: #{reason}")}
+    end
+  end
+
+  defp cancel_order(order_id) do
+    with {:ok, order} <- get_order_with_credentials(order_id),
+         {:ok, _result} <- execute_cancel(order) do
+      # Update order status in database
+      order
+      |> Order.changeset(%{status: "CANCELED"})
+      |> Repo.update()
+    end
+  end
+
+  defp get_order_with_credentials(order_id) do
+    query =
+      from o in Order,
+        where: o.id == ^order_id,
+        preload: [account: :api_credential]
+
+    case Repo.one(query) do
+      nil -> {:error, "Order not found"}
+      order -> {:ok, order}
+    end
+  end
+
+  defp execute_cancel(%{account: %{api_credential: nil}}) do
+    {:error, "No API credentials configured"}
+  end
+
+  defp execute_cancel(%{order_id: nil}) do
+    {:error, "Order has no Binance order ID"}
+  end
+
+  defp execute_cancel(%{
+         order_id: binance_order_id,
+         symbol: symbol,
+         account: %{api_credential: cred}
+       }) do
+    DataCollector.BinanceClient.cancel_order(
+      cred.api_key,
+      cred.secret_key,
+      symbol,
+      binance_order_id
+    )
   end
 
   @impl true
@@ -203,10 +260,37 @@ defmodule DashboardWeb.TradingLive do
   end
 
   defp load_data(socket) do
-    # TODO: Load real data based on current user account
-    # For now, return empty data
+    # Phase 8: Will load data based on authenticated user's account
+    # Currently returns empty data until user authentication is implemented
     socket
-    |> assign(active_orders: [])
-    |> assign(recent_trades: [])
+    |> assign(active_orders: load_active_orders(socket.assigns.account_id))
+    |> assign(recent_trades: load_recent_trades(socket.assigns.account_id))
+  end
+
+  defp load_active_orders(nil), do: []
+
+  defp load_active_orders(account_id) do
+    query =
+      from o in Order,
+        where: o.account_id == ^account_id,
+        where: o.status in ["NEW", "PARTIALLY_FILLED"],
+        order_by: [desc: o.inserted_at],
+        limit: 50
+
+    Repo.all(query)
+  end
+
+  defp load_recent_trades(nil), do: []
+
+  defp load_recent_trades(account_id) do
+    alias SharedData.Schemas.Trade
+
+    query =
+      from t in Trade,
+        where: t.account_id == ^account_id,
+        order_by: [desc: t.timestamp],
+        limit: 20
+
+    Repo.all(query)
   end
 end

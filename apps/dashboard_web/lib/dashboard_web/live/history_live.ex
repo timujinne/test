@@ -2,9 +2,14 @@ defmodule DashboardWeb.HistoryLive do
   use DashboardWeb, :live_view
 
   alias SharedData.Helpers.DecimalHelper
+  alias SharedData.Repo
+  alias SharedData.Schemas.Trade
+
+  import Ecto.Query
 
   @impl true
   def mount(_params, _session, socket) do
+    # Phase 8: Will get account_id from authenticated session
     socket =
       socket
       |> assign(page_title: "History")
@@ -251,9 +256,45 @@ defmodule DashboardWeb.HistoryLive do
   end
 
   defp load_trades(socket) do
-    # TODO: Load real data based on current user account and filters
+    # Phase 8: Will load data based on authenticated user's account
+    account_id = socket.assigns.account_id
+    page = socket.assigns.page
+    per_page = socket.assigns.per_page
+    filter_symbol = socket.assigns.filter_symbol
+
+    {trades, total_count} = fetch_trades(account_id, filter_symbol, page, per_page)
+    total_pages = max(1, ceil(total_count / per_page))
+
     socket
-    |> assign(trades: [])
-    |> assign(total_pages: 1)
+    |> assign(trades: trades)
+    |> assign(total_pages: total_pages)
+  end
+
+  defp fetch_trades(nil, _filter_symbol, _page, _per_page), do: {[], 0}
+
+  defp fetch_trades(account_id, filter_symbol, page, per_page) do
+    offset = (page - 1) * per_page
+
+    base_query =
+      from t in Trade,
+        where: t.account_id == ^account_id,
+        order_by: [desc: t.timestamp]
+
+    query =
+      if filter_symbol do
+        from t in base_query, where: t.symbol == ^filter_symbol
+      else
+        base_query
+      end
+
+    trades =
+      query
+      |> limit(^per_page)
+      |> offset(^offset)
+      |> Repo.all()
+
+    total_count = Repo.aggregate(query, :count, :id)
+
+    {trades, total_count}
   end
 end

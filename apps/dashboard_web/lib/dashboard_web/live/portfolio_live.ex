@@ -2,11 +2,21 @@ defmodule DashboardWeb.PortfolioLive do
   use DashboardWeb, :live_view
 
   alias SharedData.Helpers.DecimalHelper
+  alias SharedData.Repo
+  alias SharedData.Schemas.Balance
+
+  import Ecto.Query
+
+  # Stablecoins that are 1:1 with USD
+  @stablecoins ~w(USDT USDC BUSD TUSD DAI FDUSD)
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "balance_updates")
+      # Subscribe to price updates for common pairs
+      Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:BTCUSDT")
+      Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:ETHUSDT")
     end
 
     socket =
@@ -16,6 +26,7 @@ defmodule DashboardWeb.PortfolioLive do
       |> assign(total_value: Decimal.new(0))
       |> assign(total_pnl: Decimal.new(0))
       |> assign(account_id: nil)
+      |> assign(prices: %{})
       |> load_data()
 
     {:ok, socket}
@@ -24,6 +35,13 @@ defmodule DashboardWeb.PortfolioLive do
   @impl true
   def handle_info({:balance_update, _data}, socket) do
     {:noreply, load_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:ticker, %{"s" => symbol, "c" => price}}, socket) do
+    # Update prices map when we receive ticker updates
+    prices = Map.put(socket.assigns.prices, symbol, Decimal.new(price))
+    {:noreply, assign(socket, prices: prices) |> recalculate_total_value()}
   end
 
   @impl true
@@ -146,16 +164,99 @@ defmodule DashboardWeb.PortfolioLive do
   end
 
   defp load_data(socket) do
-    # TODO: Load real data based on current user account
+    # Phase 8: Will load data based on authenticated user's account
+    account_id = socket.assigns.account_id
+    balances = load_balances(account_id)
+    prices = load_current_prices(balances)
+    total_value = calculate_total_value(balances, prices)
+    total_pnl = calculate_total_pnl(account_id)
+
     socket
-    |> assign(balances: [])
-    |> assign(total_value: Decimal.new(0))
-    |> assign(total_pnl: Decimal.new(0))
+    |> assign(balances: balances)
+    |> assign(prices: prices)
+    |> assign(total_value: total_value)
+    |> assign(total_pnl: total_pnl)
   end
 
-  defp calculate_value(_balance) do
-    # TODO: Calculate USDT value based on current prices
-    # For now, return dash
-    "-"
+  defp load_balances(nil), do: []
+
+  defp load_balances(account_id) do
+    query =
+      from b in Balance,
+        where: b.account_id == ^account_id,
+        order_by: [desc: b.updated_at]
+
+    Repo.all(query)
+    |> Enum.map(fn balance ->
+      total = Decimal.add(balance.free || Decimal.new(0), balance.locked || Decimal.new(0))
+      Map.put(balance, :total, total)
+    end)
+  end
+
+  defp load_current_prices(balances) do
+    # Get unique assets that need price lookup
+    assets =
+      balances
+      |> Enum.map(& &1.asset)
+      |> Enum.reject(&(&1 in @stablecoins))
+      |> Enum.uniq()
+
+    # Try to get prices from MarketData cache or fetch from API
+    Enum.reduce(assets, %{}, fn asset, acc ->
+      symbol = "#{asset}USDT"
+
+      case DataCollector.MarketData.get_price(symbol) do
+        {:ok, price} -> Map.put(acc, symbol, price)
+        {:error, _} -> acc
+      end
+    end)
+  end
+
+  defp calculate_total_value(balances, prices) do
+    Enum.reduce(balances, Decimal.new(0), fn balance, acc ->
+      value = calculate_asset_value(balance, prices)
+      Decimal.add(acc, value)
+    end)
+  end
+
+  defp calculate_asset_value(%{asset: asset, total: total}, _prices) when asset in @stablecoins do
+    total
+  end
+
+  defp calculate_asset_value(%{asset: asset, total: total}, prices) do
+    symbol = "#{asset}USDT"
+
+    case Map.get(prices, symbol) do
+      nil -> Decimal.new(0)
+      price -> Decimal.mult(total, price)
+    end
+  end
+
+  defp calculate_total_pnl(nil), do: Decimal.new(0)
+
+  defp calculate_total_pnl(account_id) do
+    TradingEngine.RiskManager.calculate_daily_loss(account_id)
+  end
+
+  defp recalculate_total_value(socket) do
+    total_value = calculate_total_value(socket.assigns.balances, socket.assigns.prices)
+    assign(socket, total_value: total_value)
+  end
+
+  defp calculate_value(%{asset: asset, total: total}) when asset in @stablecoins do
+    DecimalHelper.format_currency(total, "USDT", 2)
+  end
+
+  defp calculate_value(%{asset: asset, total: total} = _balance) do
+    symbol = "#{asset}USDT"
+
+    case DataCollector.MarketData.get_price(symbol) do
+      {:ok, price} ->
+        value = Decimal.mult(total, price)
+        DecimalHelper.format_currency(value, "USDT", 2)
+
+      {:error, _} ->
+        "-"
+    end
   end
 end
