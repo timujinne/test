@@ -13,5 +13,26 @@ import_config "../apps/data_collector/config/config.exs"
 import_config "../apps/trading_engine/config/config.exs"
 import_config "../apps/dashboard_web/config/config.exs"
 
+# Configure esbuild (Javascript bundling)
+config :esbuild,
+  version: "0.19.8",
+  default: [
+    args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../apps/dashboard_web/assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+# Configure tailwind (CSS bundling)
+config :tailwind,
+  version: "3.3.6",
+  default: [
+    args: ~w(
+      --config=tailwind.config.js
+      --input=css/app.css
+      --output=../priv/static/assets/app.css
+    ),
+    cd: Path.expand("../apps/dashboard_web/assets", __DIR__)
+  ]
+
 # Import environment specific config
 import_config "#{config_env()}.exs"

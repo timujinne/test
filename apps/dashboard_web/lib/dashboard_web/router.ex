@@ -17,10 +17,14 @@ defmodule DashboardWeb.Router do
   scope "/", DashboardWeb do
     pipe_through :browser
 
-    live "/", TradingLive
-    live "/portfolio", PortfolioLive
-    live "/settings", SettingsLive
-    live "/history", HistoryLive
+    live_session :default,
+      layout: {DashboardWeb.Layouts, :drawer} do
+      live "/", TradingLive
+      live "/trading", TradingLive
+      live "/portfolio", PortfolioLive
+      live "/history", HistoryLive
+      live "/settings", SettingsLive
+    end
   end
 
   if Mix.env() in [:dev, :test] do

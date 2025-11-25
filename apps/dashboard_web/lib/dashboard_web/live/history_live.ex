@@ -13,6 +13,7 @@ defmodule DashboardWeb.HistoryLive do
     socket =
       socket
       |> assign(page_title: "History")
+      |> assign(current_path: "/history")
       |> assign(trades: [])
       |> assign(page: 1)
       |> assign(per_page: 20)

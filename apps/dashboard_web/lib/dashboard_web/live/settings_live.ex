@@ -12,6 +12,7 @@ defmodule DashboardWeb.SettingsLive do
     socket =
       socket
       |> assign(page_title: "Settings")
+      |> assign(current_path: "/settings")
       |> assign(accounts: [])
       |> assign(strategies: [])
       |> assign(selected_tab: "accounts")

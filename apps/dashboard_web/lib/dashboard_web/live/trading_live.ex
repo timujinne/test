@@ -16,15 +16,24 @@ defmodule DashboardWeb.TradingLive do
       # Subscribe to market and order updates
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:BTCUSDT")
+
+      # Load balances and prices
+      send(self(), :load_balances)
+      send(self(), :load_prices)
     end
 
     socket =
       socket
       |> assign(page_title: "Trading")
+      |> assign(current_path: "/trading")
       |> assign(active_orders: [])
       |> assign(recent_trades: [])
       |> assign(current_price: nil)
       |> assign(account_id: nil)
+      |> assign(balances: [])
+      |> assign(prices: %{})
+      |> assign(order_form: %{"symbol" => "BTCUSDT", "side" => "BUY", "type" => "LIMIT", "quantity" => "", "price" => ""})
+      |> assign(order_result: nil)
       |> load_data()
 
     {:ok, socket}
@@ -42,7 +51,87 @@ defmodule DashboardWeb.TradingLive do
   end
 
   @impl true
+  def handle_info(:load_balances, socket) do
+    balances =
+      case get_testnet_credentials() do
+        {api_key, secret_key} ->
+          case DataCollector.BinanceClient.get_balances(api_key, secret_key) do
+            {:ok, all_balances} ->
+              all_balances
+              |> Enum.filter(fn %{"free" => free} ->
+                {val, _} = Decimal.parse(free)
+                Decimal.gt?(val, Decimal.new(0))
+              end)
+              |> Enum.take(10)
+
+            _ ->
+              []
+          end
+
+        nil ->
+          []
+      end
+
+    {:noreply, assign(socket, balances: balances)}
+  end
+
+  @impl true
+  def handle_info(:load_prices, socket) do
+    symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]
+
+    prices =
+      symbols
+      |> Enum.map(fn symbol ->
+        case DataCollector.BinanceClient.get_ticker_price(symbol) do
+          {:ok, %{"price" => price}} -> {symbol, price}
+          _ -> {symbol, nil}
+        end
+      end)
+      |> Map.new()
+
+    {:noreply, assign(socket, prices: prices)}
+  end
+
+  @impl true
   def handle_info(_, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("update_form", %{"order" => params}, socket) do
+    {:noreply, assign(socket, order_form: params)}
+  end
+
+  @impl true
+  def handle_event("create_order", %{"order" => params}, socket) do
+    case get_testnet_credentials() do
+      {api_key, secret_key} ->
+        order_params = %{
+          symbol: params["symbol"],
+          side: params["side"],
+          type: params["type"],
+          quantity: params["quantity"],
+          price: params["price"],
+          timeInForce: "GTC"
+        }
+
+        case DataCollector.BinanceClient.create_order(api_key, secret_key, order_params) do
+          {:ok, result} ->
+            socket =
+              socket
+              |> put_flash(:info, "Order created successfully! Order ID: #{result["orderId"]}")
+              |> assign(order_result: result)
+              |> assign(order_form: %{"symbol" => "BTCUSDT", "side" => "BUY", "type" => "LIMIT", "quantity" => "", "price" => ""})
+
+            send(self(), :load_balances)
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "Failed to create order: #{inspect(reason)}")}
+        end
+
+      nil ->
+        {:noreply, put_flash(socket, :error, "Testnet credentials not configured")}
+    end
+  end
 
   @impl true
   def handle_event("cancel_order", %{"id" => order_id}, socket) do
@@ -108,7 +197,7 @@ defmodule DashboardWeb.TradingLive do
     ~H"""
     <div class="space-y-6">
       <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-bold text-gray-900">Active Trading</h1>
+        <h1 class="text-3xl font-bold text-gray-900">Binance Testnet Trading</h1>
         <%= if @current_price do %>
           <div class="text-right">
             <div class="text-sm text-gray-500">BTC/USDT</div>
@@ -117,6 +206,122 @@ defmodule DashboardWeb.TradingLive do
             </div>
           </div>
         <% end %>
+      </div>
+
+      <!-- Market Prices -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <%= for {symbol, price} <- @prices do %>
+          <div class="bg-white shadow rounded-lg p-4">
+            <div class="text-sm text-gray-500"><%= symbol %></div>
+            <div class="text-xl font-bold text-gray-900">
+              <%= if price, do: "$#{price}", else: "Loading..." %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Testnet Balances -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-xl font-semibold text-gray-900">Testnet Balances</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <%= if Enum.empty?(@balances) do %>
+            <div class="px-6 py-8 text-center text-gray-500">
+              Loading balances...
+            </div>
+          <% else %>
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Asset</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Free</th>
+                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Locked</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <%= for balance <- @balances do %>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <%= balance["asset"] %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                      <%= balance["free"] %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                      <%= balance["locked"] %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Order Creation Form -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-xl font-semibold text-gray-900">Create Test Order</h2>
+        </div>
+        <div class="px-6 py-4">
+          <form phx-change="update_form" phx-submit="create_order">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Symbol</label>
+                <select name="order[symbol]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                  <option value="BTCUSDT" selected={@order_form["symbol"] == "BTCUSDT"}>BTC/USDT</option>
+                  <option value="ETHUSDT" selected={@order_form["symbol"] == "ETHUSDT"}>ETH/USDT</option>
+                  <option value="BNBUSDT" selected={@order_form["symbol"] == "BNBUSDT"}>BNB/USDT</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Side</label>
+                <select name="order[side]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                  <option value="BUY" selected={@order_form["side"] == "BUY"}>BUY</option>
+                  <option value="SELL" selected={@order_form["side"] == "SELL"}>SELL</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Type</label>
+                <select name="order[type]" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                  <option value="LIMIT" selected={@order_form["type"] == "LIMIT"}>LIMIT</option>
+                  <option value="MARKET" selected={@order_form["type"] == "MARKET"}>MARKET</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Quantity</label>
+                <input type="text" name="order[quantity]" value={@order_form["quantity"]}
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                       placeholder="0.001" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Price (LIMIT only)</label>
+                <input type="text" name="order[price]" value={@order_form["price"]}
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                       placeholder="50000" />
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                Create Order
+              </button>
+            </div>
+          </form>
+
+          <%= if @order_result do %>
+            <div class="mt-4 p-4 bg-green-50 rounded-md">
+              <div class="text-sm font-medium text-green-800">
+                Order Created Successfully!
+              </div>
+              <div class="text-xs text-green-700 mt-2">
+                Order ID: <%= @order_result["orderId"] %> |
+                Status: <%= @order_result["status"] %> |
+                Symbol: <%= @order_result["symbol"] %>
+              </div>
+            </div>
+          <% end %>
+        </div>
       </div>
 
       <!-- Active Orders -->
@@ -257,6 +462,17 @@ defmodule DashboardWeb.TradingLive do
       </div>
     </div>
     """
+  end
+
+  defp get_testnet_credentials do
+    api_key = System.get_env("BINANCE_API_KEY")
+    secret_key = System.get_env("BINANCE_SECRET_KEY")
+
+    if api_key && secret_key do
+      {api_key, secret_key}
+    else
+      nil
+    end
   end
 
   defp load_data(socket) do

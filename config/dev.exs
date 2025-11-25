@@ -19,13 +19,22 @@ config :shared_data, SharedData.Vault,
 
 # Configure shared_data repository
 config :shared_data, SharedData.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "binance_trading_dev",
+  username: System.get_env("APP_DB_USER") || "postgres",
+  password: System.get_env("APP_DB_PASSWORD") || "postgres",
+  hostname: System.get_env("PGHOST") || "postgres",
+  database: System.get_env("APP_DB_NAME") || "binance_trading_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+
+# Configure Phoenix endpoint for development
+config :dashboard_web, DashboardWeb.Endpoint,
+  http: [ip: {0, 0, 0, 0}, port: 4000],
+  secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_at_least_64_bytes_long_for_development_only_replace_in_production",
+  debug_errors: true,
+  code_reloader: true,
+  check_origin: false,
+  watchers: []
 
 # Configure logger
 config :logger, :console,

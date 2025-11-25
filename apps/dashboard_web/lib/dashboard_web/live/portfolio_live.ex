@@ -22,6 +22,7 @@ defmodule DashboardWeb.PortfolioLive do
     socket =
       socket
       |> assign(page_title: "Portfolio")
+      |> assign(current_path: "/portfolio")
       |> assign(balances: [])
       |> assign(total_value: Decimal.new(0))
       |> assign(total_pnl: Decimal.new(0))
