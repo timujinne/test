@@ -118,7 +118,7 @@ binance_system/
 
 ```bash
 # 1. Клонировать репозиторий
-git clone <your-repo-url>
+git clone https://github.com/timujinne/binance_system.git
 cd binance_system
 
 # 2. Настроить переменные окружения
@@ -423,10 +423,10 @@ ENABLE_SSL=true
 
 ### Полное руководство
 - [📘 IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Детальный план реализации
-- [🔑 API Keys Setup](docs/api-keys-setup.md) - Настройка API ключей
-- [🏗 Architecture Guide](docs/architecture.md) - Архитектурные решения
-- [🔒 Security Best Practices](docs/security.md) - Безопасность
-- [📈 Trading Strategies](docs/strategies.md) - Торговые стратегии
+- [🚀 QUICKSTART.md](QUICKSTART.md) - Быстрый старт за 15 минут
+- [🐳 DOCKER_GUIDE.md](DOCKER_GUIDE.md) - Docker setup guide
+- [📊 PubSub Architecture](docs/PUBSUB_ARCHITECTURE.md) - Архитектура PubSub
+- [📝 DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) - Руководство разработчика
 
 ### Внешние ресурсы
 - [Elixir Documentation](https://elixir-lang.org/docs.html)
@@ -463,7 +463,7 @@ ENABLE_SSL=true
 
 ## 👥 Авторы
 
-- **Ваше имя** - *Initial work*
+- **Tymofii Shapovalov** - *Initial work* - [@timujinne](https://github.com/timujinne)
 
 ---
 
@@ -477,9 +477,9 @@ ENABLE_SSL=true
 
 ## 📞 Контакты и поддержка
 
-- 📧 Email: your-email@example.com
-- 💬 Telegram: @yourusername
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/binance_system/issues)
+- 📧 Email: timujeen@gmail.com
+- 🐛 Issues: [GitHub Issues](https://github.com/timujinne/binance_system/issues)
+- 💻 GitHub: [@timujinne](https://github.com/timujinne)
 
 ---
 

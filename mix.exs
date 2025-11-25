@@ -4,7 +4,7 @@ defmodule BinanceSystem.MixProject do
   def project do
     [
       apps_path: "apps",
-      version: "0.1.0",
+      version: "1.0.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -32,7 +32,7 @@ defmodule BinanceSystem.MixProject do
   defp releases do
     [
       binance_system: [
-        version: "0.1.0",
+        version: "1.0.0",
         applications: [
           shared_data: :permanent,
           data_collector: :permanent,

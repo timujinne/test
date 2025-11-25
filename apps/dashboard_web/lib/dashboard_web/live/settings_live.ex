@@ -1,14 +1,21 @@
 defmodule DashboardWeb.SettingsLive do
   use DashboardWeb, :live_view
 
+  alias SharedData.Repo
+  alias SharedData.Schemas.{Account, Setting}
+
+  import Ecto.Query
+
   @impl true
   def mount(_params, _session, socket) do
+    # Phase 8: Will get user_id from authenticated session
     socket =
       socket
       |> assign(page_title: "Settings")
       |> assign(accounts: [])
       |> assign(strategies: [])
       |> assign(selected_tab: "accounts")
+      |> assign(user_id: nil)
       |> load_data()
 
     {:ok, socket}
@@ -20,9 +27,87 @@ defmodule DashboardWeb.SettingsLive do
   end
 
   @impl true
-  def handle_event("activate_strategy", %{"id" => _strategy_id}, socket) do
-    # TODO: Implement strategy activation
-    {:noreply, put_flash(socket, :info, "Strategy activation requested")}
+  def handle_event("activate_strategy", %{"id" => strategy_id}, socket) do
+    case activate_strategy(strategy_id) do
+      {:ok, _strategy} ->
+        socket =
+          socket
+          |> put_flash(:info, "Strategy activated successfully")
+          |> load_data()
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to activate strategy: #{reason}")}
+    end
+  end
+
+  @impl true
+  def handle_event("deactivate_strategy", %{"id" => strategy_id}, socket) do
+    case deactivate_strategy(strategy_id) do
+      {:ok, _strategy} ->
+        socket =
+          socket
+          |> put_flash(:info, "Strategy stopped successfully")
+          |> load_data()
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to stop strategy: #{reason}")}
+    end
+  end
+
+  defp activate_strategy(strategy_id) do
+    case Repo.get(Setting, strategy_id) do
+      nil ->
+        {:error, "Strategy not found"}
+
+      strategy ->
+        strategy
+        |> Setting.changeset(%{is_active: true})
+        |> Repo.update()
+        |> case do
+          {:ok, updated} ->
+            # Notify the trading engine to start the strategy
+            Phoenix.PubSub.broadcast(
+              BinanceSystem.PubSub,
+              "strategy_updates",
+              {:strategy_activated, updated}
+            )
+
+            {:ok, updated}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  defp deactivate_strategy(strategy_id) do
+    case Repo.get(Setting, strategy_id) do
+      nil ->
+        {:error, "Strategy not found"}
+
+      strategy ->
+        strategy
+        |> Setting.changeset(%{is_active: false})
+        |> Repo.update()
+        |> case do
+          {:ok, updated} ->
+            # Notify the trading engine to stop the strategy
+            Phoenix.PubSub.broadcast(
+              BinanceSystem.PubSub,
+              "strategy_updates",
+              {:strategy_deactivated, updated}
+            )
+
+            {:ok, updated}
+
+          error ->
+            error
+        end
+    end
   end
 
   @impl true
@@ -195,7 +280,11 @@ defmodule DashboardWeb.SettingsLive do
                       </div>
                       <div class="flex space-x-2">
                         <%= if strategy.is_active do %>
-                          <button class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                          <button
+                            phx-click="deactivate_strategy"
+                            phx-value-id={strategy.id}
+                            class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                          >
                             Stop
                           </button>
                         <% else %>
@@ -266,9 +355,36 @@ defmodule DashboardWeb.SettingsLive do
   end
 
   defp load_data(socket) do
-    # TODO: Load real data based on current user
+    # Phase 8: Will load data based on authenticated user
+    user_id = socket.assigns.user_id
+
     socket
-    |> assign(accounts: [])
-    |> assign(strategies: [])
+    |> assign(accounts: load_accounts(user_id))
+    |> assign(strategies: load_strategies(user_id))
+  end
+
+  defp load_accounts(nil), do: []
+
+  defp load_accounts(user_id) do
+    query =
+      from a in Account,
+        where: a.user_id == ^user_id,
+        order_by: [asc: a.label]
+
+    Repo.all(query)
+  end
+
+  defp load_strategies(nil), do: []
+
+  defp load_strategies(user_id) do
+    query =
+      from s in Setting,
+        join: a in Account,
+        on: s.account_id == a.id,
+        where: a.user_id == ^user_id,
+        order_by: [asc: s.strategy_name],
+        preload: [:account]
+
+    Repo.all(query)
   end
 end

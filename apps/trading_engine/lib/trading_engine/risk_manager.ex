@@ -5,11 +5,14 @@ defmodule TradingEngine.RiskManager do
   require Logger
 
   alias SharedData.Types
+  alias SharedData.Repo
+  alias SharedData.Schemas.Trade
+
+  import Ecto.Query
 
   @max_position_size Decimal.new("1.0")  # 1 BTC
   @max_order_size Decimal.new("0.1")     # 0.1 BTC
-  # TODO: Implement daily loss tracking
-  # @max_daily_loss Decimal.new("1000")    # $1000 USDT
+  @max_daily_loss Decimal.new("1000")    # $1000 USDT
 
   @spec check_order(Types.order_params(), map()) :: :ok | {:error, String.t()}
   def check_order(order_params, state) do
@@ -49,11 +52,54 @@ defmodule TradingEngine.RiskManager do
   defp check_position_size(_, _), do: :ok
 
   @spec check_daily_loss(map()) :: :ok | {:error, String.t()}
-  defp check_daily_loss(_state) do
-    # This would need to query database for today's trades
-    # For now, simplified implementation
-    # TODO: Implement actual daily loss check using @max_daily_loss
-    :ok
+  defp check_daily_loss(%{account_id: account_id}) when not is_nil(account_id) do
+    daily_loss = calculate_daily_loss(account_id)
+
+    if Decimal.compare(Decimal.abs(daily_loss), @max_daily_loss) == :gt do
+      {:error, "Daily loss limit exceeded (#{@max_daily_loss} USDT)"}
+    else
+      :ok
+    end
+  end
+
+  defp check_daily_loss(_state), do: :ok
+
+  @doc """
+  Calculate total P&L for today's trades for a given account.
+  Returns negative value for losses, positive for gains.
+  """
+  @spec calculate_daily_loss(binary()) :: Decimal.t()
+  def calculate_daily_loss(account_id) do
+    today_start = Date.utc_today() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+
+    query =
+      from t in Trade,
+        where: t.account_id == ^account_id,
+        where: t.timestamp >= ^today_start,
+        where: not is_nil(t.pnl),
+        select: sum(t.pnl)
+
+    case Repo.one(query) do
+      nil -> Decimal.new(0)
+      pnl -> pnl
+    end
+  end
+
+  @doc """
+  Get risk metrics for an account.
+  """
+  @spec get_risk_metrics(binary()) :: map()
+  def get_risk_metrics(account_id) do
+    daily_loss = calculate_daily_loss(account_id)
+    daily_loss_remaining = Decimal.sub(@max_daily_loss, Decimal.abs(daily_loss))
+
+    %{
+      daily_loss: daily_loss,
+      max_daily_loss: @max_daily_loss,
+      daily_loss_remaining: Decimal.max(daily_loss_remaining, Decimal.new(0)),
+      max_order_size: @max_order_size,
+      max_position_size: @max_position_size
+    }
   end
 
   @spec calculate_position_size(map()) :: Decimal.t()
