@@ -4,320 +4,139 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Binance Trading System** is a production-ready cryptocurrency portfolio management system built with Elixir/Phoenix. It provides automated trading strategies, real-time monitoring, and multi-account management for Binance exchange.
+Elixir/Phoenix umbrella application for Binance cryptocurrency trading with automated strategies and real-time monitoring.
 
-### Architecture
-- **Language**: Elixir 1.14+ with OTP 25+
-- **Framework**: Phoenix 1.7+ with LiveView
-- **Database**: PostgreSQL 15+ with TimescaleDB extension
-- **Structure**: Umbrella application with 4 main apps:
-  - `shared_data` - Common database schemas and Ecto Repo
-  - `data_collector` - Binance API/WebSocket integration
-  - `trading_engine` - Trading logic and strategies
-  - `dashboard_web` - Phoenix LiveView UI
+**Tech Stack**: Elixir 1.14+, Phoenix 1.7+ with LiveView, PostgreSQL 15+ with TimescaleDB
 
-### Key Features
-- Multiple Binance account management (via Sub-accounts)
-- Real-time market data monitoring
-- Automated trading strategies (Naive, Grid, DCA)
-- Risk management and stop-loss mechanisms
-- Portfolio tracking with P&L calculation
-- AES-256-GCM encryption for API keys
-- TimescaleDB for efficient time-series data storage
+## Umbrella Structure
+
+```
+apps/
+├── shared_data/      # Ecto schemas, Repo, PubSub, Vault (encryption)
+├── data_collector/   # Binance REST/WebSocket client, rate limiting
+├── trading_engine/   # Strategies, Trader GenServers, risk management
+└── dashboard_web/    # Phoenix LiveView UI
+```
+
+**Dependency flow**: `shared_data` ← `data_collector` ← `trading_engine` ← `dashboard_web`
 
 ## Development Commands
 
-### Quick Start
 ```bash
-# Docker setup (recommended)
-make start              # Start all services
-make db-create          # Create database
-make db-migrate         # Run migrations
-make server             # Start Phoenix server
+# Start services
+make start              # Docker: postgres, redis, dev container
+make server             # Phoenix server (port 4000)
+make server-iex         # With IEx console
 
-# Local setup
-mix deps.get
-mix ecto.create
-mix ecto.migrate
-mix phx.server
-```
+# Testing
+mix test                           # All tests
+mix test apps/trading_engine/test  # Single app tests
+mix test apps/trading_engine/test/trading_engine/strategies/naive_test.exs  # Single file
+mix test --cover                   # With coverage
 
-### Common Commands
-```bash
-# Development
-make server             # Start Phoenix server
-make server-iex         # Start with IEx console
-make test               # Run tests
-make check              # Full check (format + credo + tests)
-
-# Database
-make db-create          # Create database
-make db-migrate         # Run migrations
-make db-reset           # Reset database
-make db-seed            # Seed test data
-
-# Code Quality
+# Code quality
+make check              # format + credo + tests
 make format             # Format code
-make credo              # Run Credo linter
+make credo              # Linter
 make dialyzer           # Static analysis
 
-# Docker
-make start              # Start containers
-make stop               # Stop containers
-make logs               # View all logs
-make logs-app           # View app logs only
+# Database
+make db-create          # Create database
+make db-migrate         # Run migrations
+make db-reset           # Drop and recreate
+
+# Generate migration (run from umbrella root)
+mix ecto.gen.migration add_field_to_table -r SharedData.Repo
 ```
 
-Full command list: `make help`
+## Architecture
 
-## Custom Agents
+### PubSub Topics (SharedData.PubSub)
 
-### General Proposal Agent
+All apps share `BinanceSystem.PubSub`. Use `SharedData.PubSub.subscribe/1` and `broadcast/2`.
 
-The project includes a custom `general-proposal` agent for executing any development tasks with full access to skills.
+| Topic | Messages | Publishers | Subscribers |
+|-------|----------|------------|-------------|
+| `market:#{symbol}` | `{:ticker, data}`, `{:trade, data}` | BinanceWebSocket | MarketData, Trader, TradingLive |
+| `order_updates` | `{:execution_report, data}` | BinanceWebSocket | Trader, TradingLive |
+| `balance_updates` | `{:balance_update, data}` | BinanceWebSocket | PortfolioLive |
 
-**Location**: `.claude/agents/general-proposal.md`
+### Trading Strategy Pattern
 
-**Purpose**: Universal task executor that can handle any development work by leveraging all available skills and tools.
+Strategies implement `TradingEngine.Strategy` behaviour (`apps/trading_engine/lib/trading_engine/strategy.ex`):
 
-**Usage**:
-```
-# Explicit invocation
-> Use the general-proposal agent to [task description]
-
-# Automatic delegation (Claude decides when to use)
-> [Describe your task and Claude may automatically delegate to the agent]
-```
-
-**Capabilities**:
-- Full access to all custom skills in `.claude/skills/`
-- Backend development (Elixir, Phoenix, GenServers)
-- Database operations (migrations, schemas, TimescaleDB)
-- Frontend development (LiveView, JavaScript)
-- API integrations and testing
-- DevOps tasks
-
-**Model**: Sonnet 4.5 (claude-sonnet-4-5-20250929)
-
-## Custom Skills
-
-Skills are stored in `.claude/skills/` directory. See `SKILLS_GUIDE.md` and `.claude/skills/README.md` for details on creating and using skills.
-
-**Current Skills**:
-- `example-skill` - Template for creating new skills
-- 20+ custom skills for Elixir/Phoenix/Binance development
-
-**Planned Skills**:
-- `elixir-genserver` - Generate GenServer modules with tests
-- `phoenix-liveview` - Create LiveView components
-- `db-migration` - Database migration generator
-- `binance-test` - Binance API test helpers
-
-## Development Workflow
-
-1. Use `/agents` command to manage custom agents
-2. Invoke skills with `> Use [skill-name] skill for [task]`
-3. Let the general-proposal agent handle complex multi-step tasks
-4. Skills and agents work together to streamline development
-
-## Key Directories
-
-```
-binance_system/
-├── apps/
-│   ├── shared_data/         # Common DB schemas and Ecto Repo
-│   ├── data_collector/      # Binance API/WebSocket integration
-│   ├── trading_engine/      # Trading logic and strategies
-│   └── dashboard_web/       # Phoenix LiveView UI
-├── .claude/
-│   ├── agents/              # Custom agent definitions
-│   └── skills/              # Custom skill definitions
-├── config/                  # Application configuration
-├── monitoring/              # Grafana/Prometheus configs
-└── priv/                    # Static files and migrations
+```elixir
+@callback init(config) :: {:ok, state}
+@callback on_tick(market_data, state) :: {action, state}
+@callback on_execution(execution, state) :: {action, state}
+# action: {:place_order, params} | {:cancel_order, order_id} | :noop
 ```
 
-## Configuration
+**Existing strategies**: `Naive`, `Grid`, `DCA` in `apps/trading_engine/lib/trading_engine/strategies/`
 
-### Environment Variables
+### Process Architecture
 
-Required environment variables (see `.env.example`):
+- **One Trader GenServer per account** - Registered via `TradingEngine.TraderRegistry`
+- **AccountSupervisor** - DynamicSupervisor managing Trader processes
+- **Lookup pattern**: `{:via, Registry, {TradingEngine.TraderRegistry, account_id}}`
+
+### Key Modules
+
+| Module | Purpose |
+|--------|---------|
+| `SharedData.Vault` | Cloak encryption for API keys |
+| `SharedData.Accounts` | Account CRUD operations |
+| `DataCollector.BinanceClient` | REST API calls |
+| `DataCollector.BinanceWebSocket` | WebSocket streams |
+| `DataCollector.RateLimiter` | API rate limit handling |
+| `DataCollector.CircuitBreaker` | Failure protection |
+| `TradingEngine.RiskManager` | Order validation |
+| `TradingEngine.PositionTracker` | Position tracking |
+
+## Environment Variables
+
+Required in `.env` (copy from `.env.example`):
 
 ```bash
-# Binance API
-BINANCE_API_KEY=your_api_key
-BINANCE_SECRET_KEY=your_secret_key
+BINANCE_API_KEY=xxx
+BINANCE_SECRET_KEY=xxx
 BINANCE_BASE_URL=https://testnet.binance.vision  # Use testnet for dev
-
-# Security
-CLOAK_KEY=your_base64_encoded_key  # For API key encryption
-SECRET_KEY_BASE=your_phoenix_secret
-
-# Database
+CLOAK_KEY=xxx                                     # 32-byte base64: make gen-secret
+SECRET_KEY_BASE=xxx                               # mix phx.gen.secret
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/binance_trading_dev
 ```
 
-### Getting Binance API Keys
+## Custom Skills
 
-**Development (Testnet)**:
-1. Go to https://testnet.binance.vision/
-2. Login via GitHub
-3. Get API Key and Secret Key
-4. Use testnet endpoints
+Skills in `.claude/skills/` provide specialized knowledge. Key skills:
+- `elixir/genserver.md` - GenServer patterns
+- `phoenix/liveview.md` - LiveView components
+- `database/migration.md` - Ecto migrations
+- `trading-strategies.md` - Strategy implementation
+- `binance-api.md` - Binance API integration
 
-**Production**:
-1. Go to https://www.binance.com/en/my/settings/api-management
-2. Create new API key
-3. Configure permissions (Enable Reading + Spot & Margin Trading)
-4. Set IP whitelist for security
-5. **NEVER** enable withdrawal permissions
+## Important Patterns
 
-## Security Best Practices
+### GenServer Timeouts (SharedData.Config)
 
-### API Key Management
-- Always use testnet for development
-- Store keys in environment variables (never commit to git)
-- Enable IP whitelist for production keys
-- Regularly rotate API keys
-- Use AES-256-GCM encryption in database (via Cloak)
-
-### Multi-Account Warning
-Binance Terms of Service (Section 20.1.l) prohibit multiple personal accounts.
-
-**Legal methods**:
-1. **Sub-accounts** - For VIP1+ users (up to 200 sub-accounts)
-2. **Corporate accounts** - Separate legal entities
-
-## Testing
-
-```bash
-# Run all tests
-mix test
-
-# With coverage
-mix test --cover
-
-# Specific test file
-mix test test/trading_engine/strategies/naive_test.exs
-
-# Watch mode
-mix test.watch
+Use configured timeouts instead of defaults:
+```elixir
+GenServer.call(pid, msg, Config.timeout(:fast))   # Simple reads
+GenServer.call(pid, msg, Config.timeout(:api))    # External API calls
 ```
 
-### Test Types
-- **Unit tests** - Isolated module tests
-- **Integration tests** - Component interaction tests
-- **Property-based tests** - Using StreamData
-- **Feature tests** - End-to-end LiveView tests
+### Encryption
 
-## Architecture Details
-
-### OTP Supervision Tree
-- One GenServer per trading account for isolation
-- Fault-tolerant design with supervision trees
-- Automatic process restart on failures
-
-### Real-time Updates
-- Phoenix Channels for WebSocket communication
-- LiveView for reactive UI updates
-- Binance WebSocket streams for market data
-
-### Data Storage
-- PostgreSQL for relational data
-- TimescaleDB for time-series market data
-- Continuous aggregates for pre-calculated statistics
-- ETS for in-memory caching
-
-## Monitoring and Observability
-
-- **Phoenix LiveDashboard** - Real-time application metrics
-- **Telemetry** - Custom metrics and events
-- **Grafana** (optional) - Advanced monitoring dashboards
-- **Prometheus** (optional) - Metrics collection
-- Audit logging for all trading operations
-
-## Documentation
-
-### Project Documentation
-- [README.md](README.md) - Main project documentation
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Detailed implementation plan
-- [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) - Development guidelines
-- [AUDIT_REPORT.md](AUDIT_REPORT.md) - Code audit report
-
-### External Resources
-- [Elixir Documentation](https://elixir-lang.org/docs.html)
-- [Phoenix Framework](https://www.phoenixframework.org/)
-- [Phoenix LiveView](https://hexdocs.pm/phoenix_live_view/)
-- [Binance API Docs](https://binance-docs.github.io/apidocs/)
-
-## Common Development Patterns
-
-### Creating a New Trading Strategy
-1. Create module in `apps/trading_engine/lib/trading_engine/strategies/`
-2. Implement `init/1`, `handle_tick/2`, and `handle_order/2` callbacks
-3. Add tests in `apps/trading_engine/test/strategies/`
-4. Register strategy in configuration
-
-### Adding a LiveView Component
-1. Create component in `apps/dashboard_web/lib/dashboard_web/live/`
-2. Use `use DashboardWeb, :live_view`
-3. Implement `mount/3` and `handle_event/3` callbacks
-4. Add routes in `router.ex`
-
-### Database Migrations
-```bash
-# Create migration
-cd apps/shared_data
-mix ecto.gen.migration add_field_to_table
-
-# Edit migration file in priv/repo/migrations/
-# Run migration
-mix ecto.migrate
+API credentials are encrypted with Cloak (AES-256-GCM):
+```elixir
+# In schema
+field :api_key, SharedData.Encrypted.Binary
+field :secret_key, SharedData.Encrypted.Binary
 ```
 
-## Important Notes
+### Type Specs
 
-- Always test trading strategies in paper trading mode first
-- Monitor rate limits to avoid Binance API restrictions
-- Use sub-accounts for legitimate multi-account management
-- Enable 2FA on Binance account for security
-- Never commit API keys or secrets to git
-- Review BUGFIXES_PHASE7.md for known critical bug fixes
-
-## Troubleshooting
-
-### Common Issues
-
-**Database connection error**:
-```bash
-# Check PostgreSQL is running
-make start  # For Docker setup
-
-# Recreate database
-make db-reset
+Use types from `SharedData.Types`:
+```elixir
+@spec place_order(Types.account_id(), Types.order_params()) :: Types.result(Types.order())
 ```
-
-**Asset compilation error**:
-```bash
-cd apps/dashboard_web/assets
-npm install
-cd ../../..
-mix phx.server
-```
-
-**API key encryption error**:
-```bash
-# Generate new Cloak key
-make gen-secret
-# Add to .env as CLOAK_KEY
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-This system is provided "as is" without any warranties. Cryptocurrency trading carries high risks. Use at your own risk. Authors are not responsible for financial losses.
-
-**Always test strategies in paper trading mode before using real funds!**

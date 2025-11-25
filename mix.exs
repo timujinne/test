@@ -13,17 +13,23 @@ defmodule BinanceSystem.MixProject do
   end
 
   defp deps do
-    []
+    [
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev}
+    ]
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup"],
+      setup: ["deps.get", "ecto.setup", "assets.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run apps/shared_data/priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": [
-        "cmd --cd apps/dashboard_web/assets npm run deploy",
+        "tailwind default --minify",
+        "esbuild default --minify",
         "phx.digest"
       ]
     ]

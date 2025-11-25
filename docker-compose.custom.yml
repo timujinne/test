@@ -98,6 +98,9 @@ services:
       - PGUSER=${APP_DB_USER}
       - PGPASSWORD=${APP_DB_PASSWORD}
       - PGDATABASE=${APP_DB_NAME}
+      - APP_DB_USER=${APP_DB_USER}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD}
+      - APP_DB_NAME=${APP_DB_NAME}
 
       # Phoenix
       - SECRET_KEY_BASE=${SECRET_KEY_BASE}
