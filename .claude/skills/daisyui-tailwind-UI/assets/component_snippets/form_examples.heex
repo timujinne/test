@@ -1,0 +1,234 @@
+<%!-- Form Component Examples
+     Common form patterns and components using DaisyUI classes.
+     Copy and adapt these examples for your forms.
+--%>
+
+<%!-- Basic Form with Validation --%>
+<div class="card w-full max-w-2xl bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h2 class="card-title">User Information Form</h2>
+
+    <form>
+      <%!-- Text Input with Label --%>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">Full Name</span>
+          <span class="label-text-alt text-error">Required *</span>
+        </label>
+        <input
+          type="text"
+          placeholder="John Doe"
+          class="input input-bordered w-full"
+        />
+        <label class="label">
+          <span class="label-text-alt">Please use your legal name</span>
+        </label>
+      </div>
+
+      <%!-- Email Input with Error State --%>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">Email</span>
+        </label>
+        <input
+          type="email"
+          placeholder="email@example.com"
+          class="input input-bordered input-error w-full"
+        />
+        <label class="label">
+          <span class="label-text-alt text-error">Email format is invalid</span>
+        </label>
+      </div>
+
+      <%!-- Select Dropdown --%>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">Country</span>
+        </label>
+        <select class="select select-bordered w-full">
+          <option disabled selected>Select your country</option>
+          <option>United States</option>
+          <option>Canada</option>
+          <option>United Kingdom</option>
+          <option>Australia</option>
+        </select>
+      </div>
+
+      <%!-- Textarea --%>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">Bio</span>
+          <span class="label-text-alt">0 / 500</span>
+        </label>
+        <textarea
+          class="textarea textarea-bordered h-24"
+          placeholder="Tell us about yourself"
+        ></textarea>
+      </div>
+
+      <%!-- Checkbox Group --%>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Interests</span>
+        </label>
+        <div class="space-y-2">
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="checkbox" class="checkbox checkbox-primary" />
+            <span class="label-text">Technology</span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="checkbox" class="checkbox checkbox-primary" />
+            <span class="label-text">Design</span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="checkbox" class="checkbox checkbox-primary" />
+            <span class="label-text">Business</span>
+          </label>
+        </div>
+      </div>
+
+      <%!-- Radio Button Group --%>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Subscription Plan</span>
+        </label>
+        <div class="space-y-2">
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="radio" name="plan" class="radio radio-primary" checked />
+            <div>
+              <div class="font-semibold">Free</div>
+              <div class="text-sm text-base-content/60">Basic features</div>
+            </div>
+          </label>
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="radio" name="plan" class="radio radio-primary" />
+            <div>
+              <div class="font-semibold">Pro - $9.99/month</div>
+              <div class="text-sm text-base-content/60">All features included</div>
+            </div>
+          </label>
+          <label class="label cursor-pointer justify-start gap-4">
+            <input type="radio" name="plan" class="radio radio-primary" />
+            <div>
+              <div class="font-semibold">Enterprise - Contact us</div>
+              <div class="text-sm text-base-content/60">Custom solutions</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <%!-- Toggle Switch --%>
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-4">
+          <input type="checkbox" class="toggle toggle-primary" checked />
+          <div>
+            <div class="label-text font-semibold">Email Notifications</div>
+            <div class="label-text-alt">Receive updates via email</div>
+          </div>
+        </label>
+      </div>
+
+      <%!-- Range Slider --%>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Budget Range</span>
+          <span class="label-text-alt">$5,000</span>
+        </label>
+        <input type="range" min="0" max="10000" value="5000" class="range range-primary" step="1000" />
+        <div class="w-full flex justify-between text-xs px-2">
+          <span>$0</span>
+          <span>$2.5k</span>
+          <span>$5k</span>
+          <span>$7.5k</span>
+          <span>$10k</span>
+        </div>
+      </div>
+
+      <%!-- File Upload --%>
+      <div class="form-control w-full">
+        <label class="label">
+          <span class="label-text">Upload Resume</span>
+        </label>
+        <input type="file" class="file-input file-input-bordered w-full" />
+        <label class="label">
+          <span class="label-text-alt">PDF, DOC, or DOCX (Max 5MB)</span>
+        </label>
+      </div>
+
+      <%!-- Form Actions --%>
+      <div class="card-actions justify-end mt-6">
+        <button type="button" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%!-- Inline Form (Search Bar) --%>
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h3 class="card-title">Quick Search</h3>
+    <form class="flex gap-2">
+      <input
+        type="search"
+        placeholder="Search..."
+        class="input input-bordered flex-1"
+      />
+      <button type="submit" class="btn btn-primary">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        Search
+      </button>
+    </form>
+  </div>
+</div>
+
+<%!-- Form with Loading State --%>
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h3 class="card-title">Submit Feedback</h3>
+    <form>
+      <div class="form-control">
+        <textarea
+          class="textarea textarea-bordered h-24"
+          placeholder="Your feedback"
+        ></textarea>
+      </div>
+      <div class="card-actions justify-end mt-4">
+        <button type="submit" class="btn btn-primary">
+          Submit
+        </button>
+        <%!-- Loading state version --%>
+        <button type="submit" class="btn btn-primary loading" disabled>
+          Submitting...
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%!-- Multi-Step Form Indicator --%>
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <ul class="steps w-full mb-6">
+      <li class="step step-primary">Personal Info</li>
+      <li class="step step-primary">Account Details</li>
+      <li class="step">Preferences</li>
+      <li class="step">Review</li>
+    </ul>
+
+    <%!-- Current step content would go here --%>
+    <div class="alert alert-info">
+      <svg class="stroke-current shrink-0 w-6 h-6" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>Step 2 of 4: Enter your account details</span>
+    </div>
+
+    <div class="card-actions justify-between mt-6">
+      <button type="button" class="btn btn-ghost">Back</button>
+      <button type="button" class="btn btn-primary">Next</button>
+    </div>
+  </div>
+</div>

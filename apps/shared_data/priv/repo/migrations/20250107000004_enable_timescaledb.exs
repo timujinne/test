@@ -1,11 +1,16 @@
 defmodule SharedData.Repo.Migrations.EnableTimescaledb do
   use Ecto.Migration
 
+  # TimescaleDB is optional - skip if not installed
+  # This allows the project to work without TimescaleDB extension
   def up do
-    execute "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
+    # Skip TimescaleDB - use regular tables instead
+    # If you have TimescaleDB installed, uncomment:
+    # execute "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
+    :ok
   end
 
   def down do
-    execute "DROP EXTENSION IF EXISTS timescaledb CASCADE"
+    :ok
   end
 end

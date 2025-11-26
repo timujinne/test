@@ -140,10 +140,19 @@ defmodule SharedData.Accounts do
   Получить все аккаунты пользователя.
   """
   def list_user_accounts(user_id) do
-    Account
-    |> where([a], a.user_id == ^user_id)
-    |> preload([:api_credential, :balances, :settings])
-    |> Repo.all()
+    query =
+      Account
+      |> order_by([a], [desc: a.is_active, asc: a.label])
+      |> preload([:api_credential, :balances, :settings])
+
+    query =
+      if is_nil(user_id) do
+        where(query, [a], is_nil(a.user_id))
+      else
+        where(query, [a], a.user_id == ^user_id)
+      end
+
+    Repo.all(query)
   end
 
   @doc """
@@ -186,5 +195,31 @@ defmodule SharedData.Accounts do
   """
   def delete_account(%Account{} = account) do
     Repo.delete(account)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking account changes.
+  """
+  def change_account(%Account{} = account, attrs \\ %{}) do
+    Account.changeset(account, attrs)
+  end
+
+  @doc """
+  Gets a single account by ID, scoped to a specific user.
+  """
+  def get_account_by_user(id, user_id) do
+    query =
+      Account
+      |> where([a], a.id == ^id)
+      |> preload(:api_credential)
+
+    query =
+      if is_nil(user_id) do
+        where(query, [a], is_nil(a.user_id))
+      else
+        where(query, [a], a.user_id == ^user_id)
+      end
+
+    Repo.one(query)
   end
 end

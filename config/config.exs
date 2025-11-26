@@ -19,7 +19,7 @@ config :esbuild,
   default: [
     args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../apps/dashboard_web/assets", __DIR__),
-    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+    env: %{"NODE_PATH" => Path.expand("../apps/dashboard_web/assets/node_modules", __DIR__)}
   ]
 
 # Configure tailwind (CSS bundling)

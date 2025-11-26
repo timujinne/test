@@ -35,6 +35,7 @@ defmodule DashboardWeb.MixProject do
       {:phoenix_live_reload, "~> 1.4", only: :dev},
       {:phoenix_live_view, "~> 0.20"},
       {:phoenix_live_dashboard, "~> 0.8"},
+      {:phoenix_ecto, "~> 4.4"},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},

@@ -1,52 +1,43 @@
 defmodule DashboardWeb.HistoryLive do
   use DashboardWeb, :live_view
 
-  alias SharedData.Helpers.DecimalHelper
-  alias SharedData.Repo
-  alias SharedData.Schemas.Trade
+  alias SharedData.Helpers.{DecimalHelper, CredentialHelper}
 
-  import Ecto.Query
+  require Logger
 
   @impl true
   def mount(_params, _session, socket) do
     # Phase 8: Will get account_id from authenticated session
+    # For now, use testnet credentials from environment
+
+    if connected?(socket) do
+      # Schedule periodic refresh every 10 seconds
+      :timer.send_interval(10_000, self(), :refresh_history)
+    end
+
     socket =
       socket
       |> assign(page_title: "History")
       |> assign(current_path: "/history")
+      |> assign(orders: [])
       |> assign(trades: [])
-      |> assign(page: 1)
-      |> assign(per_page: 20)
-      |> assign(total_pages: 1)
-      |> assign(filter_symbol: nil)
-      |> assign(account_id: nil)
-      |> load_trades()
+      |> assign(filter_symbol: "BTCUSDT")
+      |> assign(loading: false)
+      |> assign(error: nil)
+      |> load_history()
 
     {:ok, socket}
   end
 
   @impl true
-  def handle_event("prev_page", _, socket) do
-    if socket.assigns.page > 1 do
-      {:noreply, socket |> assign(page: socket.assigns.page - 1) |> load_trades()}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("next_page", _, socket) do
-    if socket.assigns.page < socket.assigns.total_pages do
-      {:noreply, socket |> assign(page: socket.assigns.page + 1) |> load_trades()}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
   def handle_event("filter_symbol", %{"symbol" => symbol}, socket) do
-    filter = if symbol == "", do: nil, else: symbol
-    {:noreply, socket |> assign(filter_symbol: filter, page: 1) |> load_trades()}
+    filter = if symbol == "", do: "BTCUSDT", else: String.upcase(symbol)
+    {:noreply, socket |> assign(filter_symbol: filter) |> load_history()}
+  end
+
+  @impl true
+  def handle_info(:refresh_history, socket) do
+    {:noreply, load_history(socket)}
   end
 
   @impl true
@@ -55,18 +46,18 @@ defmodule DashboardWeb.HistoryLive do
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Trade History</h1>
-          <p class="mt-2 text-sm text-gray-600">
-            View your past trades and performance
+          <h1 class="text-3xl font-bold text-base-content">Order History</h1>
+          <p class="mt-2 text-sm text-base-content/70">
+            View your past orders and trades from Binance
           </p>
         </div>
       </div>
 
       <!-- Filters -->
-      <div class="bg-white shadow rounded-lg p-4">
+      <div class="card bg-base-100 shadow-xl p-4">
         <div class="flex items-center space-x-4">
           <div class="flex-1">
-            <label for="symbol-filter" class="block text-sm font-medium text-gray-700">
+            <label for="symbol-filter" class="block text-sm font-medium text-base-content">
               Filter by Symbol
             </label>
             <input
@@ -74,24 +65,48 @@ defmodule DashboardWeb.HistoryLive do
               id="symbol-filter"
               phx-change="filter_symbol"
               name="symbol"
-              value={@filter_symbol || ""}
+              value={@filter_symbol}
               placeholder="e.g. BTCUSDT"
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              class="input input-bordered w-full mt-1"
             />
           </div>
+          <%= if @loading do %>
+            <div class="text-sm text-base-content/70">
+              <span class="loading loading-spinner loading-sm"></span>
+              Loading...
+            </div>
+          <% end %>
         </div>
+        <%= if @error do %>
+          <div class="alert alert-error mt-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span><%= @error %></span>
+          </div>
+        <% end %>
       </div>
 
-      <!-- Trades Table -->
-      <div class="bg-white shadow rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200">
-          <h2 class="text-xl font-semibold text-gray-900">All Trades</h2>
+      <!-- Orders Table -->
+      <div class="card bg-base-100 shadow-xl">
+        <div class="px-6 py-4 border-b border-base-300">
+          <h2 class="text-xl font-semibold text-base-content">All Orders</h2>
         </div>
         <div class="overflow-x-auto">
-          <%= if Enum.empty?(@trades) do %>
+          <%= if Enum.empty?(@orders) do %>
             <div class="px-6 py-12 text-center">
               <svg
-                class="mx-auto h-12 w-12 text-gray-400"
+                class="mx-auto h-12 w-12 text-base-content/40"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -103,199 +118,265 @@ defmodule DashboardWeb.HistoryLive do
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <h3 class="mt-2 text-sm font-medium text-gray-900">No trades</h3>
-              <p class="mt-1 text-sm text-gray-500">
-                <%= if @filter_symbol do %>
-                  No trades found for <%= @filter_symbol %>
-                <% else %>
-                  No trades have been executed yet.
-                <% end %>
+              <h3 class="mt-2 text-sm font-medium text-base-content">No orders</h3>
+              <p class="mt-1 text-sm text-base-content/70">
+                No orders found for <%= @filter_symbol %>
               </p>
             </div>
           <% else %>
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="table table-zebra">
+              <thead>
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date/Time
-                  </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Symbol
-                  </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Side
-                  </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Commission
-                  </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    P&L
-                  </th>
+                  <th class="text-left">Date/Time</th>
+                  <th class="text-left">Order ID</th>
+                  <th class="text-left">Symbol</th>
+                  <th class="text-left">Side</th>
+                  <th class="text-left">Type</th>
+                  <th class="text-right">Price</th>
+                  <th class="text-right">Quantity</th>
+                  <th class="text-right">Filled</th>
+                  <th class="text-left">Status</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <%= for trade <- @trades do %>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <%= Calendar.strftime(trade.timestamp, "%Y-%m-%d %H:%M:%S") %>
+              <tbody>
+                <%= for order <- @orders do %>
+                  <tr>
+                    <td class="text-base-content">
+                      <%= format_timestamp(order["time"]) %>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="text-sm font-medium text-gray-900">
-                        <%= trade.symbol %>
+                    <td class="text-base-content/70 font-mono text-xs">
+                      <%= order["orderId"] %>
+                    </td>
+                    <td>
+                      <span class="font-medium text-base-content">
+                        <%= order["symbol"] %>
                       </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td>
                       <span class={[
-                        "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
-                        if(trade.side == "BUY",
-                          do: "bg-green-100 text-green-800",
-                          else: "bg-red-100 text-red-800"
-                        )
+                        "badge",
+                        if(order["side"] == "BUY", do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= trade.side %>
+                        <%= order["side"] %>
                       </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      <%= DecimalHelper.format(trade.price, 2) %>
+                    <td class="text-base-content/70">
+                      <%= order["type"] %>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      <%= DecimalHelper.format(trade.quantity, 8) %>
+                    <td class="text-right text-base-content">
+                      <%= format_price(order["price"]) %>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      <%= DecimalHelper.format(Decimal.mult(trade.price, trade.quantity), 2) %>
+                    <td class="text-right text-base-content">
+                      <%= format_quantity(order["origQty"]) %>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
-                      <%= if trade.commission do %>
-                        <%= DecimalHelper.format(trade.commission, 8) %>
-                        <%= if trade.commission_asset, do: trade.commission_asset, else: "" %>
+                    <td class="text-right text-base-content">
+                      <%= format_quantity(order["executedQty"]) %>
+                    </td>
+                    <td>
+                      <span class={[
+                        "badge",
+                        case order["status"] do
+                          "FILLED" -> "badge-success"
+                          "NEW" -> "badge-info"
+                          "PARTIALLY_FILLED" -> "badge-warning"
+                          "CANCELED" -> "badge-ghost"
+                          "REJECTED" -> "badge-error"
+                          "EXPIRED" -> "badge-ghost"
+                          _ -> "badge-ghost"
+                        end
+                      ]}>
+                        <%= order["status"] %>
+                      </span>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Trades Table -->
+      <%= if not Enum.empty?(@trades) do %>
+        <div class="card bg-base-100 shadow-xl">
+          <div class="px-6 py-4 border-b border-base-300">
+            <h2 class="text-xl font-semibold text-base-content">Executed Trades</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-zebra">
+              <thead>
+                <tr>
+                  <th class="text-left">Date/Time</th>
+                  <th class="text-left">Trade ID</th>
+                  <th class="text-left">Order ID</th>
+                  <th class="text-left">Symbol</th>
+                  <th class="text-left">Side</th>
+                  <th class="text-right">Price</th>
+                  <th class="text-right">Quantity</th>
+                  <th class="text-right">Quote Qty</th>
+                  <th class="text-right">Commission</th>
+                  <th class="text-left">Maker</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for trade <- @trades do %>
+                  <tr>
+                    <td class="text-base-content">
+                      <%= format_timestamp(trade["time"]) %>
+                    </td>
+                    <td class="text-base-content/70 font-mono text-xs">
+                      <%= trade["id"] %>
+                    </td>
+                    <td class="text-base-content/70 font-mono text-xs">
+                      <%= trade["orderId"] %>
+                    </td>
+                    <td>
+                      <span class="font-medium text-base-content">
+                        <%= trade["symbol"] %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class={[
+                        "badge",
+                        if(trade["isBuyer"], do: "badge-success", else: "badge-error")
+                      ]}>
+                        <%= if trade["isBuyer"], do: "BUY", else: "SELL" %>
+                      </span>
+                    </td>
+                    <td class="text-right text-base-content">
+                      <%= format_price(trade["price"]) %>
+                    </td>
+                    <td class="text-right text-base-content">
+                      <%= format_quantity(trade["qty"]) %>
+                    </td>
+                    <td class="text-right text-base-content">
+                      <%= format_price(trade["quoteQty"]) %>
+                    </td>
+                    <td class="text-right text-base-content/70">
+                      <%= format_quantity(trade["commission"]) %>
+                      <%= trade["commissionAsset"] %>
+                    </td>
+                    <td>
+                      <%= if trade["isMaker"] do %>
+                        <span class="badge badge-sm badge-info">MAKER</span>
                       <% else %>
-                        -
-                      <% end %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      <%= if trade.pnl do %>
-                        <span class={[
-                          "font-medium",
-                          if(DecimalHelper.positive?(trade.pnl),
-                            do: "text-green-600",
-                            else: "text-red-600"
-                          )
-                        ]}>
-                          <%= DecimalHelper.format_currency(trade.pnl, "USDT", 2) %>
-                        </span>
-                      <% else %>
-                        <span class="text-gray-400">-</span>
+                        <span class="badge badge-sm badge-ghost">TAKER</span>
                       <% end %>
                     </td>
                   </tr>
                 <% end %>
               </tbody>
             </table>
-
-            <!-- Pagination -->
-            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div class="flex-1 flex justify-between sm:hidden">
-                <button
-                  phx-click="prev_page"
-                  disabled={@page == 1}
-                  class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  phx-click="next_page"
-                  disabled={@page >= @total_pages}
-                  class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-              <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p class="text-sm text-gray-700">
-                    Page <span class="font-medium"><%= @page %></span>
-                    of
-                    <span class="font-medium"><%= @total_pages %></span>
-                  </p>
-                </div>
-                <div>
-                  <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                    <button
-                      phx-click="prev_page"
-                      disabled={@page == 1}
-                      class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <span class="sr-only">Previous</span>
-                      ←
-                    </button>
-                    <button
-                      phx-click="next_page"
-                      disabled={@page >= @total_pages}
-                      class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <span class="sr-only">Next</span>
-                      →
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          <% end %>
+          </div>
         </div>
-      </div>
+      <% end %>
     </div>
     """
   end
 
-  defp load_trades(socket) do
-    # Phase 8: Will load data based on authenticated user's account
-    account_id = socket.assigns.account_id
-    page = socket.assigns.page
-    per_page = socket.assigns.per_page
-    filter_symbol = socket.assigns.filter_symbol
+  # Private functions
 
-    {trades, total_count} = fetch_trades(account_id, filter_symbol, page, per_page)
-    total_pages = max(1, ceil(total_count / per_page))
+  defp load_history(socket) do
+    symbol = socket.assigns.filter_symbol
 
-    socket
-    |> assign(trades: trades)
-    |> assign(total_pages: total_pages)
+    case get_testnet_credentials() do
+      {api_key, secret_key} ->
+        socket
+        |> assign(loading: true, error: nil)
+        |> load_orders_and_trades(api_key, secret_key, symbol)
+
+      nil ->
+        socket
+        |> assign(
+          loading: false,
+          error: "Binance API credentials not configured. Please set BINANCE_API_KEY and BINANCE_SECRET_KEY.",
+          orders: [],
+          trades: []
+        )
+    end
   end
 
-  defp fetch_trades(nil, _filter_symbol, _page, _per_page), do: {[], 0}
+  defp load_orders_and_trades(socket, api_key, secret_key, symbol) do
+    # Load orders
+    orders =
+      case DataCollector.BinanceClient.get_all_orders(api_key, secret_key, symbol, limit: 100) do
+        {:ok, orders_list} ->
+          # Sort by time descending
+          Enum.sort_by(orders_list, & &1["time"], :desc)
 
-  defp fetch_trades(account_id, filter_symbol, page, per_page) do
-    offset = (page - 1) * per_page
-
-    base_query =
-      from t in Trade,
-        where: t.account_id == ^account_id,
-        order_by: [desc: t.timestamp]
-
-    query =
-      if filter_symbol do
-        from t in base_query, where: t.symbol == ^filter_symbol
-      else
-        base_query
+        {:error, reason} ->
+          Logger.error("Failed to load orders: #{inspect(reason)}")
+          []
       end
 
+    # Load trades
     trades =
-      query
-      |> limit(^per_page)
-      |> offset(^offset)
-      |> Repo.all()
+      case DataCollector.BinanceClient.get_my_trades(api_key, secret_key, symbol, limit: 100) do
+        {:ok, trades_list} ->
+          # Sort by time descending
+          Enum.sort_by(trades_list, & &1["time"], :desc)
 
-    total_count = Repo.aggregate(query, :count, :id)
+        {:error, reason} ->
+          Logger.error("Failed to load trades: #{inspect(reason)}")
+          []
+      end
 
-    {trades, total_count}
+    socket
+    |> assign(loading: false, orders: orders, trades: trades)
   end
+
+  defp get_testnet_credentials do
+    # Try to get credentials from database (for authenticated user) or fallback to env vars
+    # Phase 8: Will pass actual user_id from authenticated session
+    user_id = nil
+    CredentialHelper.get_credentials(user_id)
+  end
+
+  defp format_timestamp(timestamp_ms) when is_integer(timestamp_ms) do
+    timestamp_ms
+    |> DateTime.from_unix!(:millisecond)
+    |> Calendar.strftime("%Y-%m-%d %H:%M:%S")
+  end
+
+  defp format_timestamp(timestamp_str) when is_binary(timestamp_str) do
+    case Integer.parse(timestamp_str) do
+      {timestamp_ms, _} -> format_timestamp(timestamp_ms)
+      :error -> timestamp_str
+    end
+  end
+
+  defp format_timestamp(_), do: "-"
+
+  defp format_price(price) when is_binary(price) do
+    case Decimal.parse(price) do
+      {decimal, _} ->
+        if Decimal.eq?(decimal, Decimal.new(0)) do
+          "Market"
+        else
+          DecimalHelper.format(decimal, 8)
+        end
+
+      :error ->
+        price
+    end
+  end
+
+  defp format_price(price) when is_number(price) do
+    format_price(to_string(price))
+  end
+
+  defp format_price(_), do: "-"
+
+  defp format_quantity(qty) when is_binary(qty) do
+    case Decimal.parse(qty) do
+      {decimal, _} -> DecimalHelper.format(decimal, 8)
+      :error -> qty
+    end
+  end
+
+  defp format_quantity(qty) when is_number(qty) do
+    format_quantity(to_string(qty))
+  end
+
+  defp format_quantity(_), do: "-"
 end

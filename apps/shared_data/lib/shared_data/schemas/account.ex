@@ -25,7 +25,7 @@ defmodule SharedData.Schemas.Account do
   def changeset(account, attrs) do
     account
     |> cast(attrs, [:binance_account_id, :label, :is_active, :user_id, :api_credential_id])
-    |> validate_required([:label, :user_id, :api_credential_id])
+    |> validate_required([:label, :api_credential_id])
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:api_credential_id)
   end
