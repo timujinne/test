@@ -22,7 +22,9 @@ defmodule DashboardWeb.Router do
       live "/", TradingLive
       live "/trading", TradingLive
       live "/portfolio", PortfolioLive
+      live "/orders", OrdersLive
       live "/history", HistoryLive
+      live "/strategies", StrategiesLive
       live "/settings", SettingsLive
     end
   end

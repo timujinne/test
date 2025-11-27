@@ -2,6 +2,7 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
+import { PriceChart, DepthChart } from "./hooks"
 
 // Theme Toggle Hook for Phoenix LiveView
 // Handles theme switching between light and dark modes
@@ -29,7 +30,7 @@ const ThemeToggle = {
   }
 };
 
-let Hooks = { ThemeToggle };
+let Hooks = { ThemeToggle, PriceChart, DepthChart };
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {
