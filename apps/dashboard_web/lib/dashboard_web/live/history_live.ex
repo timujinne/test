@@ -11,9 +11,15 @@ defmodule DashboardWeb.HistoryLive do
     # For now, use testnet credentials from environment
 
     if connected?(socket) do
-      # Schedule periodic refresh every 10 seconds
-      :timer.send_interval(10_000, self(), :refresh_history)
+      # Refresh every 30 seconds (not 10 - too aggressive)
+      :timer.send_interval(30_000, self(), :refresh_history)
     end
+
+    # Common trading symbols
+    available_symbols = ["BTCUSDT", "ETHUSDT", "DOGEUSDT", "SOLUSDT", "DOTUSDT", "BNBUSDT"]
+
+    # Default to first symbol, not ALL (faster loading)
+    default_symbol = List.first(available_symbols, "BTCUSDT")
 
     socket =
       socket
@@ -21,7 +27,8 @@ defmodule DashboardWeb.HistoryLive do
       |> assign(current_path: "/history")
       |> assign(orders: [])
       |> assign(trades: [])
-      |> assign(filter_symbol: "BTCUSDT")
+      |> assign(available_symbols: available_symbols)
+      |> assign(filter_symbol: default_symbol)
       |> assign(loading: false)
       |> assign(error: nil)
       |> load_history()
@@ -30,9 +37,9 @@ defmodule DashboardWeb.HistoryLive do
   end
 
   @impl true
-  def handle_event("filter_symbol", %{"symbol" => symbol}, socket) do
-    filter = if symbol == "", do: "BTCUSDT", else: String.upcase(symbol)
-    {:noreply, socket |> assign(filter_symbol: filter) |> load_history()}
+  def handle_event("select_symbol", %{"symbol" => symbol}, socket) do
+    Logger.info("Symbol filter changed to: #{symbol}")
+    {:noreply, socket |> assign(filter_symbol: symbol) |> load_history()}
   end
 
   @impl true
@@ -52,31 +59,38 @@ defmodule DashboardWeb.HistoryLive do
           </p>
         </div>
       </div>
-
-      <!-- Filters -->
+      <!-- Filter -->
       <div class="card bg-base-100 shadow-xl p-4">
-        <div class="flex items-center space-x-4">
-          <div class="flex-1">
-            <label for="symbol-filter" class="block text-sm font-medium text-base-content">
-              Filter by Symbol
-            </label>
-            <input
-              type="text"
-              id="symbol-filter"
-              phx-change="filter_symbol"
+        <div class="flex items-center gap-4">
+          <label for="symbol-select" class="text-sm font-medium text-base-content whitespace-nowrap">
+            Symbol:
+          </label>
+          <form phx-change="select_symbol">
+            <select
+              id="symbol-select"
               name="symbol"
-              value={@filter_symbol}
-              placeholder="e.g. BTCUSDT"
-              class="input input-bordered w-full mt-1"
-            />
-          </div>
-          <%= if @loading do %>
-            <div class="text-sm text-base-content/70">
-              <span class="loading loading-spinner loading-sm"></span>
-              Loading...
-            </div>
-          <% end %>
+              class="select select-bordered select-sm w-48"
+            >
+              <%= for symbol <- @available_symbols do %>
+                <option value={symbol} selected={@filter_symbol == symbol}>
+                  <%= symbol %>
+                </option>
+              <% end %>
+              <option value="ALL" selected={@filter_symbol == "ALL"}>
+                All (slow)
+              </option>
+            </select>
+          </form>
+          <span class="text-sm text-base-content/50">
+            Showing: <span class="font-medium text-base-content"><%= @filter_symbol %></span>
+          </span>
         </div>
+        <%= if @loading do %>
+          <div class="flex items-center justify-center mt-4">
+            <span class="loading loading-spinner loading-md mr-2"></span>
+            <span class="text-sm text-base-content/70">Loading history...</span>
+          </div>
+        <% end %>
         <%= if @error do %>
           <div class="alert alert-error mt-4">
             <svg
@@ -96,7 +110,6 @@ defmodule DashboardWeb.HistoryLive do
           </div>
         <% end %>
       </div>
-
       <!-- Orders Table -->
       <div class="card bg-base-100 shadow-xl">
         <div class="px-6 py-4 border-b border-base-300">
@@ -120,7 +133,11 @@ defmodule DashboardWeb.HistoryLive do
               </svg>
               <h3 class="mt-2 text-sm font-medium text-base-content">No orders</h3>
               <p class="mt-1 text-sm text-base-content/70">
-                No orders found for <%= @filter_symbol %>
+                <%= if @filter_symbol == "ALL" do %>
+                  No orders found in your history
+                <% else %>
+                  No orders found for <%= @filter_symbol %>
+                <% end %>
               </p>
             </div>
           <% else %>
@@ -195,7 +212,6 @@ defmodule DashboardWeb.HistoryLive do
           <% end %>
         </div>
       </div>
-
       <!-- Trades Table -->
       <%= if not Enum.empty?(@trades) do %>
         <div class="card bg-base-100 shadow-xl">
@@ -289,15 +305,48 @@ defmodule DashboardWeb.HistoryLive do
         socket
         |> assign(
           loading: false,
-          error: "Binance API credentials not configured. Please set BINANCE_API_KEY and BINANCE_SECRET_KEY.",
+          error:
+            "Binance API credentials not configured. Please set BINANCE_API_KEY and BINANCE_SECRET_KEY.",
           orders: [],
           trades: []
         )
     end
   end
 
+  defp load_orders_and_trades(socket, api_key, secret_key, "ALL") do
+    # For "ALL", load only from top 3 symbols to avoid slow loading
+    symbols = socket.assigns.available_symbols |> Enum.take(3)
+
+    # Load orders from limited symbols (20 each max)
+    all_orders =
+      symbols
+      |> Enum.flat_map(fn sym ->
+        case DataCollector.BinanceClient.get_all_orders(api_key, secret_key, sym, limit: 20) do
+          {:ok, orders_list} -> orders_list
+          {:error, _} -> []
+        end
+      end)
+      |> Enum.sort_by(& &1["time"], :desc)
+      |> Enum.take(50)
+
+    # Load trades from limited symbols
+    all_trades =
+      symbols
+      |> Enum.flat_map(fn sym ->
+        case DataCollector.BinanceClient.get_my_trades(api_key, secret_key, sym, limit: 20) do
+          {:ok, trades_list} -> trades_list
+          {:error, _} -> []
+        end
+      end)
+      |> Enum.sort_by(& &1["time"], :desc)
+      |> Enum.take(50)
+
+    socket
+    |> assign(loading: false, orders: all_orders, trades: all_trades)
+  end
+
   defp load_orders_and_trades(socket, api_key, secret_key, symbol) do
-    # Load orders
+    # Load orders for specific symbol
     orders =
       case DataCollector.BinanceClient.get_all_orders(api_key, secret_key, symbol, limit: 100) do
         {:ok, orders_list} ->
@@ -309,7 +358,7 @@ defmodule DashboardWeb.HistoryLive do
           []
       end
 
-    # Load trades
+    # Load trades for specific symbol
     trades =
       case DataCollector.BinanceClient.get_my_trades(api_key, secret_key, symbol, limit: 100) do
         {:ok, trades_list} ->

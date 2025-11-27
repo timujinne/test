@@ -10,18 +10,50 @@ defmodule TradingEngine.Strategies.Grid do
   require Logger
 
   @impl true
+  def requirements(_config) do
+    # Grid strategy needs ticks to get initial price and monitor the market
+    %{
+      ticks: true,
+      timers: [],
+      executions: true
+    }
+  end
+
+  @impl true
   def init(config) do
+    # Support both naming conventions from UI
+    amount = config["amount_per_grid"] || config["quantity_per_grid"]
+
     state = %{
       symbol: config["symbol"],
-      grid_levels: config["grid_levels"] || 5,
-      grid_spacing: Decimal.new(config["grid_spacing"] || "0.005"),  # 0.5%
-      quantity_per_grid: Decimal.new(config["quantity_per_grid"] || "0.001"),
+      grid_levels: to_integer(config["grid_levels"], 5),
+      grid_spacing: to_decimal(config["grid_spacing"], "0.005"),
+      amount_per_grid: to_decimal(amount, "50"),
       base_price: nil,
       active_orders: []
     }
-    
+
+    Logger.info("Grid: Initialized with #{state.grid_levels} levels, spacing #{state.grid_spacing}, amount #{state.amount_per_grid} per grid")
+
     {:ok, state}
   end
+
+  defp to_integer(nil, default), do: default
+  defp to_integer(value, _default) when is_integer(value), do: value
+  defp to_integer(value, _default) when is_float(value), do: trunc(value)
+  defp to_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, _} -> int
+      :error -> default
+    end
+  end
+
+  # Convert various types to Decimal safely
+  defp to_decimal(nil, default), do: Decimal.new(default)
+  defp to_decimal(value, _default) when is_binary(value), do: Decimal.new(value)
+  defp to_decimal(value, _default) when is_integer(value), do: Decimal.new(value)
+  defp to_decimal(value, _default) when is_float(value), do: Decimal.from_float(value)
+  defp to_decimal(%Decimal{} = value, _default), do: value
 
   @impl true
   def on_tick(market_data, state) do
@@ -55,28 +87,32 @@ defmodule TradingEngine.Strategies.Grid do
         end)
         
         # Place opposite order at the next grid level
+        {price_precision, qty_precision} = get_symbol_precision(state.symbol)
+
         opposite_order = case side do
           "BUY" ->
             # After buy, place sell order above
-            sell_price = Decimal.mult(price, Decimal.add(1, state.grid_spacing))
+            sell_price = Decimal.mult(price, Decimal.add(1, state.grid_spacing)) |> Decimal.round(price_precision)
+            qty = Decimal.div(state.amount_per_grid, sell_price) |> Decimal.round(qty_precision)
             %{
               symbol: state.symbol,
               side: "SELL",
               type: "LIMIT",
               price: sell_price,
-              quantity: state.quantity_per_grid,
+              quantity: qty,
               timeInForce: "GTC"
             }
-            
+
           "SELL" ->
             # After sell, place buy order below
-            buy_price = Decimal.mult(price, Decimal.sub(1, state.grid_spacing))
+            buy_price = Decimal.mult(price, Decimal.sub(1, state.grid_spacing)) |> Decimal.round(price_precision)
+            qty = Decimal.div(state.amount_per_grid, buy_price) |> Decimal.round(qty_precision)
             %{
               symbol: state.symbol,
               side: "BUY",
               type: "LIMIT",
               price: buy_price,
-              quantity: state.quantity_per_grid,
+              quantity: qty,
               timeInForce: "GTC"
             }
         end
@@ -92,38 +128,60 @@ defmodule TradingEngine.Strategies.Grid do
   # Private functions
 
   defp create_grid_orders(base_price, state) do
+    {price_precision, qty_precision} = get_symbol_precision(state.symbol)
+
     buy_orders = for i <- 1..state.grid_levels do
       price = Decimal.mult(
         base_price,
         Decimal.sub(1, Decimal.mult(state.grid_spacing, i))
-      )
-      
+      ) |> Decimal.round(price_precision)
+
+      # Calculate quantity: amount_per_grid (USDT) / price = quantity of coins
+      quantity = Decimal.div(state.amount_per_grid, price) |> Decimal.round(qty_precision)
+
       %{
         symbol: state.symbol,
         side: "BUY",
         type: "LIMIT",
         price: price,
-        quantity: state.quantity_per_grid,
+        quantity: quantity,
         timeInForce: "GTC"
       }
     end
-    
+
     sell_orders = for i <- 1..state.grid_levels do
       price = Decimal.mult(
         base_price,
         Decimal.add(1, Decimal.mult(state.grid_spacing, i))
-      )
-      
+      ) |> Decimal.round(price_precision)
+
+      # Calculate quantity: amount_per_grid (USDT) / price = quantity of coins
+      quantity = Decimal.div(state.amount_per_grid, price) |> Decimal.round(qty_precision)
+
       %{
         symbol: state.symbol,
         side: "SELL",
         type: "LIMIT",
         price: price,
-        quantity: state.quantity_per_grid,
+        quantity: quantity,
         timeInForce: "GTC"
       }
     end
-    
+
+    Logger.info("Grid: Creating #{length(buy_orders)} buy orders and #{length(sell_orders)} sell orders")
     buy_orders ++ sell_orders
+  end
+
+  # Symbol precision for price and quantity
+  # TODO: Fetch from Binance exchangeInfo API
+  defp get_symbol_precision(symbol) do
+    case symbol do
+      "BTCUSDT" -> {2, 5}   # price: 0.01, qty: 0.00001
+      "ETHUSDT" -> {2, 4}   # price: 0.01, qty: 0.0001
+      "DOGEUSDT" -> {5, 0}  # price: 0.00001, qty: 1
+      "SOLUSDT" -> {2, 2}   # price: 0.01, qty: 0.01
+      "DOTUSDT" -> {3, 2}   # price: 0.001, qty: 0.01
+      _ -> {5, 2}           # default: 5 decimals price, 2 decimals qty
+    end
   end
 end

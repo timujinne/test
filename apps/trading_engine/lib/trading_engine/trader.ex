@@ -9,15 +9,15 @@ defmodule TradingEngine.Trader do
   require Logger
 
   alias DataCollector.BinanceClient
-  alias TradingEngine.RiskManager
+  alias TradingEngine.{RiskManager, Strategy}
   alias SharedData.{Config, Types}
 
   # Client API
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
-    account_id = Keyword.fetch!(opts, :account_id)
-    GenServer.start_link(__MODULE__, opts, name: via_tuple(account_id))
+    setting_id = Keyword.fetch!(opts, :setting_id)
+    GenServer.start_link(__MODULE__, opts, name: via_tuple(setting_id))
   end
 
   @spec get_state(Types.account_id()) :: map()
@@ -37,28 +37,66 @@ defmodule TradingEngine.Trader do
   @impl true
   def init(opts) do
     account_id = Keyword.fetch!(opts, :account_id)
+    setting_id = Keyword.fetch!(opts, :setting_id)
     api_key = Keyword.fetch!(opts, :api_key)
     secret_key = Keyword.fetch!(opts, :secret_key)
     strategy = Keyword.fetch!(opts, :strategy)
     strategy_config = Keyword.fetch!(opts, :strategy_config)
 
-    Logger.info("Starting Trader for account #{account_id}")
+    symbol = strategy_config["symbol"] || "BTCUSDT"
 
-    # Subscribe to market data and order updates
-    Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{strategy_config["symbol"]}")
-    Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
+    Logger.info("Starting Trader for setting #{setting_id}, account #{account_id}, symbol #{symbol}")
+
+    # Get strategy requirements to determine subscriptions
+    requirements = Strategy.get_requirements(strategy, strategy_config)
+    Logger.info("Strategy requirements: ticks=#{requirements.ticks}, timers=#{inspect(requirements.timers)}, executions=#{requirements.executions}")
+
+    # Subscribe to ticker stream only if strategy needs ticks
+    subscribed_to_ticks = if requirements.ticks do
+      case DataCollector.TickerStream.subscribe(symbol) do
+        {:ok, count} ->
+          Logger.info("Subscribed to ticker stream for #{symbol} (subscribers: #{count})")
+          Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{symbol}")
+          true
+
+        {:error, reason} ->
+          Logger.warning("Failed to subscribe to ticker stream for #{symbol}: #{inspect(reason)}")
+          false
+      end
+    else
+      Logger.info("Strategy does not require ticks, skipping ticker subscription")
+      false
+    end
+
+    # Subscribe to order updates if strategy needs executions
+    if requirements.executions do
+      Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
+    end
+
+    # Setup timers based on strategy requirements
+    timer_refs = for interval <- requirements.timers do
+      ref = make_ref()
+      Process.send_after(self(), {:strategy_timer, ref, interval}, interval)
+      Logger.info("Scheduled timer with interval #{interval}ms")
+      {ref, interval}
+    end
 
     # Initialize strategy
     {:ok, strategy_state} = strategy.init(strategy_config)
 
     state = %{
       account_id: account_id,
+      setting_id: setting_id,
       api_key: api_key,
       secret_key: secret_key,
       strategy: strategy,
       strategy_state: strategy_state,
+      strategy_config: strategy_config,
+      symbol: symbol,
       positions: %{},
-      orders: %{}
+      orders: %{},
+      subscribed_to_ticks: subscribed_to_ticks,
+      timer_refs: timer_refs
     }
 
     {:ok, state}
@@ -77,6 +115,20 @@ defmodule TradingEngine.Trader do
         case BinanceClient.create_order(state.api_key, state.secret_key, order_params) do
           {:ok, order} ->
             new_orders = Map.put(state.orders, order["orderId"], order)
+
+            # Broadcast order created event
+            Phoenix.PubSub.broadcast(
+              BinanceSystem.PubSub,
+              "orders:#{state.account_id}",
+              {:order_created, order}
+            )
+
+            Phoenix.PubSub.broadcast(
+              BinanceSystem.PubSub,
+              "orders:all",
+              {:order_created, order}
+            )
+
             {:reply, {:ok, order}, %{state | orders: new_orders}}
 
           {:error, reason} = error ->
@@ -107,6 +159,53 @@ defmodule TradingEngine.Trader do
   def handle_info({:execution_report, execution}, state) do
     # Check if this execution belongs to this account
     if execution["a"] == state.account_id do
+      # Broadcast order status updates
+      order_status = execution["X"]
+
+      case order_status do
+        "FILLED" ->
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:#{state.account_id}",
+            {:order_filled, execution}
+          )
+
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:all",
+            {:order_filled, execution}
+          )
+
+        "CANCELED" ->
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:#{state.account_id}",
+            {:order_cancelled, execution}
+          )
+
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:all",
+            {:order_cancelled, execution}
+          )
+
+        "PARTIALLY_FILLED" ->
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:#{state.account_id}",
+            {:order_partially_filled, execution}
+          )
+
+          Phoenix.PubSub.broadcast(
+            BinanceSystem.PubSub,
+            "orders:all",
+            {:order_partially_filled, execution}
+          )
+
+        _ ->
+          :ok
+      end
+
       {action, new_strategy_state} = state.strategy.on_execution(execution, state.strategy_state)
 
       new_state = %{state | strategy_state: new_strategy_state}
@@ -119,8 +218,70 @@ defmodule TradingEngine.Trader do
   end
 
   @impl true
+  def handle_info({:strategy_timer, ref, interval}, state) do
+    # Check if strategy implements on_timer callback
+    if function_exported?(state.strategy, :on_timer, 2) do
+      Logger.debug("Timer fired for #{state.symbol}, interval: #{interval}ms")
+
+      {action, new_strategy_state} = state.strategy.on_timer(ref, state.strategy_state)
+
+      # Re-schedule the timer
+      Process.send_after(self(), {:strategy_timer, ref, interval}, interval)
+
+      new_state = %{state | strategy_state: new_strategy_state}
+      final_state = execute_action(action, new_state)
+
+      {:noreply, final_state}
+    else
+      # Strategy doesn't implement on_timer, just re-schedule
+      Process.send_after(self(), {:strategy_timer, ref, interval}, interval)
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    Logger.info("Trader terminating for #{state.symbol}, reason: #{inspect(reason)}")
+
+    # Cancel open orders for Grid strategy on stop
+    if state.strategy == TradingEngine.Strategies.Grid do
+      cancel_open_orders_on_stop(state)
+    end
+
+    # Only unsubscribe from ticker stream if we subscribed
+    if state.subscribed_to_ticks do
+      DataCollector.TickerStream.unsubscribe(state.symbol)
+    end
+
+    :ok
+  end
+
+  defp cancel_open_orders_on_stop(state) do
+    Logger.info("Grid cleanup: Cancelling open orders for #{state.symbol}")
+
+    case BinanceClient.get_open_orders(state.api_key, state.secret_key, state.symbol) do
+      {:ok, orders} when orders != [] ->
+        Enum.each(orders, fn order ->
+          case BinanceClient.cancel_order(state.api_key, state.secret_key, state.symbol, order["orderId"]) do
+            {:ok, _} ->
+              Logger.info("Cancelled order #{order["orderId"]}")
+            {:error, reason} ->
+              Logger.warning("Failed to cancel order #{order["orderId"]}: #{inspect(reason)}")
+          end
+        end)
+        Logger.info("Grid cleanup: Cancelled #{length(orders)} orders")
+
+      {:ok, []} ->
+        Logger.info("Grid cleanup: No open orders to cancel")
+
+      {:error, reason} ->
+        Logger.error("Grid cleanup: Failed to get open orders: #{inspect(reason)}")
+    end
   end
 
   # Private functions
@@ -128,7 +289,18 @@ defmodule TradingEngine.Trader do
   @spec execute_action(Types.strategy_action(), map()) :: map()
   defp execute_action(:noop, state), do: state
 
-  defp execute_action({:place_order, order_params}, state) do
+  # Handle batch orders (list of order params)
+  defp execute_action({:place_order, order_params_list}, state) when is_list(order_params_list) do
+    Enum.reduce(order_params_list, state, fn order_params, acc_state ->
+      case handle_call({:place_order, order_params}, nil, acc_state) do
+        {:reply, _, new_state} -> new_state
+        _ -> acc_state
+      end
+    end)
+  end
+
+  # Handle single order
+  defp execute_action({:place_order, order_params}, state) when is_map(order_params) do
     case handle_call({:place_order, order_params}, nil, state) do
       {:reply, _, new_state} -> new_state
     end
