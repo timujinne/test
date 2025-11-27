@@ -21,6 +21,25 @@ defmodule SharedData.Schemas.Setting do
     |> cast(attrs, [:strategy_name, :config, :is_active, :account_id])
     |> validate_required([:strategy_name, :config, :account_id])
     |> validate_inclusion(:strategy_name, ["naive", "grid", "dca"])
+    |> validate_config_has_symbol()
     |> foreign_key_constraint(:account_id)
+  end
+
+  # Validates that config contains a "symbol" field
+  defp validate_config_has_symbol(changeset) do
+    case get_field(changeset, :config) do
+      nil ->
+        changeset
+
+      config when is_map(config) ->
+        if Map.has_key?(config, "symbol") or Map.has_key?(config, :symbol) do
+          changeset
+        else
+          add_error(changeset, :config, "must include 'symbol' field")
+        end
+
+      _ ->
+        add_error(changeset, :config, "must be a map")
+    end
   end
 end

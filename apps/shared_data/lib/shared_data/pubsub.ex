@@ -13,16 +13,51 @@ defmodule SharedData.PubSub do
     - Publishers: BinanceWebSocket
     - Subscribers: MarketData, Trader, TradingLive
 
+  - `depth:#{symbol}` - Order book depth updates for a specific symbol
+    - Messages: `{:depth_update, data}`
+    - Publishers: DepthStream
+    - Subscribers: TradingLive
+
+  - `kline:#{symbol}:#{interval}` - Candlestick data for a specific symbol and interval
+    - Messages: `{:kline_update, candle}`
+    - Publishers: KlineStream
+    - Subscribers: TradingLive
+
   ### Trading Updates
-  - `order_updates` - Order execution reports
+  - `order_updates` - Order execution reports from WebSocket
     - Messages: `{:execution_report, data}`
     - Publishers: BinanceWebSocket
     - Subscribers: Trader, TradingLive
+
+  - `orders:all` - All order lifecycle events (created, filled, cancelled)
+    - Messages: `{:order_created, order}`, `{:order_filled, execution}`,
+                `{:order_cancelled, execution}`, `{:order_partially_filled, execution}`
+    - Publishers: Trader
+    - Subscribers: TradingLive, HistoryLive
+
+  - `orders:#{account_id}` - Order lifecycle events for a specific account
+    - Messages: `{:order_created, order}`, `{:order_filled, execution}`,
+                `{:order_cancelled, execution}`, `{:order_partially_filled, execution}`
+    - Publishers: Trader
+    - Subscribers: TradingLive (filtered by account)
 
   - `balance_updates` - Account balance updates
     - Messages: `{:balance_update, data}`
     - Publishers: BinanceWebSocket
     - Subscribers: PortfolioLive
+
+  ### Strategy Management
+  - `strategy_updates` - Strategy activation/deactivation commands
+    - Messages: `{:strategy_activated, setting}`, `{:strategy_deactivated, setting}`,
+                `{:strategy_auto_stopped, setting, reason}`
+    - Publishers: SettingsLive, StrategiesLive
+    - Subscribers: StrategyManager
+
+  - `strategies:all` - Strategy lifecycle state changes
+    - Messages: `{:strategy_started, setting_id, state}`, `{:strategy_stopped, setting_id}`,
+                `{:strategy_error, setting_id, reason}`
+    - Publishers: StrategyManager
+    - Subscribers: StrategiesLive, DashboardLive
 
   ## Usage
 
@@ -31,6 +66,12 @@ defmodule SharedData.PubSub do
 
       # Broadcast a message
       SharedData.PubSub.broadcast("market:BTCUSDT", {:ticker, data})
+
+      # Subscribe to order events for all accounts
+      SharedData.PubSub.subscribe("orders:all")
+
+      # Subscribe to strategy lifecycle events
+      SharedData.PubSub.subscribe("strategies:all")
 
       # Get PubSub name for direct Phoenix.PubSub calls
       pubsub = SharedData.PubSub.name()
