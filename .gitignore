@@ -108,3 +108,4 @@ priv/cert/selfsigned*
 /priv/exports/
 /.worktrees/
 mix.lock
+*.patch
