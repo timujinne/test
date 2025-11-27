@@ -7,7 +7,12 @@ defmodule TradingEngine.Application do
   def start(_type, _args) do
     children = [
       {Registry, keys: :unique, name: TradingEngine.TraderRegistry},
-      {DynamicSupervisor, name: TradingEngine.AccountSupervisor, strategy: :one_for_one}
+      {DynamicSupervisor, name: TradingEngine.AccountSupervisor, strategy: :one_for_one},
+      TradingEngine.SharedPositionTracker,
+      TradingEngine.AccountCoordinator,
+      TradingEngine.PendingStrategiesManager,
+      TradingEngine.StrategyManager,
+      TradingEngine.StopConditionsMonitor
     ]
 
     opts = [strategy: :one_for_one, name: TradingEngine.Supervisor]

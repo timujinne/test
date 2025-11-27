@@ -10,9 +10,10 @@ defmodule TradingEngine.RiskManager do
 
   import Ecto.Query
 
-  @max_position_size Decimal.new("1.0")  # 1 BTC
-  @max_order_size Decimal.new("0.1")     # 0.1 BTC
-  @max_daily_loss Decimal.new("1000")    # $1000 USDT
+  # Testnet limits - more permissive for testing
+  @max_position_size Decimal.new("10000")  # 10000 units (coins)
+  @max_order_size Decimal.new("1000")      # 1000 units per order
+  @max_daily_loss Decimal.new("10000")     # $10000 USDT
 
   @spec check_order(Types.order_params(), map()) :: :ok | {:error, String.t()}
   def check_order(order_params, state) do
