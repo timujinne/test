@@ -107,3 +107,4 @@ priv/cert/selfsigned*
 /priv/backup/
 /priv/exports/
 /.worktrees/
+mix.lock
