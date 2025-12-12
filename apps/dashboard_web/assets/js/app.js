@@ -1,8 +1,11 @@
 import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import topbar from "../vendor/topbar"
+import topbar from "../vendor/topbar.cjs"
 import { PriceChart, DepthChart } from "./hooks"
+
+// PhoenixKit JS - DO NOT REMOVE
+import "./vendor/phoenix_kit"
 
 // Theme Toggle Hook for Phoenix LiveView
 // Handles theme switching between light and dark modes
@@ -35,7 +38,7 @@ let Hooks = { ThemeToggle, PriceChart, DepthChart };
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
-  hooks: Hooks
+  hooks: { ...window.PhoenixKitHooks, ...Hooks }
 })
 
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})

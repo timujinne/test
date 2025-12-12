@@ -1,3 +1,53 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
+
+/* DaisyUI plugin */
+@plugin "daisyui";
+
+/* Heroicons - import into base layer */
+@import "./heroicons.css" layer(base);
+
+/* Content sources for Tailwind v4 */
+@source "../js/**/*.js";
+@source "../../lib/dashboard_web.ex";
+@source "../../lib/dashboard_web/**/*.*ex";
+
+/* PhoenixKit Integration */
+@source "../../../../deps/phoenix_kit/lib/**/*.*ex";
+@source "../../../../deps/phoenix_kit/lib/**/*.heex";
+
+/* Custom theme extension */
+@theme {
+  --color-brand: #FD4F00;
+}
+
+/* Fix select and option colors for dark theme */
+@layer components {
+  select option {
+    @apply bg-base-100 text-base-content;
+  }
+
+  [data-theme="dark"] select {
+    color-scheme: dark;
+  }
+
+  [data-theme="light"] select {
+    color-scheme: light;
+  }
+}
+
+/* LiveView loading state variants */
+@custom-variant phx-click-loading (&.phx-click-loading, .phx-click-loading &);
+@custom-variant phx-submit-loading (&.phx-submit-loading, .phx-submit-loading &);
+@custom-variant phx-change-loading (&.phx-change-loading, .phx-change-loading &);
+
+/* SVG icon styling for proper display */
+@layer base {
+  svg {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  svg:not([fill]) {
+    fill: currentColor;
+  }
+}
