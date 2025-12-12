@@ -1498,28 +1498,4 @@ defmodule DashboardWeb.StrategiesLive do
     end)
     |> Enum.join(", ")
   end
-
-  defp format_time_ago(%DateTime{} = datetime) do
-    now = DateTime.utc_now()
-    diff_seconds = DateTime.diff(now, datetime, :second)
-
-    cond do
-      diff_seconds < 60 ->
-        "#{diff_seconds}s ago"
-
-      diff_seconds < 3600 ->
-        minutes = div(diff_seconds, 60)
-        "#{minutes}m ago"
-
-      diff_seconds < 86400 ->
-        hours = div(diff_seconds, 3600)
-        "#{hours}h ago"
-
-      true ->
-        days = div(diff_seconds, 86400)
-        "#{days}d ago"
-    end
-  end
-
-  defp format_time_ago(_), do: "just now"
 end

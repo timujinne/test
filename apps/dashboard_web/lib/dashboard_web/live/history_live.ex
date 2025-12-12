@@ -1,7 +1,7 @@
 defmodule DashboardWeb.HistoryLive do
   use DashboardWeb, :live_view
 
-  alias SharedData.Helpers.{DecimalHelper, CredentialHelper}
+  alias SharedData.Helpers.CredentialHelper
 
   require Logger
 
@@ -15,11 +15,13 @@ defmodule DashboardWeb.HistoryLive do
       :timer.send_interval(30_000, self(), :refresh_history)
     end
 
-    # Common trading symbols
-    available_symbols = ["BTCUSDT", "ETHUSDT", "DOGEUSDT", "SOLUSDT", "DOTUSDT", "BNBUSDT"]
+    # Load symbols from orders DB + common symbols
+    db_symbols = load_symbols_from_db()
+    common_symbols = ["BTCUSDT", "ETHUSDT", "DOGEUSDT", "SOLUSDT", "DOTUSDT", "BNBUSDT"]
+    available_symbols = (db_symbols ++ common_symbols) |> Enum.uniq() |> Enum.sort()
 
     # Default to first symbol, not ALL (faster loading)
-    default_symbol = List.first(available_symbols, "BTCUSDT")
+    default_symbol = List.first(db_symbols, List.first(common_symbols, "BTCUSDT"))
 
     socket =
       socket
@@ -43,6 +45,11 @@ defmodule DashboardWeb.HistoryLive do
   end
 
   @impl true
+  def handle_event("refresh", _params, socket) do
+    {:noreply, socket |> assign(loading: true) |> load_history()}
+  end
+
+  @impl true
   def handle_info(:refresh_history, socket) do
     {:noreply, load_history(socket)}
   end
@@ -58,6 +65,20 @@ defmodule DashboardWeb.HistoryLive do
             View your past orders and trades from Binance
           </p>
         </div>
+        <button
+          class="btn btn-primary"
+          phx-click="refresh"
+          disabled={@loading}
+        >
+          <%= if @loading do %>
+            <span class="loading loading-spinner loading-sm"></span>
+          <% else %>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          <% end %>
+          Refresh
+        </button>
       </div>
       <!-- Filter -->
       <div class="card bg-base-100 shadow-xl p-4">
@@ -180,14 +201,14 @@ defmodule DashboardWeb.HistoryLive do
                     <td class="text-base-content/70">
                       <%= order["type"] %>
                     </td>
-                    <td class="text-right text-base-content">
-                      <%= format_price(order["price"]) %>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_order_price_trim(order) %>
                     </td>
-                    <td class="text-right text-base-content">
-                      <%= format_quantity(order["origQty"]) %>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_number_trim(order["origQty"]) %>
                     </td>
-                    <td class="text-right text-base-content">
-                      <%= format_quantity(order["executedQty"]) %>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_number_trim(order["executedQty"]) %>
                     </td>
                     <td>
                       <span class={[
@@ -227,11 +248,11 @@ defmodule DashboardWeb.HistoryLive do
                   <th class="text-left">Order ID</th>
                   <th class="text-left">Symbol</th>
                   <th class="text-left">Side</th>
+                  <th class="text-left">Type</th>
                   <th class="text-right">Price</th>
                   <th class="text-right">Quantity</th>
                   <th class="text-right">Quote Qty</th>
                   <th class="text-right">Commission</th>
-                  <th class="text-left">Maker</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,25 +280,24 @@ defmodule DashboardWeb.HistoryLive do
                         <%= if trade["isBuyer"], do: "BUY", else: "SELL" %>
                       </span>
                     </td>
-                    <td class="text-right text-base-content">
-                      <%= format_price(trade["price"]) %>
-                    </td>
-                    <td class="text-right text-base-content">
-                      <%= format_quantity(trade["qty"]) %>
-                    </td>
-                    <td class="text-right text-base-content">
-                      <%= format_price(trade["quoteQty"]) %>
-                    </td>
-                    <td class="text-right text-base-content/70">
-                      <%= format_quantity(trade["commission"]) %>
-                      <%= trade["commissionAsset"] %>
-                    </td>
                     <td>
                       <%= if trade["isMaker"] do %>
                         <span class="badge badge-sm badge-info">MAKER</span>
                       <% else %>
                         <span class="badge badge-sm badge-ghost">TAKER</span>
                       <% end %>
+                    </td>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_number_trim(trade["price"]) %>
+                    </td>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_number_trim(trade["qty"]) %>
+                    </td>
+                    <td class="text-right text-base-content font-mono">
+                      <%= format_number_trim(trade["quoteQty"]) %>
+                    </td>
+                    <td class="text-right text-base-content/70 font-mono">
+                      <%= format_number_trim(trade["commission"]) %> <%= trade["commissionAsset"] %>
                     </td>
                   </tr>
                 <% end %>
@@ -396,36 +416,78 @@ defmodule DashboardWeb.HistoryLive do
 
   defp format_timestamp(_), do: "-"
 
-  defp format_price(price) when is_binary(price) do
-    case Decimal.parse(price) do
+  defp format_order_price_trim(order) do
+    price = order["price"]
+
+    case Decimal.parse(price || "0") do
       {decimal, _} ->
         if Decimal.eq?(decimal, Decimal.new(0)) do
-          "Market"
+          # Market order - calculate average price from executed amounts
+          calculate_avg_price_trim(order["cummulativeQuoteQty"], order["executedQty"])
         else
-          DecimalHelper.format(decimal, 8)
+          trim_zeros(decimal)
         end
 
       :error ->
-        price
+        "-"
     end
   end
 
-  defp format_price(price) when is_number(price) do
-    format_price(to_string(price))
-  end
-
-  defp format_price(_), do: "-"
-
-  defp format_quantity(qty) when is_binary(qty) do
-    case Decimal.parse(qty) do
-      {decimal, _} -> DecimalHelper.format(decimal, 8)
-      :error -> qty
+  defp calculate_avg_price_trim(quote_qty, exec_qty)
+       when is_binary(quote_qty) and is_binary(exec_qty) do
+    with {quote_dec, _} <- Decimal.parse(quote_qty),
+         {exec_dec, _} <- Decimal.parse(exec_qty),
+         false <- Decimal.eq?(exec_dec, Decimal.new(0)) do
+      avg = Decimal.div(quote_dec, exec_dec)
+      trim_zeros(Decimal.round(avg, 2))
+    else
+      _ -> "-"
     end
   end
 
-  defp format_quantity(qty) when is_number(qty) do
-    format_quantity(to_string(qty))
+  defp calculate_avg_price_trim(_, _), do: "-"
+
+  # Format number without trailing zeros
+  defp format_number_trim(value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {decimal, _} -> trim_zeros(decimal)
+      :error -> value
+    end
   end
 
-  defp format_quantity(_), do: "-"
+  defp format_number_trim(value) when is_number(value) do
+    value |> Decimal.from_float() |> trim_zeros()
+  end
+
+  defp format_number_trim(_), do: "-"
+
+  defp trim_zeros(decimal) do
+    decimal
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  # Load unique symbols from orders and trades tables
+  defp load_symbols_from_db do
+    import Ecto.Query
+
+    # Get symbols from orders
+    order_symbols = SharedData.Repo.all(
+      from o in "orders",
+      distinct: o.symbol,
+      select: o.symbol
+    ) || []
+
+    # Get symbols from trades
+    trade_symbols = SharedData.Repo.all(
+      from t in "trades",
+      distinct: t.symbol,
+      select: t.symbol
+    ) || []
+
+    # Combine and sort
+    (order_symbols ++ trade_symbols)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
 end

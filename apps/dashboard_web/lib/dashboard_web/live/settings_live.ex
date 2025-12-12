@@ -108,155 +108,6 @@ defmodule DashboardWeb.SettingsLive do
     end
   end
 
-  defp create_account_with_credentials(socket, params, user_id) do
-    # First validate with AccountForm
-    changeset = AccountForm.changeset(AccountForm.new(), params)
-
-    # Debug
-    IO.inspect(changeset, label: "CHANGESET")
-    IO.inspect(changeset.valid?, label: "VALID?")
-    IO.inspect(changeset.errors, label: "ERRORS")
-
-    if changeset.valid? do
-      # Extract credential params
-      credential_params = %{
-        "label" => params["label"],
-        "api_key" => params["api_key"],
-        "secret_key" => params["secret_key"],
-        "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true,
-        "is_active" => true,
-        "user_id" => user_id
-      }
-
-      # Use Ecto.Multi for transaction
-      result =
-        Ecto.Multi.new()
-        |> Ecto.Multi.insert(:credential, fn _changes ->
-          Credentials.change_credential(%ApiCredential{}, credential_params)
-        end)
-        |> Ecto.Multi.insert(:account, fn %{credential: credential} ->
-          account_params = %{
-            "label" => params["label"],
-            "binance_account_id" => params["binance_account_id"],
-            "is_active" => true,
-            "user_id" => user_id,
-            "api_credential_id" => credential.id
-          }
-
-          Accounts.change_account(%Account{}, account_params)
-        end)
-        |> Repo.transaction()
-
-      case result do
-        {:ok, %{account: _account}} ->
-          socket =
-            socket
-            |> put_flash(:info, "Account created successfully")
-            |> assign(show_account_form: false)
-            |> assign(account_form: nil)
-            |> assign(test_result: nil)
-            |> load_data()
-
-          {:noreply, socket}
-
-        {:error, :credential, db_changeset, _changes} ->
-          # Convert DB errors to form errors
-          socket =
-            socket
-            |> put_flash(:error, "Failed to save API credentials: #{format_errors(db_changeset)}")
-            |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
-
-          {:noreply, socket}
-
-        {:error, :account, db_changeset, _changes} ->
-          socket =
-            socket
-            |> put_flash(:error, "Failed to create account: #{format_errors(db_changeset)}")
-            |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
-
-          {:noreply, socket}
-      end
-    else
-      socket =
-        socket
-        |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
-
-      {:noreply, socket}
-    end
-  end
-
-  defp update_account_with_credentials(socket, account, params, _user_id) do
-    # Validate with AccountForm for edit
-    changeset = AccountForm.changeset_for_edit(AccountForm.new(), params)
-
-    if changeset.valid? do
-      # Update account basic info
-      account_params = %{
-        "label" => params["label"],
-        "binance_account_id" => params["binance_account_id"],
-        "is_active" => params["is_active"] == "on" || params["is_active"] == true
-      }
-
-      # Update credentials if provided
-      credential_updates =
-        if params["api_key"] && params["api_key"] != "" do
-          %{
-            "api_key" => params["api_key"],
-            "secret_key" => params["secret_key"],
-            "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true
-          }
-        else
-          %{"is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true}
-        end
-
-      result =
-        Ecto.Multi.new()
-        |> Ecto.Multi.update(:account, Accounts.change_account(account, account_params))
-        |> Ecto.Multi.update(:credential, fn _changes ->
-          Credentials.change_credential(account.api_credential, credential_updates)
-        end)
-        |> Repo.transaction()
-
-      case result do
-        {:ok, _changes} ->
-          socket =
-            socket
-            |> put_flash(:info, "Account updated successfully")
-            |> assign(show_account_form: false)
-            |> assign(editing_account: nil)
-            |> assign(account_form: nil)
-            |> assign(test_result: nil)
-            |> load_data()
-
-          {:noreply, socket}
-
-        {:error, _step, db_changeset, _changes} ->
-          socket =
-            socket
-            |> put_flash(:error, "Failed to update: #{format_errors(db_changeset)}")
-            |> assign(account_form: to_form(Map.put(changeset, :action, :update), as: "account"))
-
-          {:noreply, socket}
-      end
-    else
-      socket =
-        socket
-        |> assign(account_form: to_form(Map.put(changeset, :action, :update), as: "account"))
-
-      {:noreply, socket}
-    end
-  end
-
-  defp format_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Enum.reduce(opts, msg, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.map(fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
-    |> Enum.join("; ")
-  end
-
   @impl true
   def handle_event("delete_account", %{"id" => account_id}, socket) do
     case Accounts.get_account_by_user(account_id, socket.assigns.user_id) do
@@ -677,6 +528,155 @@ defmodule DashboardWeb.SettingsLive do
 
       _ ->
         "N/A"
+    end
+  end
+
+  defp format_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map(fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
+    |> Enum.join("; ")
+  end
+
+  defp create_account_with_credentials(socket, params, user_id) do
+    # First validate with AccountForm
+    changeset = AccountForm.changeset(AccountForm.new(), params)
+
+    # Debug
+    IO.inspect(changeset, label: "CHANGESET")
+    IO.inspect(changeset.valid?, label: "VALID?")
+    IO.inspect(changeset.errors, label: "ERRORS")
+
+    if changeset.valid? do
+      # Extract credential params
+      credential_params = %{
+        "label" => params["label"],
+        "api_key" => params["api_key"],
+        "secret_key" => params["secret_key"],
+        "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true,
+        "is_active" => true,
+        "user_id" => user_id
+      }
+
+      # Use Ecto.Multi for transaction
+      result =
+        Ecto.Multi.new()
+        |> Ecto.Multi.insert(:credential, fn _changes ->
+          Credentials.change_credential(%ApiCredential{}, credential_params)
+        end)
+        |> Ecto.Multi.insert(:account, fn %{credential: credential} ->
+          account_params = %{
+            "label" => params["label"],
+            "binance_account_id" => params["binance_account_id"],
+            "is_active" => true,
+            "user_id" => user_id,
+            "api_credential_id" => credential.id
+          }
+
+          Accounts.change_account(%Account{}, account_params)
+        end)
+        |> Repo.transaction()
+
+      case result do
+        {:ok, %{account: _account}} ->
+          socket =
+            socket
+            |> put_flash(:info, "Account created successfully")
+            |> assign(show_account_form: false)
+            |> assign(account_form: nil)
+            |> assign(test_result: nil)
+            |> load_data()
+
+          {:noreply, socket}
+
+        {:error, :credential, db_changeset, _changes} ->
+          # Convert DB errors to form errors
+          socket =
+            socket
+            |> put_flash(:error, "Failed to save API credentials: #{format_errors(db_changeset)}")
+            |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
+
+          {:noreply, socket}
+
+        {:error, :account, db_changeset, _changes} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to create account: #{format_errors(db_changeset)}")
+            |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
+
+          {:noreply, socket}
+      end
+    else
+      socket =
+        socket
+        |> assign(account_form: to_form(Map.put(changeset, :action, :insert), as: "account"))
+
+      {:noreply, socket}
+    end
+  end
+
+  defp update_account_with_credentials(socket, account, params, _user_id) do
+    # Validate with AccountForm for edit
+    changeset = AccountForm.changeset_for_edit(AccountForm.new(), params)
+
+    if changeset.valid? do
+      # Update account basic info
+      account_params = %{
+        "label" => params["label"],
+        "binance_account_id" => params["binance_account_id"],
+        "is_active" => params["is_active"] == "on" || params["is_active"] == true
+      }
+
+      # Update credentials if provided
+      credential_updates =
+        if params["api_key"] && params["api_key"] != "" do
+          %{
+            "api_key" => params["api_key"],
+            "secret_key" => params["secret_key"],
+            "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true
+          }
+        else
+          %{"is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true}
+        end
+
+      result =
+        Ecto.Multi.new()
+        |> Ecto.Multi.update(:account, Accounts.change_account(account, account_params))
+        |> Ecto.Multi.update(:credential, fn _changes ->
+          Credentials.change_credential(account.api_credential, credential_updates)
+        end)
+        |> Repo.transaction()
+
+      case result do
+        {:ok, _changes} ->
+          socket =
+            socket
+            |> put_flash(:info, "Account updated successfully")
+            |> assign(show_account_form: false)
+            |> assign(editing_account: nil)
+            |> assign(account_form: nil)
+            |> assign(test_result: nil)
+            |> load_data()
+
+          {:noreply, socket}
+
+        {:error, _step, db_changeset, _changes} ->
+          socket =
+            socket
+            |> put_flash(:error, "Failed to update: #{format_errors(db_changeset)}")
+            |> assign(account_form: to_form(Map.put(changeset, :action, :update), as: "account"))
+
+          {:noreply, socket}
+      end
+    else
+      socket =
+        socket
+        |> assign(account_form: to_form(Map.put(changeset, :action, :update), as: "account"))
+
+      {:noreply, socket}
     end
   end
 end

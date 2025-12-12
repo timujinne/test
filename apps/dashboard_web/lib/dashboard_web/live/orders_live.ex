@@ -5,7 +5,7 @@ defmodule DashboardWeb.OrdersLive do
   """
   use DashboardWeb, :live_view
 
-  alias SharedData.Helpers.{DecimalHelper, CredentialHelper}
+  alias SharedData.Helpers.CredentialHelper
   alias DataCollector.BinanceClient
 
   require Logger
@@ -30,9 +30,17 @@ defmodule DashboardWeb.OrdersLive do
       |> assign(loading: true)
       |> assign(error: nil)
       |> assign(cancelling: MapSet.new())
+      # New order form state
+      |> assign(show_new_order_modal: false)
+      |> assign(new_order_form: default_order_form())
+      |> assign(creating_order: false)
+      |> assign(all_symbols: [])
+      |> assign(filtered_symbols: [])
+      |> assign(symbol_search: "")
 
-    # Load orders after mount
+    # Load orders and symbols after mount
     send(self(), :load_orders)
+    send(self(), :load_symbols)
 
     {:ok, socket}
   end
@@ -40,6 +48,11 @@ defmodule DashboardWeb.OrdersLive do
   @impl true
   def handle_info(:load_orders, socket) do
     {:noreply, load_orders(socket)}
+  end
+
+  @impl true
+  def handle_info(:load_symbols, socket) do
+    {:noreply, load_symbols(socket)}
   end
 
   @impl true
@@ -140,6 +153,93 @@ defmodule DashboardWeb.OrdersLive do
     {:noreply, socket |> assign(loading: true) |> load_orders()}
   end
 
+  # New order modal events
+  @impl true
+  def handle_event("open_new_order_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(show_new_order_modal: true)
+     |> assign(new_order_form: default_order_form())
+     |> assign(symbol_search: "")
+     |> assign(filtered_symbols: [])}
+  end
+
+  @impl true
+  def handle_event("close_new_order_modal", _params, socket) do
+    {:noreply, assign(socket, show_new_order_modal: false)}
+  end
+
+  @impl true
+  def handle_event("search_symbol", %{"value" => query}, socket) do
+    filtered =
+      if String.length(query) >= 1 do
+        query_upper = String.upcase(query)
+
+        socket.assigns.all_symbols
+        |> Enum.filter(&String.contains?(&1, query_upper))
+        |> Enum.take(10)
+      else
+        []
+      end
+
+    {:noreply,
+     socket
+     |> assign(symbol_search: query)
+     |> assign(filtered_symbols: filtered)}
+  end
+
+  @impl true
+  def handle_event("select_symbol", %{"symbol" => symbol}, socket) do
+    form = Map.put(socket.assigns.new_order_form, "symbol", symbol)
+
+    {:noreply,
+     socket
+     |> assign(new_order_form: form)
+     |> assign(symbol_search: symbol)
+     |> assign(filtered_symbols: [])}
+  end
+
+  @impl true
+  def handle_event("update_order_form", %{"order" => params}, socket) do
+    form = Map.merge(socket.assigns.new_order_form, params)
+    {:noreply, assign(socket, new_order_form: form)}
+  end
+
+  @impl true
+  def handle_event("create_order", _params, socket) do
+    form = socket.assigns.new_order_form
+
+    with :ok <- validate_order_form(form),
+         {api_key, secret_key} <- get_credentials() do
+      socket = assign(socket, creating_order: true)
+
+      order_params = build_order_params(form)
+
+      case BinanceClient.create_order(api_key, secret_key, order_params) do
+        {:ok, order} ->
+          {:noreply,
+           socket
+           |> assign(creating_order: false)
+           |> assign(show_new_order_modal: false)
+           |> assign(new_order_form: default_order_form())
+           |> put_flash(:info, "Order created: #{order["orderId"]}")
+           |> load_orders()}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(creating_order: false)
+           |> put_flash(:error, "Failed to create order: #{format_error(reason)}")}
+      end
+    else
+      {:error, msg} ->
+        {:noreply, put_flash(socket, :error, msg)}
+
+      nil ->
+        {:noreply, put_flash(socket, :error, "No API credentials configured")}
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -152,20 +252,31 @@ defmodule DashboardWeb.OrdersLive do
             Manage your open orders across all trading pairs
           </p>
         </div>
-        <button
-          class="btn btn-primary"
-          phx-click="refresh"
-          disabled={@loading}
-        >
-          <%= if @loading do %>
-            <span class="loading loading-spinner loading-sm"></span>
-          <% else %>
+        <div class="flex gap-2">
+          <button
+            class="btn btn-success"
+            phx-click="open_new_order_modal"
+          >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-          <% end %>
-          Refresh
-        </button>
+            New Order
+          </button>
+          <button
+            class="btn btn-primary"
+            phx-click="refresh"
+            disabled={@loading}
+          >
+            <%= if @loading do %>
+              <span class="loading loading-spinner loading-sm"></span>
+            <% else %>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            <% end %>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <!-- Stats Cards -->
@@ -295,18 +406,18 @@ defmodule DashboardWeb.OrdersLive do
                           <%= order["type"] %>
                         </td>
                         <td class="text-right font-mono">
-                          <%= format_price(order["price"]) %>
+                          <%= format_number_trim(order["price"]) %>
                         </td>
                         <td class="text-right font-mono">
-                          <%= format_quantity(order["origQty"]) %>
+                          <%= format_number_trim(order["origQty"]) %>
                         </td>
                         <td class="text-right font-mono">
                           <span class={if Decimal.compare(Decimal.new(order["executedQty"]), 0) == :gt, do: "text-warning"}>
-                            <%= format_quantity(order["executedQty"]) %>
+                            <%= format_number_trim(order["executedQty"]) %>
                           </span>
                         </td>
                         <td class="text-right font-mono text-sm">
-                          <%= calculate_total(order["price"], order["origQty"]) %>
+                          <%= calculate_total_trim(order["price"], order["origQty"]) %>
                         </td>
                         <td>
                           <button
@@ -369,6 +480,206 @@ defmodule DashboardWeb.OrdersLive do
               <% end %>
             </div>
           </div>
+        </div>
+      <% end %>
+
+      <!-- New Order Modal -->
+      <%= if @show_new_order_modal do %>
+        <div class="modal modal-open">
+          <div class="modal-box max-w-lg">
+            <button
+              class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              phx-click="close_new_order_modal"
+            >
+              ✕
+            </button>
+            <h3 class="font-bold text-lg mb-4">Create New Order</h3>
+
+            <form phx-change="update_order_form" phx-submit="create_order" class="space-y-4">
+              <!-- Symbol Search -->
+              <div class="form-control relative">
+                <label class="label">
+                  <span class="label-text font-medium">Symbol *</span>
+                </label>
+                <input
+                  type="text"
+                  name="order[symbol]"
+                  value={@symbol_search}
+                  placeholder="Search symbol (e.g., BTCUSDT)"
+                  class="input input-bordered w-full"
+                  phx-keyup="search_symbol"
+                  phx-debounce="200"
+                  autocomplete="off"
+                />
+                <%= if length(@filtered_symbols) > 0 do %>
+                  <ul class="menu bg-base-200 rounded-box absolute top-full left-0 right-0 z-50 max-h-48 overflow-y-auto shadow-lg mt-1">
+                    <%= for symbol <- @filtered_symbols do %>
+                      <li>
+                        <button
+                          type="button"
+                          class="text-left"
+                          phx-click="select_symbol"
+                          phx-value-symbol={symbol}
+                        >
+                          <%= symbol %>
+                        </button>
+                      </li>
+                    <% end %>
+                  </ul>
+                <% end %>
+              </div>
+
+              <!-- Side Selection -->
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Side *</span>
+                </label>
+                <div class="join w-full">
+                  <input
+                    type="radio"
+                    name="order[side]"
+                    value="BUY"
+                    class="join-item btn flex-1"
+                    aria-label="BUY"
+                    checked={@new_order_form["side"] == "BUY"}
+                  />
+                  <input
+                    type="radio"
+                    name="order[side]"
+                    value="SELL"
+                    class="join-item btn flex-1"
+                    aria-label="SELL"
+                    checked={@new_order_form["side"] == "SELL"}
+                  />
+                </div>
+              </div>
+
+              <!-- Order Type -->
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Order Type *</span>
+                </label>
+                <select name="order[type]" class="select select-bordered w-full">
+                  <option value="LIMIT" selected={@new_order_form["type"] == "LIMIT"}>
+                    Limit
+                  </option>
+                  <option value="MARKET" selected={@new_order_form["type"] == "MARKET"}>
+                    Market
+                  </option>
+                  <option
+                    value="STOP_LOSS_LIMIT"
+                    selected={@new_order_form["type"] == "STOP_LOSS_LIMIT"}
+                  >
+                    Stop Loss Limit
+                  </option>
+                  <option
+                    value="TAKE_PROFIT_LIMIT"
+                    selected={@new_order_form["type"] == "TAKE_PROFIT_LIMIT"}
+                  >
+                    Take Profit Limit
+                  </option>
+                </select>
+              </div>
+
+              <!-- Price (for Limit orders) -->
+              <%= if @new_order_form["type"] != "MARKET" do %>
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text font-medium">Price *</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="order[price]"
+                    value={@new_order_form["price"]}
+                    placeholder="0.00"
+                    class="input input-bordered w-full font-mono"
+                    inputmode="decimal"
+                  />
+                </div>
+              <% end %>
+
+              <!-- Quantity -->
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Quantity *</span>
+                </label>
+                <input
+                  type="text"
+                  name="order[quantity]"
+                  value={@new_order_form["quantity"]}
+                  placeholder="0.00"
+                  class="input input-bordered w-full font-mono"
+                  inputmode="decimal"
+                />
+              </div>
+
+              <!-- Time in Force (for Limit orders) -->
+              <%= if @new_order_form["type"] != "MARKET" do %>
+                <div class="form-control">
+                  <label class="label">
+                    <span class="label-text font-medium">Time in Force</span>
+                  </label>
+                  <select name="order[time_in_force]" class="select select-bordered w-full">
+                    <option value="GTC" selected={@new_order_form["time_in_force"] == "GTC"}>
+                      GTC (Good Till Cancelled)
+                    </option>
+                    <option value="IOC" selected={@new_order_form["time_in_force"] == "IOC"}>
+                      IOC (Immediate or Cancel)
+                    </option>
+                    <option value="FOK" selected={@new_order_form["time_in_force"] == "FOK"}>
+                      FOK (Fill or Kill)
+                    </option>
+                  </select>
+                </div>
+              <% end %>
+
+              <!-- Order Summary -->
+              <%= if @new_order_form["symbol"] != "" and @new_order_form["quantity"] != "" do %>
+                <div class="alert alert-info">
+                  <div>
+                    <span class="font-medium">Order Summary:</span>
+                    <span class={[
+                      "badge ml-2",
+                      if(@new_order_form["side"] == "BUY", do: "badge-success", else: "badge-error")
+                    ]}>
+                      <%= @new_order_form["side"] %>
+                    </span>
+                    <span class="ml-2">
+                      <%= @new_order_form["quantity"] %> <%= @new_order_form["symbol"] %>
+                    </span>
+                    <%= if @new_order_form["type"] != "MARKET" and @new_order_form["price"] != "" do %>
+                      <span class="ml-1">@ <%= @new_order_form["price"] %></span>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Actions -->
+              <div class="modal-action">
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  phx-click="close_new_order_modal"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class={[
+                    "btn",
+                    if(@new_order_form["side"] == "BUY", do: "btn-success", else: "btn-error")
+                  ]}
+                  disabled={@creating_order}
+                >
+                  <%= if @creating_order do %>
+                    <span class="loading loading-spinner loading-sm"></span>
+                  <% end %>
+                  Place <%= @new_order_form["side"] %> Order
+                </button>
+              </div>
+            </form>
+          </div>
+          <div class="modal-backdrop" phx-click="close_new_order_modal"></div>
         </div>
       <% end %>
     </div>
@@ -438,33 +749,117 @@ defmodule DashboardWeb.OrdersLive do
 
   defp format_timestamp(_), do: "-"
 
-  defp format_price(price) when is_binary(price) do
-    case Decimal.parse(price) do
-      {decimal, _} -> DecimalHelper.format(decimal, 8)
-      :error -> price
-    end
-  end
-
-  defp format_price(_), do: "-"
-
-  defp format_quantity(qty) when is_binary(qty) do
-    case Decimal.parse(qty) do
-      {decimal, _} -> DecimalHelper.format(decimal, 8)
-      :error -> qty
-    end
-  end
-
-  defp format_quantity(_), do: "-"
-
-  defp calculate_total(price, qty) when is_binary(price) and is_binary(qty) do
+  defp calculate_total_trim(price, qty) when is_binary(price) and is_binary(qty) do
     with {p, _} <- Decimal.parse(price),
          {q, _} <- Decimal.parse(qty) do
       total = Decimal.mult(p, q)
-      DecimalHelper.format(total, 2) <> " USDT"
+      trim_zeros(Decimal.round(total, 2)) <> " USDT"
     else
       _ -> "-"
     end
   end
 
-  defp calculate_total(_, _), do: "-"
+  defp calculate_total_trim(_, _), do: "-"
+
+  # Format number without trailing zeros
+  defp format_number_trim(value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {decimal, _} -> trim_zeros(decimal)
+      :error -> value
+    end
+  end
+
+  defp format_number_trim(_), do: "-"
+
+  defp trim_zeros(decimal) do
+    decimal
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  # New order helpers
+  defp load_symbols(socket) do
+    case BinanceClient.get_exchange_info() do
+      {:ok, info} ->
+        symbols =
+          info["symbols"]
+          |> Enum.filter(&(&1["status"] == "TRADING"))
+          |> Enum.map(& &1["symbol"])
+          |> Enum.sort()
+
+        assign(socket, all_symbols: symbols)
+
+      {:error, _reason} ->
+        # Fallback to common symbols
+        assign(socket, all_symbols: ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT"])
+    end
+  end
+
+  defp default_order_form do
+    %{
+      "symbol" => "",
+      "side" => "BUY",
+      "type" => "LIMIT",
+      "quantity" => "",
+      "price" => "",
+      "time_in_force" => "GTC"
+    }
+  end
+
+  defp validate_order_form(form) do
+    cond do
+      form["symbol"] == "" ->
+        {:error, "Symbol is required"}
+
+      form["quantity"] == "" ->
+        {:error, "Quantity is required"}
+
+      form["type"] == "LIMIT" and form["price"] == "" ->
+        {:error, "Price is required for LIMIT orders"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp build_order_params(form) do
+    base = %{
+      symbol: form["symbol"],
+      side: form["side"],
+      type: form["type"],
+      quantity: form["quantity"]
+    }
+
+    case form["type"] do
+      "LIMIT" ->
+        Map.merge(base, %{
+          price: form["price"],
+          timeInForce: form["time_in_force"]
+        })
+
+      "MARKET" ->
+        base
+
+      "STOP_LOSS_LIMIT" ->
+        Map.merge(base, %{
+          price: form["price"],
+          stopPrice: form["stop_price"] || form["price"],
+          timeInForce: form["time_in_force"]
+        })
+
+      "TAKE_PROFIT_LIMIT" ->
+        Map.merge(base, %{
+          price: form["price"],
+          stopPrice: form["stop_price"] || form["price"],
+          timeInForce: form["time_in_force"]
+        })
+
+      _ ->
+        base
+    end
+  end
+
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(%{"msg" => msg}), do: msg
+  defp format_error(reason), do: inspect(reason)
 end
