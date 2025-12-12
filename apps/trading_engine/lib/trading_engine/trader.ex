@@ -43,29 +43,42 @@ defmodule TradingEngine.Trader do
     strategy = Keyword.fetch!(opts, :strategy)
     strategy_config = Keyword.fetch!(opts, :strategy_config)
 
-    symbol = strategy_config["symbol"] || "BTCUSDT"
+    # Get ALL required symbols from strategy (supports multi-symbol strategies)
+    symbols = Strategy.get_required_symbols(strategy, strategy_config)
+    symbol = strategy_config["symbol"] || List.first(symbols) || "BTCUSDT"
 
-    Logger.info("Starting Trader for setting #{setting_id}, account #{account_id}, symbol #{symbol}")
+    Logger.info("Starting Trader for setting #{setting_id}, account #{account_id}, symbols: #{inspect(symbols)}")
+
+    # Check for existing chain state and open orders (for recovery)
+    recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbol)
+    strategy_config = if recovery_info do
+      Logger.info("Found recovery state for setting #{setting_id}: #{inspect(recovery_info)}")
+      Map.put(strategy_config, "_recovery", recovery_info)
+    else
+      strategy_config
+    end
 
     # Get strategy requirements to determine subscriptions
     requirements = Strategy.get_requirements(strategy, strategy_config)
     Logger.info("Strategy requirements: ticks=#{requirements.ticks}, timers=#{inspect(requirements.timers)}, executions=#{requirements.executions}")
 
-    # Subscribe to ticker stream only if strategy needs ticks
-    subscribed_to_ticks = if requirements.ticks do
-      case DataCollector.TickerStream.subscribe(symbol) do
-        {:ok, count} ->
-          Logger.info("Subscribed to ticker stream for #{symbol} (subscribers: #{count})")
-          Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{symbol}")
-          true
+    # Subscribe to ticker streams for ALL symbols if strategy needs ticks
+    subscribed_symbols = if requirements.ticks do
+      Enum.reduce(symbols, [], fn sym, acc ->
+        case DataCollector.TickerStream.subscribe(sym) do
+          {:ok, count} ->
+            Logger.info("Subscribed to ticker stream for #{sym} (subscribers: #{count})")
+            Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{sym}")
+            [sym | acc]
 
-        {:error, reason} ->
-          Logger.warning("Failed to subscribe to ticker stream for #{symbol}: #{inspect(reason)}")
-          false
-      end
+          {:error, reason} ->
+            Logger.warning("Failed to subscribe to ticker stream for #{sym}: #{inspect(reason)}")
+            acc
+        end
+      end)
     else
       Logger.info("Strategy does not require ticks, skipping ticker subscription")
-      false
+      []
     end
 
     # Subscribe to order updates if strategy needs executions
@@ -82,7 +95,10 @@ defmodule TradingEngine.Trader do
     end
 
     # Initialize strategy
-    {:ok, strategy_state} = strategy.init(strategy_config)
+    {initial_action, strategy_state} = case strategy.init(strategy_config) do
+      {:ok, state} -> {:noop, state}
+      {:ok, state, action} -> {action, state}
+    end
 
     state = %{
       account_id: account_id,
@@ -93,13 +109,22 @@ defmodule TradingEngine.Trader do
       strategy_state: strategy_state,
       strategy_config: strategy_config,
       symbol: symbol,
+      symbols: symbols,                        # All required symbols
+      subscribed_symbols: subscribed_symbols,  # Successfully subscribed symbols
       positions: %{},
       orders: %{},
-      subscribed_to_ticks: subscribed_to_ticks,
+      subscribed_to_ticks: length(subscribed_symbols) > 0,
       timer_refs: timer_refs
     }
 
-    {:ok, state}
+    # Execute initial action if strategy returned one
+    final_state = if initial_action != :noop do
+      execute_action(initial_action, state)
+    else
+      state
+    end
+
+    {:ok, final_state}
   end
 
   @impl true
@@ -115,6 +140,9 @@ defmodule TradingEngine.Trader do
         case BinanceClient.create_order(state.api_key, state.secret_key, order_params) do
           {:ok, order} ->
             new_orders = Map.put(state.orders, order["orderId"], order)
+
+            # Save order to database
+            save_order_to_db(order, state.account_id)
 
             # Broadcast order created event
             Phoenix.PubSub.broadcast(
@@ -142,8 +170,35 @@ defmodule TradingEngine.Trader do
     end
   end
 
+  defp save_order_to_db(order, account_id) do
+    attrs = %{
+      order_id: to_string(order["orderId"]),
+      client_order_id: order["clientOrderId"],
+      symbol: order["symbol"],
+      type: order["type"],
+      side: order["side"],
+      price: Decimal.new(order["price"] || "0"),
+      quantity: Decimal.new(order["origQty"]),
+      filled_qty: Decimal.new(order["executedQty"] || "0"),
+      status: order["status"],
+      time_in_force: order["timeInForce"],
+      account_id: account_id
+    }
+
+    case SharedData.Trading.create_order(attrs) do
+      {:ok, _db_order} ->
+        Logger.info("Order #{order["orderId"]} saved to database")
+      {:error, changeset} ->
+        Logger.error("Failed to save order to database: #{inspect(changeset.errors)}")
+    end
+  end
+
   @impl true
   def handle_info({:ticker, market_data}, state) do
+    # Migrate strategy state if needed (for hot code reloading)
+    migrated_strategy_state = migrate_strategy_state(state.strategy_state)
+    state = %{state | strategy_state: migrated_strategy_state}
+
     # Pass market data to strategy
     {action, new_strategy_state} = state.strategy.on_tick(market_data, state.strategy_state)
 
@@ -159,6 +214,9 @@ defmodule TradingEngine.Trader do
   def handle_info({:execution_report, execution}, state) do
     # Check if this execution belongs to this account
     if execution["a"] == state.account_id do
+      # Update order status in database
+      update_order_in_db(execution)
+
       # Broadcast order status updates
       order_status = execution["X"]
 
@@ -246,17 +304,17 @@ defmodule TradingEngine.Trader do
 
   @impl true
   def terminate(reason, state) do
-    Logger.info("Trader terminating for #{state.symbol}, reason: #{inspect(reason)}")
+    Logger.info("Trader terminating for symbols #{inspect(state.symbols)}, reason: #{inspect(reason)}")
 
     # Cancel open orders for Grid strategy on stop
     if state.strategy == TradingEngine.Strategies.Grid do
       cancel_open_orders_on_stop(state)
     end
 
-    # Only unsubscribe from ticker stream if we subscribed
-    if state.subscribed_to_ticks do
-      DataCollector.TickerStream.unsubscribe(state.symbol)
-    end
+    # Unsubscribe from ALL ticker streams
+    Enum.each(state.subscribed_symbols || [], fn sym ->
+      DataCollector.TickerStream.unsubscribe(sym)
+    end)
 
     :ok
   end
@@ -286,6 +344,35 @@ defmodule TradingEngine.Trader do
 
   # Private functions
 
+  @doc false
+  defp migrate_strategy_state(strategy_state) do
+    strategy_state
+    |> Map.put_new(:needs_initial_order, false)
+    |> Map.put_new(:pending_order_id, nil)
+  end
+
+  @doc false
+  defp update_order_in_db(execution) do
+    order_id = to_string(execution["i"])
+    status = execution["X"]
+    filled_qty = execution["z"]
+
+    case SharedData.Trading.update_order_status(
+           order_id,
+           status,
+           filled_qty && Decimal.new(filled_qty)
+         ) do
+      {:ok, _order} ->
+        Logger.debug("Order #{order_id} status updated to #{status}")
+
+      {:error, :not_found} ->
+        Logger.debug("Order #{order_id} not found in DB (may be external order)")
+
+      {:error, reason} ->
+        Logger.warning("Failed to update order #{order_id}: #{inspect(reason)}")
+    end
+  end
+
   @spec execute_action(Types.strategy_action(), map()) :: map()
   defp execute_action(:noop, state), do: state
 
@@ -302,8 +389,107 @@ defmodule TradingEngine.Trader do
   # Handle single order
   defp execute_action({:place_order, order_params}, state) when is_map(order_params) do
     case handle_call({:place_order, order_params}, nil, state) do
-      {:reply, _, new_state} -> new_state
+      {:reply, {:ok, order}, new_state} ->
+        # Call on_order_placed if strategy implements it
+        updated_strategy_state =
+          if function_exported?(state.strategy, :on_order_placed, 2) do
+            state.strategy.on_order_placed(order, new_state.strategy_state)
+          else
+            new_state.strategy_state
+          end
+
+        state_after_placed = %{new_state | strategy_state: updated_strategy_state}
+
+        # If order was immediately filled, process it as execution
+        if order["status"] == "FILLED" do
+          Logger.info("Order #{order["orderId"]} was immediately filled, processing execution")
+          execution = order_to_execution(order)
+          {action, final_strategy_state} = state.strategy.on_execution(execution, state_after_placed.strategy_state)
+          final_state = %{state_after_placed | strategy_state: final_strategy_state}
+          execute_action(action, final_state)
+        else
+          state_after_placed
+        end
+
+      {:reply, {:error, _reason}, new_state} ->
+        new_state
     end
+  end
+
+  # Convert order response to execution report format
+  defp order_to_execution(order) do
+    %{
+      "i" => order["orderId"],
+      "X" => order["status"],
+      "S" => order["side"],
+      "L" => order["price"],
+      "z" => order["executedQty"] || order["origQty"],
+      "s" => order["symbol"]
+    }
+  end
+
+  # Check for existing chain state and open orders for recovery
+  defp check_for_recovery(setting_id, api_key, secret_key, symbol) do
+    # 1. Check for existing chain state in DB
+    case SharedData.ChainStates.get_chain_state_by_setting(setting_id) do
+      nil ->
+        # No existing state, check for orphaned open orders
+        check_orphaned_orders(api_key, secret_key, symbol)
+
+      %{current_state: "completed"} ->
+        # Chain completed, no recovery needed
+        nil
+
+      %{current_state: "error"} ->
+        # Chain errored, no recovery needed
+        nil
+
+      chain_state ->
+        # Active chain state found - check if pending order still exists
+        verify_and_build_recovery(chain_state, api_key, secret_key, symbol)
+    end
+  end
+
+  defp check_orphaned_orders(api_key, secret_key, symbol) do
+    case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+      {:ok, []} ->
+        nil
+
+      {:ok, open_orders} ->
+        # Found orphaned open orders - return info for strategy to handle
+        Logger.warning("Found #{length(open_orders)} orphaned open orders for #{symbol}")
+        %{
+          type: :orphaned_orders,
+          orders: open_orders
+        }
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbol) do
+    pending_order_id = chain_state.pending_order_id
+
+    # Check if pending order still exists on Binance
+    open_orders = case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+      {:ok, orders} -> orders
+      {:error, _} -> []
+    end
+
+    pending_order = if pending_order_id do
+      Enum.find(open_orders, fn o ->
+        to_string(o["orderId"]) == pending_order_id
+      end)
+    end
+
+    %{
+      type: :chain_state,
+      chain_state: chain_state,
+      pending_order_exists: pending_order != nil,
+      pending_order: pending_order,
+      open_orders: open_orders
+    }
   end
 
   @spec via_tuple(Types.account_id()) :: Types.genserver_name()

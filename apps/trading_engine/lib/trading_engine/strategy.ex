@@ -56,15 +56,17 @@ defmodule TradingEngine.Strategy do
         }
 
   # Required callbacks
-  @callback init(config) :: {:ok, state}
+  @callback init(config) :: {:ok, state} | {:ok, state, action}
   @callback on_tick(market_data, state) :: {action, state}
   @callback on_execution(execution, state) :: {action, state}
 
   # Optional callbacks
   @callback requirements(config) :: requirements()
   @callback on_timer(timer_ref :: reference(), state) :: {action, state}
+  @callback on_order_placed(order :: map(), state) :: any()
+  @callback required_symbols(config) :: [String.t()]
 
-  @optional_callbacks [requirements: 1, on_timer: 2]
+  @optional_callbacks [requirements: 1, on_timer: 2, on_order_placed: 2, required_symbols: 1]
 
   @doc """
   Default requirements for strategies that don't declare their own.
@@ -88,6 +90,24 @@ defmodule TradingEngine.Strategy do
       strategy_module.requirements(config)
     else
       default_requirements()
+    end
+  end
+
+  @doc """
+  Get required symbols for a strategy.
+  Returns list of symbols the strategy needs to subscribe to.
+  Falls back to single symbol from config if callback not implemented.
+  """
+  @spec get_required_symbols(module(), config()) :: [String.t()]
+  def get_required_symbols(strategy_module, config) do
+    if function_exported?(strategy_module, :required_symbols, 1) do
+      strategy_module.required_symbols(config)
+    else
+      # Fallback to single symbol from config
+      case config["symbol"] || config[:symbol] do
+        nil -> []
+        symbol -> [symbol]
+      end
     end
   end
 end
