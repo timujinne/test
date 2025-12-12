@@ -5,7 +5,14 @@ defmodule DashboardWeb.Application do
 
   @impl true
   def start(_type, _args) do
+    # Ensure layout module is loaded before PhoenixKit.Supervisor starts
+    # This prevents "[PhoenixKit] Layout module not found" warnings
+    Code.ensure_loaded!(DashboardWeb.Layouts)
+
     children = [
+      PhoenixKit.Supervisor,
+      {Finch, [name: Swoosh.Finch]},
+      {Oban, Application.get_env(:dashboard_web, Oban)},
       DashboardWeb.Telemetry,
       # PubSub is started in DataCollector.Application as BinanceSystem.PubSub
       DashboardWeb.Endpoint

@@ -27,14 +27,27 @@
       </div>
 
       <div class="flex-1">
-        <.link navigate="/" class="btn btn-ghost text-xl">
-          Binance Trading System
+        <.link navigate="/" class="btn btn-ghost gap-2">
+          <img src={~p"/images/logo-48.png"} alt="Binance Trading System" class="w-8 h-8 lg:hidden" />
+          <span class="text-xl font-semibold">Binance Trading System</span>
         </.link>
       </div>
 
-      <div class="flex-none gap-2">
+      <div class="flex-none flex items-center gap-2">
+        <%!-- Quick nav links (desktop only) --%>
+        <ul class="menu menu-horizontal px-1 hidden lg:flex">
+          <li><.link navigate="/trading" class="text-sm">Trading</.link></li>
+          <li><.link navigate="/portfolio" class="text-sm">Portfolio</.link></li>
+          <li><.link navigate="/history" class="text-sm">History</.link></li>
+          <li><.link navigate="/articles" class="text-sm">Blog</.link></li>
+        </ul>
         <%!-- Theme Switcher --%>
         <DashboardWeb.Components.DashboardNav.theme_switcher />
+        <%!-- User Menu --%>
+        <DashboardWeb.Components.DashboardNav.user_menu
+          current_scope={assigns[:phoenix_kit_current_scope]}
+          current_user={assigns[:current_user]}
+        />
       </div>
     </header>
 
@@ -57,8 +70,11 @@
     </label>
     <aside class="min-h-full w-64 bg-base-100 border-r border-base-300">
       <%!-- Logo/Brand --%>
-      <div class="sticky top-0 z-20 bg-base-100 px-4 py-6 border-b border-base-300 hidden lg:block">
-        <h2 class="text-2xl font-bold text-primary">Trading</h2>
+      <div class="sticky top-0 z-20 bg-base-100 px-4 py-4 border-b border-base-300 hidden lg:block">
+        <.link navigate="/" class="flex items-center gap-3">
+          <img src={~p"/images/logo-48.png"} alt="Binance Trading System" class="w-10 h-10" />
+          <span class="text-xl font-bold text-primary">TrSys</span>
+        </.link>
       </div>
 
       <%!-- Navigation Menu --%>
@@ -91,6 +107,18 @@
           href="/strategies"
           icon="strategy"
           label="Strategies"
+          current_path={@current_path}
+        />
+        <DashboardWeb.Components.DashboardNav.nav_item
+          href="/chains"
+          icon="chain"
+          label="Chains"
+          current_path={@current_path}
+        />
+        <DashboardWeb.Components.DashboardNav.nav_item
+          href="/articles"
+          icon="blog"
+          label="Blog"
           current_path={@current_path}
         />
         <DashboardWeb.Components.DashboardNav.nav_item

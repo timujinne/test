@@ -47,12 +47,11 @@ defmodule DashboardWeb.Components.DashboardNav do
   attr :name, :string, required: true
 
   def nav_icon(assigns) do
-    svg_path = icon_path(assigns.name)
-    assigns = assign(assigns, :svg_path, Phoenix.HTML.raw(svg_path))
+    assigns = assign(assigns, :svg_path, icon_path(assigns.name))
 
     ~H"""
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      {@svg_path}
+      <%= Phoenix.HTML.raw(@svg_path) %>
     </svg>
     """
   end
@@ -101,7 +100,320 @@ defmodule DashboardWeb.Components.DashboardNav do
     """
   end
 
+  defp icon_path("chain") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    """
+  end
+
+  defp icon_path("blog") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+    """
+  end
+
+  defp icon_path("user") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    """
+  end
+
+  defp icon_path("shield") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    """
+  end
+
+  defp icon_path("logout") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    """
+  end
+
   defp icon_path(_), do: ""
+
+  @doc """
+  Renders the user menu dropdown with avatar support.
+
+  Shows Admin Panel link only for users with admin or owner role.
+
+  ## Attributes
+
+  - `current_scope` - PhoenixKit current scope for avatar (optional)
+  - `current_user` - Direct user object (fallback if scope not available)
+
+  ## Examples
+
+      <.user_menu />
+      <.user_menu current_scope={@phoenix_kit_current_scope} />
+      <.user_menu current_user={@current_user} />
+  """
+  attr :current_scope, :any, default: nil
+  attr :current_user, :any, default: nil
+
+  def user_menu(assigns) do
+    # Get user from scope or fallback to current_user
+    user =
+      cond do
+        assigns.current_scope ->
+          PhoenixKit.Users.Auth.Scope.user(assigns.current_scope)
+
+        assigns.current_user ->
+          assigns.current_user
+
+        true ->
+          nil
+      end
+
+    avatar_file_id = user && user.custom_fields && user.custom_fields["avatar_file_id"]
+
+    avatar_url =
+      if avatar_file_id do
+        PhoenixKit.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+      else
+        nil
+      end
+
+    user_initials = get_user_initials(user)
+
+    # Check if user is admin (only show admin panel for admins/owners)
+    is_admin =
+      cond do
+        assigns.current_scope ->
+          PhoenixKit.Users.Auth.Scope.admin?(assigns.current_scope) ||
+            PhoenixKit.Users.Auth.Scope.owner?(assigns.current_scope)
+
+        true ->
+          false
+      end
+
+    assigns =
+      assigns
+      |> assign(:user, user)
+      |> assign(:avatar_url, avatar_url)
+      |> assign(:user_initials, user_initials)
+      |> assign(:is_admin, is_admin)
+
+    ~H"""
+    <div class="dropdown dropdown-end">
+      <div
+        tabindex="0"
+        role="button"
+        class="btn btn-ghost btn-circle avatar placeholder"
+      >
+        <div class="bg-neutral text-neutral-content w-10 rounded-full flex items-center justify-center overflow-hidden">
+          <%= if @avatar_url do %>
+            <img
+              src={@avatar_url}
+              alt="User avatar"
+              class="w-full h-full object-cover"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div class="hidden w-full h-full bg-neutral flex items-center justify-center text-neutral-content font-bold">
+              <%= @user_initials %>
+            </div>
+          <% else %>
+            <%= if @user do %>
+              <span class="font-bold"><%= @user_initials %></span>
+            <% else %>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+      <ul
+        tabindex="0"
+        class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
+      >
+        <li>
+          <.link navigate="/settings" class="gap-2">
+            <.nav_icon name="settings" />
+            <span>Settings</span>
+          </.link>
+        </li>
+        <li :if={@is_admin}>
+          <.link href="/admin/dashboard" class="gap-2">
+            <.nav_icon name="shield" />
+            <span>Admin Panel</span>
+          </.link>
+        </li>
+        <li class="menu-title py-1">
+          <hr class="border-base-300" />
+        </li>
+        <li>
+          <.link
+            href={PhoenixKit.Utils.Routes.path("/users/log-out")}
+            method="delete"
+            class="gap-2 text-error hover:bg-error hover:text-error-content"
+          >
+            <.nav_icon name="logout" />
+            <span>Logout</span>
+          </.link>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the user menu for public pages (blog, etc.) with PhoenixKit auth support.
+
+  Shows avatar with dropdown menu if authenticated, or login button if not.
+
+  ## Attributes
+
+  - `current_scope` - PhoenixKit current scope (phoenix_kit_current_scope)
+  - `current_user` - PhoenixKit current user (phoenix_kit_current_user) - fallback if scope not available
+  - `show_admin` - Whether to show the admin panel link (default: true in dev/test)
+
+  ## Examples
+
+      <.public_user_menu current_scope={@phoenix_kit_current_scope} />
+      <.public_user_menu current_user={@phoenix_kit_current_user} />
+  """
+  attr :current_scope, :any, default: nil
+  attr :current_user, :any, default: nil
+  attr :show_admin, :boolean, default: Mix.env() in [:dev, :test]
+
+  def public_user_menu(assigns) do
+    # Get user from scope or fallback to current_user
+    user =
+      cond do
+        assigns.current_scope ->
+          PhoenixKit.Users.Auth.Scope.user(assigns.current_scope)
+
+        assigns.current_user ->
+          assigns.current_user
+
+        true ->
+          nil
+      end
+
+    avatar_file_id = user && user.custom_fields && user.custom_fields["avatar_file_id"]
+
+    avatar_url =
+      if avatar_file_id do
+        PhoenixKit.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+      else
+        nil
+      end
+
+    user_email = if user, do: user.email, else: nil
+    user_initials = get_user_initials(user)
+    authenticated? = user != nil
+
+    assigns =
+      assigns
+      |> assign(:user, user)
+      |> assign(:avatar_url, avatar_url)
+      |> assign(:user_email, user_email)
+      |> assign(:user_initials, user_initials)
+      |> assign(:authenticated?, authenticated?)
+
+    ~H"""
+    <%= if @authenticated? do %>
+      <%!-- Authenticated: show avatar dropdown --%>
+      <div class="dropdown dropdown-end">
+        <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+          <div class="w-10 rounded-full overflow-hidden bg-primary flex items-center justify-center text-primary-content font-bold">
+            <%= if @avatar_url do %>
+              <img
+                src={@avatar_url}
+                alt="User avatar"
+                class="w-full h-full object-cover"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              />
+              <div class="hidden w-full h-full bg-primary flex items-center justify-center text-primary-content font-bold">
+                <%= @user_initials %>
+              </div>
+            <% else %>
+              <%= @user_initials %>
+            <% end %>
+          </div>
+        </label>
+        <ul
+          tabindex="0"
+          class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
+        >
+          <li>
+            <.link navigate="/settings" class="gap-2">
+              <.nav_icon name="settings" />
+              <span>Settings</span>
+            </.link>
+          </li>
+          <li :if={@show_admin}>
+            <.link href="/admin/dashboard" class="gap-2">
+              <.nav_icon name="shield" />
+              <span>Admin Panel</span>
+            </.link>
+          </li>
+          <li class="menu-title py-1">
+            <hr class="border-base-300" />
+          </li>
+          <li>
+            <.link
+              href={PhoenixKit.Utils.Routes.path("/users/log-out")}
+              method="delete"
+              class="gap-2 text-error hover:bg-error hover:text-error-content"
+            >
+              <.nav_icon name="logout" />
+              <span>Logout</span>
+            </.link>
+          </li>
+        </ul>
+      </div>
+    <% else %>
+      <%!-- Not authenticated: show login button with user icon --%>
+      <.link
+        href={PhoenixKit.Utils.Routes.path("/users/log-in")}
+        class="btn btn-ghost btn-circle avatar placeholder"
+      >
+        <div class="bg-neutral text-neutral-content w-10 rounded-full flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+        </div>
+      </.link>
+    <% end %>
+    """
+  end
+
+  # Get user initials from name or email
+  defp get_user_initials(nil), do: "?"
+
+  defp get_user_initials(user) do
+    cond do
+      user.first_name && user.last_name ->
+        "#{String.first(user.first_name)}#{String.first(user.last_name)}"
+        |> String.upcase()
+
+      user.first_name ->
+        user.first_name |> String.first() |> String.upcase()
+
+      user.email ->
+        user.email |> String.first() |> String.upcase()
+
+      true ->
+        "?"
+    end
+  end
 
   @doc """
   Renders the theme switcher toggle.

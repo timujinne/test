@@ -16,6 +16,11 @@ defmodule DashboardWeb.Endpoint do
     gzip: false,
     only: DashboardWeb.static_paths()
 
+  # Tidewave MCP Server for AI-assisted development (dev only)
+  if Code.ensure_loaded?(Tidewave) do
+    plug Tidewave
+  end
+
   if code_reloading? do
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
