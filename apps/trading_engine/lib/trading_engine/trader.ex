@@ -49,6 +49,9 @@ defmodule TradingEngine.Trader do
 
     Logger.info("Starting Trader for setting #{setting_id}, account #{account_id}, symbols: #{inspect(symbols)}")
 
+    # Add setting_id to strategy config for state persistence
+    strategy_config = Map.put(strategy_config, "setting_id", setting_id)
+
     # Check for existing chain state and open orders (for recovery)
     recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbol)
     strategy_config = if recovery_info do

@@ -87,7 +87,9 @@ defmodule DashboardWeb.OrdersLive do
   end
 
   @impl true
-  def handle_event("filter_symbol", %{"symbol" => symbol}, socket) do
+  def handle_event("filter_symbol", params, socket) do
+    symbol = params["symbol"]
+    Logger.debug("Filter symbol event: params=#{inspect(params)}, symbol=#{inspect(symbol)}, grouped_keys=#{inspect(Map.keys(socket.assigns.grouped_orders))}")
     {:noreply, assign(socket, selected_symbol: symbol)}
   end
 
