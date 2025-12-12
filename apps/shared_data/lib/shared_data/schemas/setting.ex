@@ -20,7 +20,7 @@ defmodule SharedData.Schemas.Setting do
     setting
     |> cast(attrs, [:strategy_name, :config, :is_active, :account_id])
     |> validate_required([:strategy_name, :config, :account_id])
-    |> validate_inclusion(:strategy_name, ["naive", "grid", "dca"])
+    |> validate_inclusion(:strategy_name, ["naive", "grid", "dca", "conditional_chain"])
     |> validate_config_has_symbol()
     |> foreign_key_constraint(:account_id)
   end

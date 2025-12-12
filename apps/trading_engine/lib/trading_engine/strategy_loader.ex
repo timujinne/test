@@ -6,7 +6,8 @@ defmodule TradingEngine.StrategyLoader do
   @strategies %{
     "naive" => TradingEngine.Strategies.Naive,
     "grid" => TradingEngine.Strategies.Grid,
-    "dca" => TradingEngine.Strategies.DCA
+    "dca" => TradingEngine.Strategies.DCA,
+    "conditional_chain" => TradingEngine.Strategies.ConditionalChain
   }
 
   @doc """

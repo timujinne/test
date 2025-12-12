@@ -295,6 +295,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         current_state: :awaiting_initial,
         state_history: add_to_history(state, :awaiting_initial, "Placed initial order")
       }
+      # Persist state after placing initial order
+      new_state = persist_state(new_state)
       {:ok, order_params, new_state}
     else
       {:error, "First step must be of type 'initial'"}
@@ -357,6 +359,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         current_symbol: nil,
         state_history: add_to_history(state, :completed, "Chain completed")
       }
+      # Persist final state
+      new_state = persist_state(new_state)
       {:noop, new_state}
     else
       next_step = Enum.at(state.steps, next_index)
@@ -383,6 +387,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
             reference_price: state.last_fill_price,
             state_history: add_to_history(state, :awaiting_branch, "Waiting for branch condition")
           }
+          # Persist state when entering branch
+          new_state = persist_state(new_state)
           {:noop, new_state}
 
         unknown_type ->
@@ -391,6 +397,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
             current_state: :error,
             state_history: add_to_history(state, :error, "Unknown step type: #{unknown_type}")
           }
+          # Persist error state
+          new_state = persist_state(new_state)
           {:noop, new_state}
       end
     end
@@ -406,6 +414,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       current_state: :awaiting_step,
       state_history: add_to_history(state, :awaiting_step, "Placed step #{step_index} order")
     }
+    # Persist state after placing step order
+    new_state = persist_state(new_state)
 
     {{:place_order, order_params}, new_state}
   end
@@ -449,6 +459,9 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         reference_price: nil,
         state_history: add_to_history(state, :awaiting_step, "Executing #{branch_path} branch")
       }
+
+      # Persist state before placing order
+      new_state = persist_state(new_state)
 
       {{:place_order, order_params}, new_state}
     else

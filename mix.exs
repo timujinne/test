@@ -8,14 +8,23 @@ defmodule BinanceSystem.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      releases: releases()
+      releases: releases(),
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
   defp deps do
     [
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev}
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      # Heroicons for icon support
+      {:heroicons,
+        github: "tailwindlabs/heroicons",
+        tag: "v2.2.0",
+        sparse: "optimized",
+        app: false,
+        compile: false,
+        depth: 1}
     ]
   end
 

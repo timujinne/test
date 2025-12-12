@@ -11,6 +11,7 @@ defmodule TradingEngine.Application do
       TradingEngine.SharedPositionTracker,
       TradingEngine.AccountCoordinator,
       TradingEngine.PendingStrategiesManager,
+      TradingEngine.SymbolInfo,
       TradingEngine.StrategyManager,
       TradingEngine.StopConditionsMonitor
     ]

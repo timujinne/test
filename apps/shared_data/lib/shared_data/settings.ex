@@ -28,6 +28,17 @@ defmodule SharedData.Settings do
   end
 
   @doc """
+  Lists all settings for a specific account.
+  """
+  def list_settings_by_account(account_id) do
+    Setting
+    |> where([s], s.account_id == ^account_id)
+    |> order_by([s], [desc: s.is_active, asc: s.strategy_name])
+    |> preload(:account)
+    |> Repo.all()
+  end
+
+  @doc """
   Gets a single setting by ID.
   """
   def get_setting(id) do

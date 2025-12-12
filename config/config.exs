@@ -1,5 +1,12 @@
 import Config
 
+config :swoosh, api_client: Swoosh.ApiClient.Finch
+
+config :phoenix_kit,
+  parent_app_name: :dashboard_web,
+  parent_module: DashboardWeb,
+  repo: SharedData.Repo
+
 # Shared configuration for all applications
 config :shared_data,
   ecto_repos: [SharedData.Repo]
@@ -17,17 +24,17 @@ import_config "../apps/dashboard_web/config/config.exs"
 config :esbuild,
   version: "0.19.8",
   default: [
-    args: ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    args:
+      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../apps/dashboard_web/assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../apps/dashboard_web/assets/node_modules", __DIR__)}
   ]
 
 # Configure tailwind (CSS bundling)
 config :tailwind,
-  version: "3.3.6",
+  version: "4.1.8",
   default: [
     args: ~w(
-      --config=tailwind.config.js
       --input=css/app.css
       --output=../priv/static/assets/app.css
     ),

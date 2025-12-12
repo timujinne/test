@@ -14,36 +14,42 @@ defmodule DataCollector.BinanceClient do
   @spec get_account(Types.api_key(), Types.secret_key()) :: Types.result(map())
   def get_account(api_key, secret_key) do
     params = %{timestamp: timestamp(), recvWindow: 5000}
+
+    log_request(:GET, "/api/v3/account", params)
+
     signature = generate_signature(params, secret_key)
 
     headers = [
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(10) do
-      # Wrap HTTP call in circuit breaker
-      DataCollector.CircuitBreaker.call(:binance_api, fn ->
-        case HTTPoison.get(
-               "#{@base_url}/api/v3/account",
-               headers,
-               params: Map.put(params, :signature, signature)
-             ) do
-          {:ok, %{status_code: 200, body: body}} ->
-            {:ok, Jason.decode!(body)}
+    result =
+      with :ok <- DataCollector.RateLimiter.check_limit(10) do
+        # Wrap HTTP call in circuit breaker
+        DataCollector.CircuitBreaker.call(:binance_api, fn ->
+          case HTTPoison.get(
+                 "#{@base_url}/api/v3/account",
+                 headers,
+                 params: Map.put(params, :signature, signature)
+               ) do
+            {:ok, %{status_code: 200, body: body}} ->
+              {:ok, Jason.decode!(body)}
 
-          {:ok, %{status_code: status, body: body}} ->
-            {:error, "HTTP #{status}: #{body}"}
+            {:ok, %{status_code: status, body: body}} ->
+              {:error, "HTTP #{status}: #{body}"}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_account(api_key, secret_key)
-    end
+            {:error, reason} ->
+              {:error, reason}
+          end
+        end)
+      else
+        {:wait, ms} ->
+          Logger.warning("Rate limit reached, waiting #{ms}ms")
+          Process.sleep(ms)
+          get_account(api_key, secret_key)
+      end
+
+    log_response(result, "/api/v3/account")
   end
 
   @doc """
@@ -72,6 +78,8 @@ defmodule DataCollector.BinanceClient do
   @spec create_order(Types.api_key(), Types.secret_key(), Types.order_params()) ::
           Types.result(Types.order())
   def create_order(api_key, secret_key, params) do
+    log_request(:POST, "/api/v3/order", params)
+
     timestamp = timestamp()
     order_params = Map.merge(params, %{timestamp: timestamp, recvWindow: 5000})
     signature = generate_signature(order_params, secret_key)
@@ -81,30 +89,33 @@ defmodule DataCollector.BinanceClient do
       {"Content-Type", "application/x-www-form-urlencoded"}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
-      # Wrap HTTP call in circuit breaker
-      DataCollector.CircuitBreaker.call(:binance_api, fn ->
-        case HTTPoison.post(
-               "#{@base_url}/api/v3/order",
-               URI.encode_query(Map.put(order_params, :signature, signature)),
-               headers
-             ) do
-          {:ok, %{status_code: 200, body: body}} ->
-            {:ok, Jason.decode!(body)}
+    result =
+      with :ok <- DataCollector.RateLimiter.check_limit(1) do
+        # Wrap HTTP call in circuit breaker
+        DataCollector.CircuitBreaker.call(:binance_api, fn ->
+          case HTTPoison.post(
+                 "#{@base_url}/api/v3/order",
+                 URI.encode_query(Map.put(order_params, :signature, signature)),
+                 headers
+               ) do
+            {:ok, %{status_code: 200, body: body}} ->
+              {:ok, Jason.decode!(body)}
 
-          {:ok, %{status_code: status, body: body}} ->
-            {:error, "HTTP #{status}: #{body}"}
+            {:ok, %{status_code: status, body: body}} ->
+              {:error, "HTTP #{status}: #{body}"}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        create_order(api_key, secret_key, params)
-    end
+            {:error, reason} ->
+              {:error, reason}
+          end
+        end)
+      else
+        {:wait, ms} ->
+          Logger.warning("Rate limit reached, waiting #{ms}ms")
+          Process.sleep(ms)
+          create_order(api_key, secret_key, params)
+      end
+
+    log_response(result, "/api/v3/order")
   end
 
   @doc """
@@ -120,36 +131,41 @@ defmodule DataCollector.BinanceClient do
       recvWindow: 5000
     }
 
+    log_request(:DELETE, "/api/v3/order", params)
+
     signature = generate_signature(params, secret_key)
 
     headers = [
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
-      # Wrap HTTP call in circuit breaker
-      DataCollector.CircuitBreaker.call(:binance_api, fn ->
-        case HTTPoison.delete(
-               "#{@base_url}/api/v3/order",
-               headers,
-               params: Map.put(params, :signature, signature)
-             ) do
-          {:ok, %{status_code: 200, body: body}} ->
-            {:ok, Jason.decode!(body)}
+    result =
+      with :ok <- DataCollector.RateLimiter.check_limit(1) do
+        # Wrap HTTP call in circuit breaker
+        DataCollector.CircuitBreaker.call(:binance_api, fn ->
+          case HTTPoison.delete(
+                 "#{@base_url}/api/v3/order",
+                 headers,
+                 params: Map.put(params, :signature, signature)
+               ) do
+            {:ok, %{status_code: 200, body: body}} ->
+              {:ok, Jason.decode!(body)}
 
-          {:ok, %{status_code: status, body: body}} ->
-            {:error, "HTTP #{status}: #{body}"}
+            {:ok, %{status_code: status, body: body}} ->
+              {:error, "HTTP #{status}: #{body}"}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        cancel_order(api_key, secret_key, symbol, order_id)
-    end
+            {:error, reason} ->
+              {:error, reason}
+          end
+        end)
+      else
+        {:wait, ms} ->
+          Logger.warning("Rate limit reached, waiting #{ms}ms")
+          Process.sleep(ms)
+          cancel_order(api_key, secret_key, symbol, order_id)
+      end
+
+    log_response(result, "/api/v3/order")
   end
 
   @doc """
@@ -218,6 +234,32 @@ defmodule DataCollector.BinanceClient do
       {:wait, ms} ->
         Process.sleep(ms)
         get_exchange_info()
+    end
+  end
+
+  @doc """
+  Get exchange info for a specific symbol.
+  Returns symbol information including filters and precision.
+  """
+  @spec get_exchange_info(Types.symbol()) :: Types.result(map())
+  def get_exchange_info(symbol) do
+    with :ok <- DataCollector.RateLimiter.check_limit(10) do
+      DataCollector.CircuitBreaker.call(:binance_api, fn ->
+        case HTTPoison.get("#{@base_url}/api/v3/exchangeInfo", [], params: %{symbol: symbol}) do
+          {:ok, %{status_code: 200, body: body}} ->
+            {:ok, Jason.decode!(body)}
+
+          {:ok, %{status_code: status, body: body}} ->
+            {:error, "HTTP #{status}: #{body}"}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      end)
+    else
+      {:wait, ms} ->
+        Process.sleep(ms)
+        get_exchange_info(symbol)
     end
   end
 
@@ -439,35 +481,40 @@ defmodule DataCollector.BinanceClient do
       }
       |> maybe_put(:symbol, symbol)
 
+    log_request(:GET, "/api/v3/openOrders", params)
+
     signature = generate_signature(params, secret_key)
 
     headers = [
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(3) do
-      DataCollector.CircuitBreaker.call(:binance_api, fn ->
-        case HTTPoison.get(
-               "#{@base_url}/api/v3/openOrders",
-               headers,
-               params: Map.put(params, :signature, signature)
-             ) do
-          {:ok, %{status_code: 200, body: body}} ->
-            {:ok, Jason.decode!(body)}
+    result =
+      with :ok <- DataCollector.RateLimiter.check_limit(3) do
+        DataCollector.CircuitBreaker.call(:binance_api, fn ->
+          case HTTPoison.get(
+                 "#{@base_url}/api/v3/openOrders",
+                 headers,
+                 params: Map.put(params, :signature, signature)
+               ) do
+            {:ok, %{status_code: 200, body: body}} ->
+              {:ok, Jason.decode!(body)}
 
-          {:ok, %{status_code: status, body: body}} ->
-            {:error, "HTTP #{status}: #{body}"}
+            {:ok, %{status_code: status, body: body}} ->
+              {:error, "HTTP #{status}: #{body}"}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_open_orders(api_key, secret_key, symbol)
-    end
+            {:error, reason} ->
+              {:error, reason}
+          end
+        end)
+      else
+        {:wait, ms} ->
+          Logger.warning("Rate limit reached, waiting #{ms}ms")
+          Process.sleep(ms)
+          get_open_orders(api_key, secret_key, symbol)
+      end
+
+    log_response(result, "/api/v3/openOrders")
   end
 
   @doc """
@@ -634,4 +681,33 @@ defmodule DataCollector.BinanceClient do
   @spec maybe_put(map(), atom(), any()) :: map()
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp log_request(method, endpoint, params) do
+    Logger.debug("Binance API #{method} #{endpoint}",
+      params: sanitize_params(params)
+    )
+  end
+
+  defp log_response(result, endpoint) do
+    case result do
+      {:ok, body} ->
+        Logger.debug("Binance API response OK from #{endpoint}")
+        {:ok, body}
+
+      {:error, reason} ->
+        Logger.debug("Binance API error from #{endpoint}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp sanitize_params(params) when is_map(params) do
+    # Convert atoms to strings for consistent filtering
+    params
+    |> Enum.map(fn {k, v} -> {to_string(k), v} end)
+    |> Enum.into(%{})
+    |> Map.drop(["signature", "apiKey", "secretKey"])
+    |> Map.take(["symbol", "side", "type", "quantity", "price", "timeInForce"])
+  end
+
+  defp sanitize_params(_), do: %{}
 end

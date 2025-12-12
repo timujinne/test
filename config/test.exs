@@ -1,4 +1,5 @@
 import Config
+config :phoenix_kit, repo: SharedData.Repo
 
 # Binance API configuration for testing (mock values)
 config :binance,

@@ -1,4 +1,5 @@
 import Config
+config :phoenix_kit, PhoenixKit.Mailer, adapter: Swoosh.Adapters.Local
 
 # Binance API configuration for development (using testnet)
 config :binance,
@@ -12,7 +13,10 @@ config :shared_data, SharedData.Vault,
     default: {
       Cloak.Ciphers.AES.GCM,
       tag: "AES.GCM.V1",
-      key: Base.decode64!(System.get_env("CLOAK_KEY") || "tJq/RQzw8QV9dJFELmKwEiCq0lTFqe0y9fKDnSdmUm8="),
+      key:
+        Base.decode64!(
+          System.get_env("CLOAK_KEY") || "tJq/RQzw8QV9dJFELmKwEiCq0lTFqe0y9fKDnSdmUm8="
+        ),
       iv_length: 12
     }
   ]
@@ -30,11 +34,22 @@ config :shared_data, SharedData.Repo,
 # Configure Phoenix endpoint for development
 config :dashboard_web, DashboardWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: 4000],
-  secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_at_least_64_bytes_long_for_development_only_replace_in_production",
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") ||
+      "dev_secret_key_base_at_least_64_bytes_long_for_development_only_replace_in_production",
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
-  watchers: []
+  watchers: [
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
+  ],
+  live_reload: [
+    patterns: [
+      ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
+      ~r"lib/dashboard_web/(controllers|live|components)/.*(ex|heex)$"
+    ]
+  ]
 
 # Configure logger
 config :logger, :console,
@@ -46,3 +61,8 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
+
+# LiveView debug options for Tidewave MCP
+config :phoenix_live_view,
+  debug_heex_annotations: true,
+  debug_attributes: true

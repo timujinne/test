@@ -1,0 +1,115 @@
+import Config
+# Configure PhoenixKit mailer for production
+#
+# IMPORTANT: Configure sender email address
+# config :phoenix_kit,
+#   from_email: "noreply@yourcompany.com",
+#   from_name: "Your Company Name"
+
+# OPTION 1 (RECOMMENDED): Use your app's existing mailer
+# PhoenixKit will automatically use your app's mailer if configured with:
+# config :phoenix_kit, mailer: MyApp.Mailer
+#
+# Then configure your app's mailer as usual:
+# config :my_app, MyApp.Mailer,
+#   adapter: Swoosh.Adapters.SMTP,
+#   relay: "smtp.sendgrid.net",
+#   username: System.get_env("SENDGRID_USERNAME"),
+#   password: System.get_env("SENDGRID_PASSWORD"),
+#   port: 587,
+#   auth: :always,
+#   tls: :always
+
+# OPTION 2 (LEGACY): Configure PhoenixKit's built-in mailer
+# Uncomment and configure the adapter you want to use:
+
+# SMTP configuration (recommended for most providers)
+# config :phoenix_kit, PhoenixKit.Mailer,
+#   adapter: Swoosh.Adapters.SMTP,
+#   relay: "smtp.sendgrid.net",
+#   username: System.get_env("SENDGRID_USERNAME"),
+#   password: System.get_env("SENDGRID_PASSWORD"),
+#   port: 587,
+#   auth: :always,
+#   tls: :always
+
+# SendGrid API configuration
+# config :phoenix_kit, PhoenixKit.Mailer,
+#   adapter: Swoosh.Adapters.Sendgrid,
+#   api_key: System.get_env("SENDGRID_API_KEY")
+
+# Mailgun configuration
+# config :phoenix_kit, PhoenixKit.Mailer,
+#   adapter: Swoosh.Adapters.Mailgun,
+#   api_key: System.get_env("MAILGUN_API_KEY"),
+#   domain: System.get_env("MAILGUN_DOMAIN")
+
+# ==========================================
+# Amazon SES configuration (COMPLETE SETUP GUIDE)
+# ==========================================
+
+# STEP 1: Add required dependencies to mix.exs
+# {:gen_smtp, "~> 1.2"}  # Required for AWS SES
+# {:finch, "~> 0.18"}    # Required for HTTP client
+#
+# Also add :finch to extra_applications in mix.exs:
+# extra_applications: [:logger, :runtime_tools, :finch]
+
+# STEP 2: Add Finch to your application supervisor (lib/your_app/application.ex)
+# Add this to your children list:
+# {Finch, name: Swoosh.Finch}
+
+# STEP 3: Configure Swoosh API client (config/config.exs)
+# config :swoosh, :api_client, Swoosh.ApiClient.Finch
+#
+# ⚠️ IMPORTANT: Check that config/dev.exs does NOT have:
+# config :swoosh, :api_client, false
+# This setting will override Finch configuration and break AWS SES!
+
+# STEP 4: Configure AWS SES
+# For your app's mailer (recommended approach):
+# config :your_app, YourApp.Mailer,
+#   adapter: Swoosh.Adapters.AmazonSES,
+#   region: "eu-north-1",  # or "us-east-1", "us-west-2", etc.
+#   access_key: System.get_env("AWS_ACCESS_KEY_ID"),
+#   secret: System.get_env("AWS_SECRET_ACCESS_KEY")
+#
+# Then configure PhoenixKit to use your mailer:
+# config :phoenix_kit,
+#   mailer: YourApp.Mailer,
+#   from_email: "noreply@yourcompany.com",
+#   from_name: "Your Company"
+#
+# Legacy approach (using PhoenixKit's built-in mailer):
+# config :phoenix_kit, PhoenixKit.Mailer,
+#   adapter: Swoosh.Adapters.AmazonSES,
+#   region: "eu-north-1",
+#   access_key: System.get_env("AWS_ACCESS_KEY_ID"),
+#   secret: System.get_env("AWS_SECRET_ACCESS_KEY")
+
+# STEP 5: AWS SES Setup Checklist
+# □ Create AWS IAM user with SES permissions (ses:*)
+# □ Verify sender email address in AWS SES Console
+# □ Verify recipient email addresses (if in sandbox mode)
+# □ Ensure correct AWS region matches your verification
+# □ Request production access to send to any email
+# □ Set environment variables:
+#   - AWS_ACCESS_KEY_ID
+#   - AWS_SECRET_ACCESS_KEY
+#   - AWS_REGION (optional, defaults to eu-north-1)
+
+# Common AWS SES regions:
+# - eu-west-1 (Ireland)
+# - us-east-1 (N. Virginia)
+# - us-west-2 (Oregon)
+# - eu-north-1 (Stockholm)
+
+# TROUBLESHOOTING:
+# If you see "function false.post/4 is undefined":
+# 1. Check that Finch is in your mix.exs deps: {:finch, "~> 0.18"}
+# 2. Check that :finch is in extra_applications
+# 3. Check that Swoosh.Finch is in application.ex children
+# 4. Make sure there's no "api_client: false" in dev.exs
+# 5. Restart your Phoenix server after changes
+#
+# See full setup guide: docs/AWS_SES_SETUP.md

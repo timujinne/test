@@ -58,6 +58,18 @@ defmodule TradingEngine.StrategyManager do
     GenServer.call(__MODULE__, {:stop_strategy, setting_id}, Config.timeout(:fast))
   end
 
+  @doc """
+  Reloads a strategy - stops and starts it again.
+  Useful after changing strategy code (hot code reload).
+  """
+  @spec reload_strategy(String.t()) :: {:ok, pid()} | {:error, term()}
+  def reload_strategy(setting_id) do
+    with :ok <- stop_strategy(setting_id) do
+      :timer.sleep(200)
+      start_strategy(setting_id)
+    end
+  end
+
   # Server Callbacks
 
   @impl true

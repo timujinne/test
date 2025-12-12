@@ -1,5 +1,11 @@
 import Config
 
+# PhoenixKit layout configuration (must be in runtime.exs to avoid compile-time warnings)
+# This is loaded after all apps are compiled, so DashboardWeb.Layouts is available
+config :phoenix_kit,
+  layouts_module: DashboardWeb.Layouts,
+  phoenix_version_strategy: :modern
+
 # Runtime production configuration
 if config_env() == :prod do
   # Binance API configuration

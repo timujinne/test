@@ -31,7 +31,7 @@ defmodule SharedData.MixProject do
   defp deps do
     [
       {:ecto_sql, "~> 3.10"},
-      {:postgrex, "~> 0.17"},
+      {:postgrex, "~> 0.21"},
       {:jason, "~> 1.4"},
       {:cloak_ecto, "~> 1.2"},
       {:decimal, "~> 2.1"},
