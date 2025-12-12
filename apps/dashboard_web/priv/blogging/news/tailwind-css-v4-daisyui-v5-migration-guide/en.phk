@@ -1,0 +1,311 @@
+---
+slug: tailwind-css-v4-daisyui-v5-migration-guide
+status: published
+published_at: 2025-12-05T15:08:00Z
+featured_image_id: 019aef10-2d00-7192-8738-17908bb393e3
+updated_by_id: 1
+updated_by_email: timujeen@gmail.com
+---
+
+
+<Image file_id="019aef10-2d00-7192-8738-17908bb393e3" alt="Description here" />
+# Tailwind CSS v4 + DaisyUI v5 Migration Guide
+
+Guide for upgrading a Phoenix project from Tailwind CSS v3 + DaisyUI v4 to Tailwind CSS v4 + DaisyUI v5.
+
+## Overview of Changes
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Tailwind CSS | 3.x | 4.x |
+| DaisyUI | 4.x | 5.x |
+| Configuration | `tailwind.config.js` | CSS-native (`app.css`) |
+
+## Step 1: Update Versions
+
+### 1.1 Update `config/config.exs`
+
+```elixir
+# Change Tailwind version
+config :tailwind,
+  version: "4.1.8",  # Was: "3.4.3"
+  your_app: [
+    args: ~w(
+      --input=css/app.css
+      --output=../priv/static/assets/css/app.css
+    ),
+    cd: Path.expand("../assets", __DIR__)
+  ]
+```
+
+### 1.2 Update `assets/package.json`
+
+```json
+{
+  "name": "your-app",
+  "version": "0.0.1",
+  "type": "module",
+  "devDependencies": {
+    "daisyui": "^5",
+    "tailwindcss": "^4"
+  }
+}
+```
+
+**Important:** Add `"type": "module"` for ESM support.
+
+### 1.3 Install Dependencies
+
+```bash
+cd assets && npm install
+```
+
+## Step 2: CSS Configuration Migration
+
+### 2.1 Delete `assets/tailwind.config.js`
+
+This file is no longer needed - configuration moves to CSS.
+
+### 2.2 Update `assets/css/app.css`
+
+**Before (Tailwind v3):**
+```css
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* Custom styles */
+```
+
+**After (Tailwind v4):**
+```css
+@import "tailwindcss";
+
+/* DaisyUI plugin */
+@plugin "daisyui";
+
+/* Heroicons - IMPORTANT: import into base layer, not utilities! */
+/* This ensures w-* h-* utilities override the default size */
+@import "./heroicons.css" layer(base);
+
+/* Content sources for Tailwind v4 */
+@source "../js/**/*.js";
+@source "../../lib/your_app_web.ex";
+@source "../../lib/your_app_web/**/*.*ex";
+
+/* PhoenixKit Integration (if used) */
+@source "../../deps/phoenix_kit/lib/**/*.*ex";
+@source "../../deps/phoenix_kit/lib/**/*.heex";
+
+/* Custom theme extension */
+@theme {
+  --color-brand: #FD4F00;
+}
+
+/* Fix select and option colors for dark theme */
+@layer components {
+  select option {
+    @apply bg-base-100 text-base-content;
+  }
+
+  [data-theme="dark"] select {
+    color-scheme: dark;
+  }
+
+  [data-theme="light"] select {
+    color-scheme: light;
+  }
+}
+
+/* LiveView loading state variants */
+@custom-variant phx-click-loading (&.phx-click-loading, .phx-click-loading &);
+@custom-variant phx-submit-loading (&.phx-submit-loading, .phx-submit-loading &);
+@custom-variant phx-change-loading (&.phx-change-loading, .phx-change-loading &);
+```
+
+## Step 3: Heroicons for Tailwind v4
+
+Tailwind v4 standalone CLI does not fully support JS plugins with `matchComponents`. The solution is to generate a static CSS file.
+
+### 3.1 Create Generation Script
+
+Create `assets/generate-heroicons.mjs`:
+
+```javascript
+import fs from 'fs';
+import path from 'path';
+
+const iconsDir = './deps/heroicons/optimized';
+let css = '/* Heroicons - auto-generated */\n';
+
+const icons = [
+  ['', '/24/outline'],
+  ['-solid', '/24/solid'],
+  ['-mini', '/20/solid'],
+  ['-micro', '/16/solid'],
+];
+
+icons.forEach(([suffix, dir]) => {
+  const fullDir = path.join(iconsDir, dir);
+  fs.readdirSync(fullDir).forEach((file) => {
+    const name = path.basename(file, '.svg') + suffix;
+    const fullPath = path.join(fullDir, file);
+    const content = fs
+      .readFileSync(fullPath)
+      .toString()
+      .replace(/\r?\n|\r/g, '')
+      .replace(/"/g, "'")
+      .replace(/#/g, '%23');
+
+    css += `.hero-${name} {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,${content}");
+  mask-image: url("data:image/svg+xml;utf8,${content}");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  background-color: currentColor;
+  vertical-align: middle;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+`;
+  });
+});
+
+fs.writeFileSync('./assets/css/heroicons.css', css);
+console.log('Generated heroicons.css with', (css.match(/\.hero-/g) || []).length, 'icons');
+```
+
+### 3.2 Generate CSS
+
+```bash
+node assets/generate-heroicons.mjs
+```
+
+### 3.3 Add to `.gitignore` (optional)
+
+If you want to generate on each build:
+```
+assets/css/heroicons.css
+```
+
+## Step 4: Update Vendor Files
+
+### 4.1 Rename CommonJS Files
+
+If you have vendor files in CommonJS format (e.g., `topbar.js`):
+
+```bash
+mv assets/vendor/topbar.js assets/vendor/topbar.cjs
+```
+
+### 4.2 Update Imports in `app.js`
+
+```javascript
+// Before
+import topbar from "../vendor/topbar";
+
+// After
+import topbar from "../vendor/topbar.cjs";
+```
+
+## Step 5: DaisyUI v5 Changes
+
+### 5.1 Changed Classes
+
+| DaisyUI v4 | DaisyUI v5 |
+|------------|------------|
+| `select-bordered` | `select` |
+| `placeholder` (avatar) | `avatar-placeholder` |
+| `steps` component | Reworked, check documentation |
+
+### 5.2 Update Components
+
+Check your components for usage of changed classes:
+
+```bash
+grep -r "select-bordered" lib/
+grep -r "placeholder" lib/ | grep -v "::placeholder"
+```
+
+## Step 6: Build and Verify
+
+### 6.1 Clear Cache
+
+```bash
+rm -rf _build/tailwind-*
+rm -rf priv/static/assets
+```
+
+### 6.2 Build Assets
+
+```bash
+mix assets.deploy
+```
+
+### 6.3 Verify Result
+
+```bash
+# Should have many SVGs (for heroicons)
+grep -c 'data:image/svg' priv/static/assets/css/app.css
+
+# Check CSS size
+ls -la priv/static/assets/css/
+```
+
+## Troubleshooting
+
+### Problem: Icons display as black squares
+
+**Cause:** CSS variables with SVG are not generated by the plugin.
+
+**Solution:** Use a static CSS file with heroicons (see Step 3).
+
+### Problem: `Cannot find module 'tailwindcss/plugin'`
+
+**Cause:** npm package tailwindcss is not installed.
+
+**Solution:**
+```bash
+cd assets && npm install tailwindcss@4 --save-dev
+```
+
+### Problem: `MODULE_TYPELESS_PACKAGE_JSON` warning
+
+**Cause:** package.json does not specify module type.
+
+**Solution:** Add `"type": "module"` to `assets/package.json`.
+
+### Problem: CommonJS files don't work with ESM
+
+**Cause:** After adding `"type": "module"`, CommonJS files must have `.cjs` extension.
+
+**Solution:** Rename `.js` to `.cjs` for CommonJS files.
+
+### Problem: Icons load huge, then shrink (FOUC)
+
+**Cause:** Heroicons are imported into `utilities` layer, and their sizes conflict with `w-*` `h-*` utilities.
+
+**Solution:**
+1. Import heroicons.css into the `base` layer, not `utilities`:
+   ```css
+   @import "./heroicons.css" layer(base);
+   ```
+2. Perform a full cache clear and rebuild:
+   ```bash
+   rm -rf _build/tailwind-*
+   rm -rf priv/static/assets
+   mix assets.deploy
+   ```
+
+**Explanation:** CSS Cascade Layers have priority order: `base` < `components` < `utilities`. When heroicons are in the `base` layer, their default sizes (1.5rem) are overridden by `w-5 h-5` utilities from the `utilities` layer.
+
+## Useful Links
+
+- [Tailwind CSS v4 Documentation](https://tailwindcss.com/docs)
+- [DaisyUI v5 Migration Guide](https://daisyui.com/docs/upgrade/)
+- [Heroicons](https://heroicons.com/)
+- [GitHub Discussion: Migrate Heroicons to v4](https://github.com/tailwindlabs/tailwindcss/discussions/17721)
