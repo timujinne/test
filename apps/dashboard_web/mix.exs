@@ -45,7 +45,7 @@ defmodule DashboardWeb.MixProject do
       {:shared_data, in_umbrella: true},
       {:trading_engine, in_umbrella: true},
       # PhoenixKit - SaaS starter kit (auth, roles, admin)
-      {:phoenix_kit, "~> 1.6.20"},
+      {:phoenix_kit, "~> 1.7.0"},
       {:igniter, "~> 0.7"},
       # Tidewave MCP Server for AI-assisted development
       {:tidewave, "~> 0.5", only: :dev}

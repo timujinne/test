@@ -20,6 +20,11 @@ defmodule TradingEngine.Strategies.Naive do
   end
 
   @impl true
+  def required_symbols(config) do
+    [config["symbol"]]
+  end
+
+  @impl true
   def init(config) do
     # trade_amount is in USDT - we'll calculate quantity at order time
     trade_amount_usdt = config["trade_amount"] || config["quantity"] || 10

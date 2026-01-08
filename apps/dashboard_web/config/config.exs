@@ -69,10 +69,18 @@ config :ueberauth, Ueberauth, providers: %{}
 config :dashboard_web, Oban,
   repo: SharedData.Repo,
   queues: [
-    default: 10,           # General purpose queue
-    emails: 50,            # Email processing
-    file_processing: 20    # File variant generation (storage system)
+    default: 10,
+    emails: 50,
+    file_processing: 20,
+    posts: 10,
+    sitemap: 5,
+    sqs_polling: 1,
+    sync: 5
   ],
   plugins: [
-    Oban.Plugins.Pruner    # Automatic cleanup of completed jobs
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 30},
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"* * * * *", PhoenixKit.ScheduledJobs.Workers.ProcessScheduledJobsWorker}
+     ]}
   ]

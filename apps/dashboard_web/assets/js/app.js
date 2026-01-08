@@ -5,7 +5,7 @@ import topbar from "../vendor/topbar.cjs"
 import { PriceChart, DepthChart } from "./hooks"
 
 // PhoenixKit JS - DO NOT REMOVE
-import "./vendor/phoenix_kit"
+import "../../deps/phoenix_kit/priv/static/assets/phoenix_kit.js"
 
 // Theme Toggle Hook for Phoenix LiveView
 // Handles theme switching between light and dark modes

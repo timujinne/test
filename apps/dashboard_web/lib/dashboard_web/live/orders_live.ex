@@ -22,7 +22,7 @@ defmodule DashboardWeb.OrdersLive do
     socket =
       socket
       |> assign(page_title: "Orders")
-      |> assign(current_path: "/orders")
+      |> assign(current_path: "/app/orders")
       |> assign(orders: [])
       |> assign(grouped_orders: %{})
       |> assign(available_symbols: [])
@@ -88,8 +88,7 @@ defmodule DashboardWeb.OrdersLive do
 
   @impl true
   def handle_event("filter_symbol", params, socket) do
-    symbol = params["symbol"]
-    Logger.debug("Filter symbol event: params=#{inspect(params)}, symbol=#{inspect(symbol)}, grouped_keys=#{inspect(Map.keys(socket.assigns.grouped_orders))}")
+    symbol = params["symbol"] || "all"
     {:noreply, assign(socket, selected_symbol: symbol)}
   end
 
@@ -315,13 +314,13 @@ defmodule DashboardWeb.OrdersLive do
       <div class="card bg-base-100 shadow-xl">
         <div class="card-body py-4">
           <div class="flex items-center gap-4">
-            <label class="form-control w-full max-w-xs">
+            <form phx-change="filter_symbol" class="form-control w-full max-w-xs">
               <div class="label">
                 <span class="label-text font-medium">Filter by Symbol</span>
               </div>
               <select
+                id="symbol-filter"
                 class="select select-bordered"
-                phx-change="filter_symbol"
                 name="symbol"
               >
                 <option value="all" selected={@selected_symbol == "all"}>
@@ -333,7 +332,27 @@ defmodule DashboardWeb.OrdersLive do
                   </option>
                 <% end %>
               </select>
-            </label>
+            </form>
+
+            <!-- Quick filter buttons -->
+            <div class="flex gap-1 items-center">
+              <button
+                class={["btn btn-sm", if(@selected_symbol == "all", do: "btn-primary", else: "btn-ghost")]}
+                phx-click="filter_symbol"
+                phx-value-symbol="all"
+              >
+                All
+              </button>
+              <%= for symbol <- @available_symbols do %>
+                <button
+                  class={["btn btn-sm", if(@selected_symbol == symbol, do: "btn-primary", else: "btn-ghost")]}
+                  phx-click="filter_symbol"
+                  phx-value-symbol={symbol}
+                >
+                  <%= symbol %>
+                </button>
+              <% end %>
+            </div>
 
             <%= if @selected_symbol != "all" do %>
               <div class="flex-1"></div>
@@ -352,6 +371,14 @@ defmodule DashboardWeb.OrdersLive do
           </div>
         </div>
       </div>
+
+      <!-- Current filter indicator -->
+      <%= if @selected_symbol != "all" do %>
+        <div class="alert alert-info mb-4">
+          <span>Showing orders for: <strong><%= @selected_symbol %></strong> (<%= length(filtered_orders(@orders, @grouped_orders, @selected_symbol)) %> of <%= length(@orders) %> orders)</span>
+          <button class="btn btn-sm btn-ghost" phx-click="filter_symbol" phx-value-symbol="all">Clear filter</button>
+        </div>
+      <% end %>
 
       <!-- Orders Table -->
       <div class="card bg-base-100 shadow-xl">

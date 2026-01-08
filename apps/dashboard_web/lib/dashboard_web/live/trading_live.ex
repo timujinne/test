@@ -50,7 +50,7 @@ defmodule DashboardWeb.TradingLive do
     socket =
       socket
       |> assign(page_title: "Trading")
-      |> assign(current_path: "/trading")
+      |> assign(current_path: "/app/trading")
       |> assign(active_orders: [])
       |> assign(recent_trades: [])
       |> assign(current_price: nil)

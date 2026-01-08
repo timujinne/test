@@ -104,13 +104,13 @@ defmodule DashboardWeb.BlogPostLive do
 
   defp load_post(slug) do
     try do
-      blogs = PhoenixKitWeb.Live.Modules.Blogging.list_blogs()
+      blogs = PhoenixKit.Modules.Blogging.list_blogs()
       blog = List.first(blogs)
 
       if blog do
         blog_slug = blog["slug"]
 
-        case PhoenixKitWeb.Live.Modules.Blogging.read_post(blog_slug, slug, "en") do
+        case PhoenixKit.Modules.Blogging.read_post(blog_slug, slug, "en") do
           {:ok, post} ->
             {:ok, %{
               title: post.metadata.title,
@@ -145,7 +145,7 @@ defmodule DashboardWeb.BlogPostLive do
     file_id = Map.get(post.metadata, :featured_image_id)
 
     if file_id && is_binary(file_id) do
-      PhoenixKit.Storage.URLSigner.signed_url(file_id, "medium")
+      PhoenixKit.Modules.Storage.URLSigner.signed_url(file_id, "medium")
     else
       nil
     end

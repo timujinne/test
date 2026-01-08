@@ -12,8 +12,8 @@ defmodule DashboardWeb.SettingsLive do
     # Phase 8: Will get user_id from authenticated session
     socket =
       socket
-      |> assign(page_title: "Settings")
-      |> assign(current_path: "/settings")
+      |> assign(page_title: "Trading Accounts")
+      |> assign(current_path: "/app/accounts")
       |> assign(accounts: [])
       |> assign(user_id: nil)
       # Account form state (includes API credentials)

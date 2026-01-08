@@ -1,21 +1,21 @@
-defmodule Ecto.Migrations.PhoenixKitUpdateV28ToV30 do
+defmodule Ecto.Migrations.PhoenixKitUpdateV30ToV44 do
   @moduledoc false
   use Ecto.Migration
 
   def up do
-    # PhoenixKit Update Migration: V28 -> V30
+    # PhoenixKit Update Migration: V30 -> V44
     PhoenixKit.Migrations.up(
       prefix: "public",
-      version: 30,
+      version: 44,
       create_schema: false
     )
   end
 
   def down do
-    # Rollback PhoenixKit to V28
+    # Rollback PhoenixKit to V30
     PhoenixKit.Migrations.down(
       prefix: "public",
-      version: 28
+      version: 30
     )
   end
 end

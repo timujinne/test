@@ -20,22 +20,41 @@ defmodule DashboardWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Redirect root to blog
+  scope "/", DashboardWeb do
+    pipe_through :browser
+    get "/", PageController, :home
+  end
+
+  # Public routes - Blog (no authentication required)
   scope "/", DashboardWeb do
     pipe_through :browser
 
-    live_session :default,
-      layout: {DashboardWeb.Layouts, :drawer},
+    live_session :public,
+      layout: {DashboardWeb.Layouts, :public},
       on_mount: [{PhoenixKitWeb.Users.Auth, :phoenix_kit_mount_current_scope}] do
-      live "/", TradingLive
+      live "/articles", BlogLive
+      live "/articles/:slug", BlogPostLive
+    end
+  end
+
+  # Protected routes - Trading App (authentication required)
+  scope "/app", DashboardWeb do
+    pipe_through :browser
+
+    live_session :trading_app,
+      layout: {DashboardWeb.Layouts, :trading_dashboard},
+      on_mount: [
+        {PhoenixKitWeb.Users.Auth, :phoenix_kit_mount_current_scope},
+        {PhoenixKitWeb.Users.Auth, :phoenix_kit_ensure_authenticated}
+      ] do
       live "/trading", TradingLive
       live "/portfolio", PortfolioLive
       live "/orders", OrdersLive
       live "/history", HistoryLive
       live "/strategies", StrategiesLive
       live "/chains", ChainsLive
-      live "/articles", BlogLive
-      live "/articles/:slug", BlogPostLive
-      live "/settings", SettingsLive
+      live "/accounts", SettingsLive
     end
   end
 

@@ -20,9 +20,15 @@ defmodule TradingEngine.Strategies.Grid do
   end
 
   @impl true
+  def required_symbols(config) do
+    [config["symbol"]]
+  end
+
+  @impl true
   def init(config) do
     # Support both naming conventions from UI
     amount = config["amount_per_grid"] || config["quantity_per_grid"]
+    recovery = config["_recovery"]
 
     state = %{
       symbol: config["symbol"],
@@ -30,8 +36,34 @@ defmodule TradingEngine.Strategies.Grid do
       grid_spacing: to_decimal(config["grid_spacing"], "0.005"),
       amount_per_grid: to_decimal(amount, "50"),
       base_price: nil,
-      active_orders: []
+      active_orders: [],
+      skip_initial_grid: false
     }
+
+    # Check for existing open orders (recovery after restart)
+    state = if recovery && recovery.type == :orphaned_orders && length(recovery.orders) > 0 do
+      existing_orders = recovery.orders
+      Logger.warning("Grid: Found #{length(existing_orders)} existing orders on Binance - using them instead of creating new grid")
+
+      # Calculate approximate base price from existing orders
+      prices = Enum.map(existing_orders, fn o ->
+        Decimal.new(o["price"])
+      end)
+      avg_price = Decimal.div(Enum.reduce(prices, Decimal.new(0), &Decimal.add/2), length(prices))
+
+      # Mark active orders from Binance
+      active_orders = Enum.map(existing_orders, fn o ->
+        %{order_id: o["orderId"], price: o["price"], side: o["side"]}
+      end)
+
+      %{state |
+        base_price: avg_price,
+        active_orders: active_orders,
+        skip_initial_grid: true  # Don't create new grid
+      }
+    else
+      state
+    end
 
     Logger.info("Grid: Initialized with #{state.grid_levels} levels, spacing #{state.grid_spacing}, amount #{state.amount_per_grid} per grid")
 
@@ -58,16 +90,24 @@ defmodule TradingEngine.Strategies.Grid do
   @impl true
   def on_tick(market_data, state) do
     current_price = Decimal.new(market_data["c"])
-    
-    action = if state.base_price == nil do
-      # Initialize grid based on current price
-      Logger.info("Grid: Initializing grid at #{current_price}")
-      {:place_order, create_grid_orders(current_price, state)}
-    else
-      :noop
+
+    action = cond do
+      # Skip creating grid if we recovered existing orders
+      state.skip_initial_grid ->
+        Logger.info("Grid: Skipping grid creation - using recovered orders")
+        :noop
+
+      # Initialize grid based on current price (first tick only)
+      state.base_price == nil ->
+        Logger.info("Grid: Initializing grid at #{current_price}")
+        {:place_order, create_grid_orders(current_price, state)}
+
+      true ->
+        :noop
     end
-    
-    new_state = %{state | base_price: current_price}
+
+    # Clear skip flag after first tick
+    new_state = %{state | base_price: current_price, skip_initial_grid: false}
     {action, new_state}
   end
 

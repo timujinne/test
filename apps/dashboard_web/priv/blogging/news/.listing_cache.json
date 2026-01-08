@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-01-07T20:25:15.050801Z",
+  "post_count": 2,
+  "posts": [
+    {
+      "available_languages": [
+        "en"
+      ],
+      "available_versions": [
+        1
+      ],
+      "blog": "news",
+      "date": null,
+      "excerpt": "<Image fileid=\"019aef1d-30bb-7411-928a-a857dd1a9dcc\" alt=\"Description here\" />",
+      "full_path": "/app/_build/dev/lib/dashboard_web/priv/blogging/news/no-ip-ddns/en.phk",
+      "is_legacy_structure": true,
+      "language": "en",
+      "language_statuses": {
+        "en": "published"
+      },
+      "metadata": {
+        "allow_version_access": false,
+        "description": null,
+        "featured_image_id": "019aef1d-30bb-7411-928a-a857dd1a9dcc",
+        "is_live": false,
+        "published_at": "2025-12-06T12:00:00Z",
+        "slug": "no-ip-ddns",
+        "status": "published",
+        "title": "No-IP DDNS: Лучшие бесплатные решения для телефона",
+        "version": 1
+      },
+      "mode": "slug",
+      "path": "news/no-ip-ddns/en.phk",
+      "slug": "no-ip-ddns",
+      "time": null,
+      "version": 1,
+      "version_dates": {
+        "1": "2026-01-07T20:25:15Z"
+      },
+      "version_statuses": {
+        "1": "published"
+      }
+    },
+    {
+      "available_languages": [
+        "en"
+      ],
+      "available_versions": [
+        1
+      ],
+      "blog": "news",
+      "date": null,
+      "excerpt": "<Image fileid=\"019aef10-2d00-7192-8738-17908bb393e3\" alt=\"Description here\" /> Tailwind CSS v4 + DaisyUI v5 Migration Guide",
+      "full_path": "/app/_build/dev/lib/dashboard_web/priv/blogging/news/tailwind-css-v4-daisyui-v5-migration-guide/en.phk",
+      "is_legacy_structure": true,
+      "language": "en",
+      "language_statuses": {
+        "en": "published"
+      },
+      "metadata": {
+        "allow_version_access": false,
+        "description": null,
+        "featured_image_id": "019aef10-2d00-7192-8738-17908bb393e3",
+        "is_live": false,
+        "published_at": "2025-12-05T15:08:00Z",
+        "slug": "tailwind-css-v4-daisyui-v5-migration-guide",
+        "status": "published",
+        "title": "Tailwind CSS v4 + DaisyUI v5 Migration Guide",
+        "version": 1
+      },
+      "mode": "slug",
+      "path": "news/tailwind-css-v4-daisyui-v5-migration-guide/en.phk",
+      "slug": "tailwind-css-v4-daisyui-v5-migration-guide",
+      "time": null,
+      "version": 1,
+      "version_dates": {
+        "1": "2026-01-07T20:25:15Z"
+      },
+      "version_statuses": {
+        "1": "published"
+      }
+    }
+  ]
+}

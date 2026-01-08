@@ -59,9 +59,12 @@ services:
       postgres:
         condition: service_healthy
 
+    # External ports removed - accessed via nginx-gateway through Docker network
+    # For debugging, use: docker exec -it binance_system bash
+    expose:
+      - "4000"
     ports:
-      - "${PHOENIX_PORT:-4000}:4000"  # Phoenix HTTP
-      - "${LIVEBOOK_PORT:-8080}:8080" # Livebook (если используется)
+      - "127.0.0.1:${LIVEBOOK_PORT:-8080}:8080" # Livebook (localhost only)
 
     volumes:
       # Код проекта

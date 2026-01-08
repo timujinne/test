@@ -135,6 +135,20 @@ defmodule DashboardWeb.Components.DashboardNav do
     """
   end
 
+  defp icon_path("key") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+    """
+  end
+
+  defp icon_path("home") do
+    """
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    """
+  end
+
   defp icon_path(_), do: ""
 
   @doc """
@@ -174,7 +188,7 @@ defmodule DashboardWeb.Components.DashboardNav do
 
     avatar_url =
       if avatar_file_id do
-        PhoenixKit.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_id, "medium")
       else
         nil
       end
@@ -238,13 +252,13 @@ defmodule DashboardWeb.Components.DashboardNav do
         class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
       >
         <li>
-          <.link navigate="/settings" class="gap-2">
+          <.link navigate="/dashboard/settings" class="gap-2">
             <.nav_icon name="settings" />
-            <span>Settings</span>
+            <span>Profile</span>
           </.link>
         </li>
         <li :if={@is_admin}>
-          <.link href="/admin/dashboard" class="gap-2">
+          <.link href="/admin" class="gap-2">
             <.nav_icon name="shield" />
             <span>Admin Panel</span>
           </.link>
@@ -305,7 +319,7 @@ defmodule DashboardWeb.Components.DashboardNav do
 
     avatar_url =
       if avatar_file_id do
-        PhoenixKit.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_id, "medium")
       else
         nil
       end
@@ -348,13 +362,19 @@ defmodule DashboardWeb.Components.DashboardNav do
           class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
         >
           <li>
-            <.link navigate="/settings" class="gap-2">
+            <.link navigate="/app/trading" class="gap-2">
+              <.nav_icon name="chart" />
+              <span>Dashboard</span>
+            </.link>
+          </li>
+          <li>
+            <.link navigate="/dashboard/settings" class="gap-2">
               <.nav_icon name="settings" />
-              <span>Settings</span>
+              <span>Profile</span>
             </.link>
           </li>
           <li :if={@show_admin}>
-            <.link href="/admin/dashboard" class="gap-2">
+            <.link href="/admin" class="gap-2">
               <.nav_icon name="shield" />
               <span>Admin Panel</span>
             </.link>

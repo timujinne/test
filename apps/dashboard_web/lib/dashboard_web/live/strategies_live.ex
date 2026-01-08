@@ -20,7 +20,7 @@ defmodule DashboardWeb.StrategiesLive do
     socket =
       socket
       |> assign(page_title: "Strategies")
-      |> assign(current_path: "/strategies")
+      |> assign(current_path: "/app/strategies")
       |> assign(accounts: [])
       |> assign(strategies: [])
       |> assign(user_id: nil)

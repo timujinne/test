@@ -20,7 +20,7 @@ defmodule DashboardWeb.ChainsLive do
     socket =
       socket
       |> assign(page_title: "Conditional Chains")
-      |> assign(current_path: "/chains")
+      |> assign(current_path: "/app/chains")
       |> assign(user_id: nil)
       |> assign(show_builder: false)
       |> assign(builder_mode: "create")
@@ -377,6 +377,7 @@ defmodule DashboardWeb.ChainsLive do
               <.chain_monitor
                 chain={chain}
                 current_price={Map.get(@current_prices, Map.get(chain, :symbol))}
+                process_alive={check_process_alive(chain)}
                 on_stop="stop_chain"
                 on_cancel="cancel_chain"
               />
@@ -704,6 +705,18 @@ defmodule DashboardWeb.ChainsLive do
     end)
 
     :ok
+  end
+
+  defp check_process_alive(chain) do
+    setting_id = Map.get(chain, :setting_id)
+    if setting_id do
+      case Registry.lookup(TradingEngine.TraderRegistry, setting_id) do
+        [{_pid, _}] -> true
+        [] -> false
+      end
+    else
+      false
+    end
   end
 
   # Strategy execution functions

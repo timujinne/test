@@ -53,7 +53,8 @@ defmodule TradingEngine.Trader do
     strategy_config = Map.put(strategy_config, "setting_id", setting_id)
 
     # Check for existing chain state and open orders (for recovery)
-    recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbol)
+    # Pass all symbols for multi-symbol chain support
+    recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbols)
     strategy_config = if recovery_info do
       Logger.info("Found recovery state for setting #{setting_id}: #{inspect(recovery_info)}")
       Map.put(strategy_config, "_recovery", recovery_info)
@@ -309,6 +310,12 @@ defmodule TradingEngine.Trader do
   def terminate(reason, state) do
     Logger.info("Trader terminating for symbols #{inspect(state.symbols)}, reason: #{inspect(reason)}")
 
+    # Allow strategy to handle termination and save final state
+    if function_exported?(state.strategy, :on_terminate, 2) do
+      termination_reason = format_termination_reason(reason)
+      state.strategy.on_terminate(termination_reason, state.strategy_state)
+    end
+
     # Cancel open orders for Grid strategy on stop
     if state.strategy == TradingEngine.Strategies.Grid do
       cancel_open_orders_on_stop(state)
@@ -321,6 +328,13 @@ defmodule TradingEngine.Trader do
 
     :ok
   end
+
+  # Format termination reason for strategy callback
+  defp format_termination_reason(:normal), do: :stopped
+  defp format_termination_reason(:shutdown), do: :shutdown
+  defp format_termination_reason({:shutdown, :stop_requested}), do: :stopped
+  defp format_termination_reason({:shutdown, reason}), do: {:shutdown, reason}
+  defp format_termination_reason(reason), do: {:crash, reason}
 
   defp cancel_open_orders_on_stop(state) do
     Logger.info("Grid cleanup: Cancelling open orders for #{state.symbol}")
@@ -432,56 +446,76 @@ defmodule TradingEngine.Trader do
   end
 
   # Check for existing chain state and open orders for recovery
-  defp check_for_recovery(setting_id, api_key, secret_key, symbol) do
+  # Accepts a list of symbols for multi-symbol chain support
+  defp check_for_recovery(setting_id, api_key, secret_key, symbols) when is_list(symbols) do
     # 1. Check for existing chain state in DB
     case SharedData.ChainStates.get_chain_state_by_setting(setting_id) do
       nil ->
-        # No existing state, check for orphaned open orders
-        check_orphaned_orders(api_key, secret_key, symbol)
+        # No existing state, check for orphaned open orders across all symbols
+        check_orphaned_orders(api_key, secret_key, symbols)
 
-      %{current_state: "completed"} ->
-        # Chain completed, no recovery needed
+      %{current_state: state} when state in ["completed", "error"] ->
+        # Chain completed or errored, no recovery needed
         nil
 
-      %{current_state: "error"} ->
-        # Chain errored, no recovery needed
-        nil
+      %{current_state: "stopped"} = chain_state ->
+        # Chain was stopped cleanly - can recover if setting is active
+        Logger.info("Found stopped chain state for setting #{setting_id}, allowing recovery")
+        verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
 
       chain_state ->
         # Active chain state found - check if pending order still exists
-        verify_and_build_recovery(chain_state, api_key, secret_key, symbol)
+        # Use all symbols for comprehensive order checking
+        verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
     end
   end
 
-  defp check_orphaned_orders(api_key, secret_key, symbol) do
-    case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
-      {:ok, []} ->
+  # Fallback for single symbol (backwards compatibility)
+  defp check_for_recovery(setting_id, api_key, secret_key, symbol) when is_binary(symbol) do
+    check_for_recovery(setting_id, api_key, secret_key, [symbol])
+  end
+
+  # Check all symbols for orphaned orders
+  defp check_orphaned_orders(api_key, secret_key, symbols) when is_list(symbols) do
+    all_orders =
+      symbols
+      |> Enum.flat_map(fn symbol ->
+        case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+          {:ok, orders} -> orders
+          {:error, _} -> []
+        end
+      end)
+
+    case all_orders do
+      [] ->
         nil
 
-      {:ok, open_orders} ->
+      open_orders ->
         # Found orphaned open orders - return info for strategy to handle
-        Logger.warning("Found #{length(open_orders)} orphaned open orders for #{symbol}")
+        symbols_with_orders = open_orders |> Enum.map(& &1["symbol"]) |> Enum.uniq()
+        Logger.warning("Found #{length(open_orders)} orphaned open orders for #{inspect(symbols_with_orders)}")
         %{
           type: :orphaned_orders,
           orders: open_orders
         }
-
-      {:error, _} ->
-        nil
     end
   end
 
-  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbol) do
+  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbols) when is_list(symbols) do
     pending_order_id = chain_state.pending_order_id
 
-    # Check if pending order still exists on Binance
-    open_orders = case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
-      {:ok, orders} -> orders
-      {:error, _} -> []
-    end
+    # Check all symbols for open orders (pending order might be on any symbol)
+    all_open_orders =
+      symbols
+      |> Enum.flat_map(fn symbol ->
+        case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+          {:ok, orders} -> orders
+          {:error, _} -> []
+        end
+      end)
 
     pending_order = if pending_order_id do
-      Enum.find(open_orders, fn o ->
+      Enum.find(all_open_orders, fn o ->
         to_string(o["orderId"]) == pending_order_id
       end)
     end
@@ -491,7 +525,7 @@ defmodule TradingEngine.Trader do
       chain_state: chain_state,
       pending_order_exists: pending_order != nil,
       pending_order: pending_order,
-      open_orders: open_orders
+      open_orders: all_open_orders
     }
   end
 

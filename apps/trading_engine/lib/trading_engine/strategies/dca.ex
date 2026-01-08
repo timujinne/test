@@ -49,6 +49,11 @@ defmodule TradingEngine.Strategies.DCA do
   end
 
   @impl true
+  def required_symbols(config) do
+    [config["symbol"]]
+  end
+
+  @impl true
   def init(config) do
     # Support different config field names from UI
     amount = config["amount_per_buy"] || config["investment_amount"] || config["trade_amount"] || 10
@@ -63,6 +68,19 @@ defmodule TradingEngine.Strategies.DCA do
 
     max_buys = config["max_buys"] || 999
 
+    # Check for recovery state - count existing DCA orders from DB
+    recovery = config["_recovery"]
+    existing_buy_count = if recovery && recovery.type == :orphaned_orders do
+      # Count BUY orders as previous DCA purchases
+      buy_orders = Enum.count(recovery.orders, fn o -> o["side"] == "BUY" end)
+      if buy_orders > 0 do
+        Logger.warning("DCA: Found #{buy_orders} existing BUY orders - adjusting buy_count")
+      end
+      buy_orders
+    else
+      0
+    end
+
     state = %{
       symbol: config["symbol"],
       investment_amount: to_decimal(amount, "10"),
@@ -70,13 +88,13 @@ defmodule TradingEngine.Strategies.DCA do
       max_buys: trunc(max_buys),
       total_invested: Decimal.new(0),
       total_quantity: Decimal.new(0),
-      buy_count: 0,
+      buy_count: existing_buy_count,  # Start from recovered count
       last_price: nil,  # Cached from ticks or API
       stop_conditions: config["stop_conditions"] || []
     }
 
     interval_sec = div(interval_ms, 1000)
-    Logger.info("DCA: Initialized for #{state.symbol}, amount=#{state.investment_amount} USDT, interval=#{interval_sec}s, max_buys=#{state.max_buys}")
+    Logger.info("DCA: Initialized for #{state.symbol}, amount=#{state.investment_amount} USDT, interval=#{interval_sec}s, max_buys=#{state.max_buys}, starting buy_count=#{state.buy_count}")
 
     {:ok, state}
   end

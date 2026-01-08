@@ -95,14 +95,14 @@ defmodule DashboardWeb.BlogLive do
   defp load_blog_posts do
     try do
       # Get the first blog (assuming single blog setup)
-      blogs = PhoenixKitWeb.Live.Modules.Blogging.list_blogs()
+      blogs = PhoenixKit.Modules.Blogging.list_blogs()
       blog = List.first(blogs)
 
       if blog do
         blog_slug = blog["slug"]
 
         # Load posts from PhoenixKit - returns list directly, not {:ok, list}
-        posts = PhoenixKitWeb.Live.Modules.Blogging.list_posts(blog_slug, "en")
+        posts = PhoenixKit.Modules.Blogging.list_posts(blog_slug, "en")
 
         posts
         |> Enum.filter(fn post ->
@@ -131,7 +131,7 @@ defmodule DashboardWeb.BlogLive do
     file_id = Map.get(post.metadata, :featured_image_id)
 
     if file_id && is_binary(file_id) do
-      PhoenixKit.Storage.URLSigner.signed_url(file_id, "medium")
+      PhoenixKit.Modules.Storage.URLSigner.signed_url(file_id, "medium")
     else
       nil
     end

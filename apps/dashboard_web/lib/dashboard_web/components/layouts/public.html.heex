@@ -1,0 +1,39 @@
+<%!-- Public Layout for Blog Pages --%>
+<div class="min-h-screen flex flex-col">
+  <%!-- Header --%>
+  <header class="navbar bg-base-100 shadow-md border-b border-base-300 sticky top-0 z-40">
+    <div class="flex-1">
+      <.link navigate="/articles" class="btn btn-ghost gap-2">
+        <img src={~p"/images/logo-48.png"} alt="Trading Blog" class="w-8 h-8" />
+        <span class="text-xl font-semibold">Trading Blog</span>
+      </.link>
+    </div>
+
+    <div class="flex-none flex items-center gap-2">
+      <%!-- Theme Switcher --%>
+      <DashboardWeb.Components.DashboardNav.theme_switcher />
+      <%!-- User Menu / Login --%>
+      <DashboardWeb.Components.DashboardNav.public_user_menu
+        current_scope={assigns[:phoenix_kit_current_scope]}
+        current_user={assigns[:current_user]}
+      />
+    </div>
+  </header>
+
+  <%!-- Flash Messages --%>
+  <.flash_group flash={@flash} />
+
+  <%!-- Main Content --%>
+  <main class="flex-1 bg-base-200">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+      <%= @inner_content %>
+    </div>
+  </main>
+
+  <%!-- Footer --%>
+  <footer class="footer footer-center p-4 bg-base-100 text-base-content border-t border-base-300">
+    <div>
+      <p>Trading System Blog</p>
+    </div>
+  </footer>
+</div>

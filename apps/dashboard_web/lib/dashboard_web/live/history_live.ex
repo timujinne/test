@@ -26,7 +26,7 @@ defmodule DashboardWeb.HistoryLive do
     socket =
       socket
       |> assign(page_title: "History")
-      |> assign(current_path: "/history")
+      |> assign(current_path: "/app/history")
       |> assign(orders: [])
       |> assign(trades: [])
       |> assign(available_symbols: available_symbols)
