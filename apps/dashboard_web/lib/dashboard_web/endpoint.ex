@@ -1,11 +1,15 @@
 defmodule DashboardWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :dashboard_web
 
+  # Session configuration - security hardened
+  # signing_salt is NOT a secret, it adds uniqueness to signatures
+  # SECRET_KEY_BASE (from env) is the actual secret
   @session_options [
     store: :cookie,
     key: "_dashboard_web_key",
-    signing_salt: "your_signing_salt",
-    same_site: "Lax"
+    signing_salt: "Kx8mP2vQ7nL3",  # Static salt, combined with SECRET_KEY_BASE
+    same_site: "Strict",           # Prevents CSRF via cross-site requests
+    max_age: 86_400 * 7            # 7 days
   ]
 
   socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]

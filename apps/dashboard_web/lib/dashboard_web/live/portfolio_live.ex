@@ -3,6 +3,7 @@ defmodule DashboardWeb.PortfolioLive do
 
   require Logger
   alias SharedData.Helpers.{DecimalHelper, CredentialHelper}
+  alias DashboardWeb.Live.UserContext
 
   # Stablecoins that are 1:1 with USD
   @stablecoins ~w(USDT USDC BUSD TUSD DAI FDUSD)
@@ -25,6 +26,7 @@ defmodule DashboardWeb.PortfolioLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Portfolio")
       |> assign(current_path: "/app/portfolio")
       |> assign(balances: [])

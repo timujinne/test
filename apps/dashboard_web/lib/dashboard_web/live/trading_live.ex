@@ -4,6 +4,7 @@ defmodule DashboardWeb.TradingLive do
   alias SharedData.Helpers.{DecimalHelper, CredentialHelper}
   alias SharedData.Repo
   alias SharedData.Schemas.Order
+  alias DashboardWeb.Live.UserContext
 
   # Import trading components
   alias DashboardWeb.Components.Trading.PriceChart
@@ -17,9 +18,6 @@ defmodule DashboardWeb.TradingLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    # Note: User authentication will be added in Phase 8
-    # For now, account_id should be passed via session or params
-
     if connected?(socket) do
       # Subscribe to market and order updates
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
@@ -49,12 +47,12 @@ defmodule DashboardWeb.TradingLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Trading")
       |> assign(current_path: "/app/trading")
       |> assign(active_orders: [])
       |> assign(recent_trades: [])
       |> assign(current_price: nil)
-      |> assign(account_id: nil)
       |> assign(balances: [])
       |> assign(prices: %{})
       |> assign(symbol: @default_symbol)

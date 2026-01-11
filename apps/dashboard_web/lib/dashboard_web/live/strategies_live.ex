@@ -4,11 +4,10 @@ defmodule DashboardWeb.StrategiesLive do
   alias SharedData.Repo
   alias SharedData.Schemas.Setting
   alias SharedData.{Accounts, Settings}
+  alias DashboardWeb.Live.UserContext
 
   @impl true
   def mount(_params, _session, socket) do
-    # Phase 8: Will get user_id from authenticated session
-
     if connected?(socket) do
       # Subscribe to strategy lifecycle events
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "strategies:all")
@@ -19,11 +18,11 @@ defmodule DashboardWeb.StrategiesLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Strategies")
       |> assign(current_path: "/app/strategies")
       |> assign(accounts: [])
       |> assign(strategies: [])
-      |> assign(user_id: nil)
       |> assign(running_strategies: %{})
       # Strategy form state
       |> assign(show_strategy_form: false)
@@ -1384,12 +1383,11 @@ defmodule DashboardWeb.StrategiesLive do
   end
 
   defp load_data(socket) do
-    # Phase 8: Will load data based on authenticated user
-    user_id = socket.assigns.user_id
-
+    # TODO: Link PhoenixKit users to SharedData accounts
+    # For now, load all accounts without user filtering
     socket
-    |> assign(accounts: load_accounts(user_id))
-    |> assign(strategies: load_strategies(user_id))
+    |> assign(accounts: load_accounts(nil))
+    |> assign(strategies: load_strategies(nil))
   end
 
   defp sync_running_strategies(socket) do

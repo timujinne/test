@@ -7,6 +7,7 @@ defmodule DashboardWeb.OrdersLive do
 
   alias SharedData.Helpers.CredentialHelper
   alias DataCollector.BinanceClient
+  alias DashboardWeb.Live.UserContext
 
   require Logger
 
@@ -21,6 +22,7 @@ defmodule DashboardWeb.OrdersLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Orders")
       |> assign(current_path: "/app/orders")
       |> assign(orders: [])

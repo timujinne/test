@@ -11,7 +11,7 @@ config :dashboard_web, DashboardWeb.Endpoint,
     layout: false
   ],
   pubsub_server: BinanceSystem.PubSub,
-  live_view: [signing_salt: "your_signing_salt"]
+  live_view: [signing_salt: "Ry5tN9wK4mQ2"]  # LiveView signing salt
 
 config :dashboard_web,
   generators: [context_app: :shared_data]

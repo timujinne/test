@@ -6,16 +6,16 @@ defmodule DashboardWeb.SettingsLive do
   alias SharedData.{Accounts, Credentials}
   alias SharedData.Helpers.CredentialHelper
   alias DashboardWeb.Forms.AccountForm
+  alias DashboardWeb.Live.UserContext
 
   @impl true
   def mount(_params, _session, socket) do
-    # Phase 8: Will get user_id from authenticated session
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Trading Accounts")
       |> assign(current_path: "/app/accounts")
       |> assign(accounts: [])
-      |> assign(user_id: nil)
       # Account form state (includes API credentials)
       |> assign(show_account_form: false)
       |> assign(editing_account: nil)

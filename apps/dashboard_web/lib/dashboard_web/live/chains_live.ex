@@ -8,6 +8,14 @@ defmodule DashboardWeb.ChainsLive do
   import DashboardWeb.Components.Trading.ChainBuilder
   import DashboardWeb.Components.Trading.ChainMonitor
 
+  alias DashboardWeb.Live.UserContext
+
+  # Whitelist of allowed field atoms to prevent atom exhaustion attacks
+  @allowed_chain_fields ~w(name symbol steps initial_amount trigger_condition)a
+  @allowed_step_fields ~w(type side quantity price symbol wait_time percent condition
+                          threshold_type threshold_value if_up if_down action amount
+                          order_type time_in_force stop_price limit_price)a
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -19,9 +27,9 @@ defmodule DashboardWeb.ChainsLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "Conditional Chains")
       |> assign(current_path: "/app/chains")
-      |> assign(user_id: nil)
       |> assign(show_builder: false)
       |> assign(builder_mode: "create")
       |> assign(editing_chain_id: nil)
@@ -128,9 +136,13 @@ defmodule DashboardWeb.ChainsLive do
       end
 
     if field do
-      field_atom = String.to_existing_atom(field)
-      chain_form = Map.put(socket.assigns.chain_form, field_atom, value)
-      {:noreply, assign(socket, chain_form: chain_form)}
+      case safe_chain_field_atom(field) do
+        {:ok, field_atom} ->
+          chain_form = Map.put(socket.assigns.chain_form, field_atom, value)
+          {:noreply, assign(socket, chain_form: chain_form)}
+        :error ->
+          {:noreply, socket}
+      end
     else
       {:noreply, socket}
     end
@@ -579,7 +591,32 @@ defmodule DashboardWeb.ChainsLive do
   defp normalize_step_keys(other), do: other
 
   defp to_atom_key(key) when is_atom(key), do: key
-  defp to_atom_key(key) when is_binary(key), do: String.to_atom(key)
+  defp to_atom_key(key) when is_binary(key) do
+    # Safe atom conversion - only allow known step field keys
+    case safe_step_field_atom(key) do
+      {:ok, atom} -> atom
+      :error -> raise ArgumentError, "Invalid field key: #{key}"
+    end
+  end
+
+  # Safe atom conversions with whitelists to prevent atom exhaustion
+  defp safe_chain_field_atom(field) when is_binary(field) do
+    try do
+      atom = String.to_existing_atom(field)
+      if atom in @allowed_chain_fields, do: {:ok, atom}, else: :error
+    rescue
+      ArgumentError -> :error
+    end
+  end
+
+  defp safe_step_field_atom(field) when is_binary(field) do
+    try do
+      atom = String.to_existing_atom(field)
+      if atom in @allowed_step_fields, do: {:ok, atom}, else: :error
+    rescue
+      ArgumentError -> :error
+    end
+  end
 
   defp normalize_step_value(v) when is_map(v), do: normalize_step_keys(v)
   defp normalize_step_value(v), do: v
@@ -590,30 +627,47 @@ defmodule DashboardWeb.ChainsLive do
 
   defp update_step_field(step, field, value) do
     cond do
-      # Branch condition fields
+      # Branch condition fields (threshold_type, threshold_value)
       String.starts_with?(field, "threshold_") ->
-        condition = Map.get(step, :condition, %{})
-        field_atom = String.to_existing_atom(String.replace_prefix(field, "", ""))
-        updated_condition = Map.put(condition, field_atom, value)
-        Map.put(step, :condition, updated_condition)
+        # Keep full field name as atom (threshold_type, threshold_value)
+        case safe_step_field_atom(field) do
+          {:ok, field_atom} ->
+            condition = Map.get(step, :condition, %{})
+            updated_condition = Map.put(condition, field_atom, value)
+            Map.put(step, :condition, updated_condition)
+          :error ->
+            step
+        end
 
       # Branch path fields (if_up_*, if_down_*)
       String.starts_with?(field, "if_up_") ->
-        path = Map.get(step, :if_up, %{})
-        field_atom = String.to_existing_atom(String.replace_prefix(field, "if_up_", ""))
-        updated_path = Map.put(path, field_atom, value)
-        Map.put(step, :if_up, updated_path)
+        stripped = String.replace_prefix(field, "if_up_", "")
+        case safe_step_field_atom(stripped) do
+          {:ok, field_atom} ->
+            path = Map.get(step, :if_up, %{})
+            updated_path = Map.put(path, field_atom, value)
+            Map.put(step, :if_up, updated_path)
+          :error ->
+            step
+        end
 
       String.starts_with?(field, "if_down_") ->
-        path = Map.get(step, :if_down, %{})
-        field_atom = String.to_existing_atom(String.replace_prefix(field, "if_down_", ""))
-        updated_path = Map.put(path, field_atom, value)
-        Map.put(step, :if_down, updated_path)
+        stripped = String.replace_prefix(field, "if_down_", "")
+        case safe_step_field_atom(stripped) do
+          {:ok, field_atom} ->
+            path = Map.get(step, :if_down, %{})
+            updated_path = Map.put(path, field_atom, value)
+            Map.put(step, :if_down, updated_path)
+          :error ->
+            step
+        end
 
       # Regular step fields
       true ->
-        field_atom = String.to_existing_atom(field)
-        Map.put(step, field_atom, value)
+        case safe_step_field_atom(field) do
+          {:ok, field_atom} -> Map.put(step, field_atom, value)
+          :error -> step
+        end
     end
   end
 

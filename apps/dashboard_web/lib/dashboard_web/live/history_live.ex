@@ -2,14 +2,12 @@ defmodule DashboardWeb.HistoryLive do
   use DashboardWeb, :live_view
 
   alias SharedData.Helpers.CredentialHelper
+  alias DashboardWeb.Live.UserContext
 
   require Logger
 
   @impl true
   def mount(_params, _session, socket) do
-    # Phase 8: Will get account_id from authenticated session
-    # For now, use testnet credentials from environment
-
     if connected?(socket) do
       # Refresh every 30 seconds (not 10 - too aggressive)
       :timer.send_interval(30_000, self(), :refresh_history)
@@ -25,6 +23,7 @@ defmodule DashboardWeb.HistoryLive do
 
     socket =
       socket
+      |> UserContext.assign_user_context()
       |> assign(page_title: "History")
       |> assign(current_path: "/app/history")
       |> assign(orders: [])

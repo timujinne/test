@@ -39,15 +39,13 @@ defmodule DashboardWeb.Router do
   end
 
   # Protected routes - Trading App (authentication required)
+  # Note: phoenix_kit_ensure_authenticated includes mount_current_scope internally
   scope "/app", DashboardWeb do
     pipe_through :browser
 
     live_session :trading_app,
       layout: {DashboardWeb.Layouts, :trading_dashboard},
-      on_mount: [
-        {PhoenixKitWeb.Users.Auth, :phoenix_kit_mount_current_scope},
-        {PhoenixKitWeb.Users.Auth, :phoenix_kit_ensure_authenticated}
-      ] do
+      on_mount: [{PhoenixKitWeb.Users.Auth, :phoenix_kit_ensure_authenticated}] do
       live "/trading", TradingLive
       live "/portfolio", PortfolioLive
       live "/orders", OrdersLive
