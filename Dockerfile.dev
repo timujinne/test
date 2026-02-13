@@ -67,12 +67,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     npm install -g \
     yarn \
     pnpm \
-    @anthropic-ai/claude-code \
     eslint \
     prettier \
     typescript \
     ts-node \
     && rm -rf /var/lib/apt/lists/*
+
+# ================================================
+# CLAUDE CODE (native installer)
+# ================================================
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
 
 # ================================================
 # PYTHON (latest stable)
