@@ -50,7 +50,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
     ~H"""
     <div class={"card bg-base-100 border-2 border-warning " <> if(@status != "pending", do: "border-4", else: "")}>
       <div class="card-body p-4">
-        <!-- Branch Header -->
+        <%!-- Branch Header --%>
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
             <span class="badge badge-warning badge-sm">Conditional Branch</span>
@@ -72,35 +72,22 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
               phx-value-index={@index}
               title="Delete branch"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <span class={["hero-x-mark", "h-4 w-4"]} />
             </button>
           <% end %>
         </div>
 
-        <!-- Condition Settings -->
+        <%!-- Condition Settings --%>
         <div class="bg-base-200 rounded-lg p-3 mb-4">
           <h4 class="text-xs font-semibold text-base-content/70 mb-3">Condition Thresholds</h4>
           <div class="grid grid-cols-2 gap-3">
-            <!-- Upward Threshold -->
+            <%!-- Upward Threshold --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs">Price Up (%)</span>
               </label>
               <%= if @editable do %>
-                <label class="input input-bordered input-sm flex items-center gap-2">
+                <label class="input input-sm flex items-center gap-2">
                   <span class="text-xs">+</span>
                   <input
                     type="text"
@@ -122,13 +109,13 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
               <% end %>
             </div>
 
-            <!-- Downward Threshold -->
+            <%!-- Downward Threshold --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs">Price Down (%)</span>
               </label>
               <%= if @editable do %>
-                <label class="input input-bordered input-sm flex items-center gap-2">
+                <label class="input input-sm flex items-center gap-2">
                   <input
                     type="text"
                     name={"branch_threshold_down_#{@index}"}
@@ -151,26 +138,13 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           </div>
         </div>
 
-        <!-- Branch Paths -->
+        <%!-- Branch Paths --%>
         <div class="grid md:grid-cols-2 gap-4">
-          <!-- IF UP Path -->
+          <%!-- IF UP Path --%>
           <div class="card bg-success/10 border border-success/30">
             <div class="card-body p-3">
               <h4 class="text-xs font-semibold text-success flex items-center gap-1 mb-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 10l7-7m0 0l7 7m-7-7v18"
-                  />
-                </svg>
+                <span class={["hero-arrow-up", "h-4 w-4"]} />
                 If Price Rises
               </h4>
 
@@ -184,24 +158,11 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
             </div>
           </div>
 
-          <!-- IF DOWN Path -->
+          <%!-- IF DOWN Path --%>
           <div class="card bg-error/10 border border-error/30">
             <div class="card-body p-3">
               <h4 class="text-xs font-semibold text-error flex items-center gap-1 mb-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                  />
-                </svg>
+                <span class={["hero-arrow-down", "h-4 w-4"]} />
                 If Price Falls
               </h4>
 
@@ -216,7 +177,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           </div>
         </div>
 
-        <!-- Branch Visualization -->
+        <%!-- Branch Visualization --%>
         <%= if !@editable do %>
           <div class="mt-3 pt-3 border-t border-base-300">
             <div class="text-xs text-base-content/60 text-center">
@@ -243,7 +204,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
   defp branch_path_form(assigns) do
     ~H"""
     <div class="space-y-2">
-      <!-- Side -->
+      <%!-- Side --%>
       <div class="form-control">
         <label class="label py-0.5">
           <span class="label-text text-xs">Side</span>
@@ -251,7 +212,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
         <%= if @editable do %>
           <select
             name={"branch_#{@path_type}_side_#{@index}"}
-            class={"select select-bordered select-sm " <> side_select_class(Map.get(@path, :side))}
+            class={"select select-sm " <> side_select_class(Map.get(@path, :side))}
             phx-change={@on_update}
             phx-value-index={@index}
             phx-value-field={"#{@path_type}_side"}
@@ -267,7 +228,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
         <% end %>
       </div>
 
-      <!-- Quantity -->
+      <%!-- Quantity --%>
       <div class="form-control">
         <label class="label py-0.5">
           <span class="label-text text-xs">Quantity</span>
@@ -276,7 +237,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           <input
             type="text"
             name={"branch_#{@path_type}_quantity_#{@index}"}
-            class="input input-bordered input-sm font-mono"
+            class="input input-sm font-mono"
             value={Map.get(@path, :quantity, "")}
             phx-blur={@on_update}
             phx-value-index={@index}
@@ -291,7 +252,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
         <% end %>
       </div>
 
-      <!-- Price -->
+      <%!-- Price --%>
       <div class="form-control">
         <label class="label py-0.5">
           <span class="label-text text-xs">Price</span>
@@ -300,7 +261,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           <input
             type="text"
             name={"branch_#{@path_type}_price_#{@index}"}
-            class="input input-bordered input-sm font-mono"
+            class="input input-sm font-mono"
             value={Map.get(@path, :price, "market")}
             phx-blur={@on_update}
             phx-value-index={@index}

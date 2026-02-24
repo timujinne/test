@@ -50,7 +50,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
     ~H"""
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
-        <!-- Header -->
+        <%!-- Header --%>
         <div class="flex items-center justify-between mb-4">
           <h2 class="card-title">
             <%= if @mode == "create", do: "Create New Chain", else: "Edit Chain" %>
@@ -62,27 +62,14 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
               phx-click={@on_cancel}
               title="Close"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <span class={["hero-x-mark", "h-5 w-5"]} />
             </button>
           <% end %>
         </div>
 
-        <!-- Chain Configuration -->
+        <%!-- Chain Configuration --%>
         <div class="grid md:grid-cols-3 gap-4 mb-6">
-          <!-- Chain Name -->
+          <%!-- Chain Name --%>
           <div class="form-control">
             <label class="label">
               <span class="label-text font-medium">Chain Name</span>
@@ -90,7 +77,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             <input
               type="text"
               name="chain_name"
-              class="input input-bordered"
+              class="input"
               value={@name}
               phx-blur="update_chain_field"
               phx-value-field="name"
@@ -98,7 +85,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             />
           </div>
 
-          <!-- Symbol Selection -->
+          <%!-- Symbol Selection --%>
           <div class="form-control">
             <label class="label">
               <span class="label-text font-medium">Trading Symbol</span>
@@ -106,7 +93,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             <%= if @symbols != [] do %>
               <select
                 name="chain_symbol"
-                class="select select-bordered"
+                class="select"
                 phx-change="update_chain_field"
                 phx-value-field="symbol"
               >
@@ -121,7 +108,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
               <input
                 type="text"
                 name="chain_symbol"
-                class="input input-bordered"
+                class="input"
                 value={@symbol}
                 phx-blur="update_chain_field"
                 phx-value-field="symbol"
@@ -130,7 +117,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             <% end %>
           </div>
 
-          <!-- Initial Quantity -->
+          <%!-- Initial Quantity --%>
           <div class="form-control">
             <label class="label">
               <span class="label-text font-medium">Initial Quantity</span>
@@ -138,7 +125,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             <input
               type="text"
               name="chain_initial_quantity"
-              class="input input-bordered font-mono"
+              class="input font-mono"
               value={@initial_quantity}
               phx-blur="update_chain_field"
               phx-value-field="initial_quantity"
@@ -147,7 +134,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
           </div>
         </div>
 
-        <!-- Steps List -->
+        <%!-- Steps List --%>
         <div class="mb-6">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold">Chain Steps</h3>
@@ -156,29 +143,17 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             </div>
           </div>
 
-          <!-- Steps Container -->
+          <%!-- Steps Container --%>
           <%= if @steps == [] do %>
             <div class="alert alert-info">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                class="stroke-current shrink-0 w-6 h-6"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+              <span class={["hero-information-circle", "shrink-0 w-6 h-6"]} />
               <span>No steps added yet. Click "Add Step" or "Add Branch" to start building your chain.</span>
             </div>
           <% else %>
             <div class="space-y-4">
               <%= for {step, index} <- Enum.with_index(@steps) do %>
                 <div class="relative">
-                  <!-- Step Component -->
+                  <%!-- Step Component --%>
                   <%= if Map.get(step, :type) == "branch" do %>
                     <.branch_editor
                       branch={step}
@@ -198,23 +173,10 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
                       on_update="update_step"
                     />
                   <% end %>
-                  <!-- Arrow Connector -->
+                  <%!-- Arrow Connector --%>
                   <%= if index < length(@steps) - 1 do %>
                     <div class="flex justify-center my-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-6 w-6 text-base-content/30"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                        />
-                      </svg>
+                      <span class={["hero-arrow-down", "h-6 w-6 text-base-content/30"]} />
                     </div>
                   <% end %>
                 </div>
@@ -223,7 +185,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
           <% end %>
         </div>
 
-        <!-- Add Step Buttons -->
+        <%!-- Add Step Buttons --%>
         <div class="flex gap-3 mb-6">
           <button
             type="button"
@@ -231,20 +193,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             phx-click="add_step"
             phx-value-type="step"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            <span class={["hero-plus", "h-5 w-5"]} />
             Add Step
           </button>
 
@@ -254,28 +203,15 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             phx-click="add_step"
             phx-value-type="branch"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-              />
-            </svg>
+            <span class={["hero-arrows-right-left", "h-5 w-5"]} />
             Add Branch
           </button>
         </div>
 
-        <!-- Divider -->
+        <%!-- Divider --%>
         <div class="divider"></div>
 
-        <!-- Action Buttons -->
+        <%!-- Action Buttons --%>
         <div class="flex gap-3 justify-end">
           <%= if @on_cancel do %>
             <button type="button" class="btn btn-ghost" phx-click={@on_cancel}>
@@ -290,41 +226,16 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
               phx-click={@on_save}
               disabled={!is_valid_chain?(@chain)}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <span class={["hero-check", "h-5 w-5"]} />
               <%= if @mode == "create", do: "Create Chain", else: "Save Changes" %>
             </button>
           <% end %>
         </div>
 
-        <!-- Validation Messages -->
+        <%!-- Validation Messages --%>
         <%= if !is_valid_chain?(@chain) do %>
           <div class="alert alert-warning mt-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="stroke-current shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+            <span class={["hero-exclamation-triangle", "shrink-0 h-6 w-6"]} />
             <div>
               <div class="font-bold">Chain is incomplete</div>
               <div class="text-sm"><%= validation_message(@chain) %></div>

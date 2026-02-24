@@ -328,7 +328,7 @@ defmodule DashboardWeb.ChainsLive do
   def render(assigns) do
     ~H"""
     <div class="container mx-auto p-4 max-w-7xl">
-      <!-- Page Header -->
+      <%!-- Page Header --%>
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-3xl font-bold mb-2">Conditional Chains</h1>
@@ -343,25 +343,12 @@ defmodule DashboardWeb.ChainsLive do
           phx-click="show_builder"
           disabled={@show_builder}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+          <span class={["hero-plus", "h-5 w-5"]} />
           New Chain
         </button>
       </div>
 
-      <!-- Chain Builder (Modal or Section) -->
+      <%!-- Chain Builder (Modal or Section) --%>
       <%= if @show_builder do %>
         <div class="mb-6">
           <.chain_builder
@@ -374,7 +361,7 @@ defmodule DashboardWeb.ChainsLive do
         </div>
       <% end %>
 
-      <!-- Active Chains Section -->
+      <%!-- Active Chains Section --%>
       <%= if @active_chains != [] do %>
         <div class="mb-8">
           <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -398,25 +385,13 @@ defmodule DashboardWeb.ChainsLive do
         </div>
       <% end %>
 
-      <!-- Saved Chains Section -->
+      <%!-- Saved Chains Section --%>
       <div>
         <h2 class="text-2xl font-bold mb-4">Saved Chains</h2>
 
         <%= if @saved_chains == [] do %>
           <div class="alert alert-info">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              class="stroke-current shrink-0 w-6 h-6"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <span class={["hero-information-circle", "stroke-current shrink-0 w-6 h-6"]} />
             <span>No saved chains yet. Click "New Chain" to create your first conditional chain.</span>
           </div>
         <% else %>
@@ -450,38 +425,12 @@ defmodule DashboardWeb.ChainsLive do
           <h3 class="card-title text-lg"><%= Map.get(@chain, :name, "Unnamed") %></h3>
           <div class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                />
-              </svg>
+              <span class={["hero-ellipsis-vertical", "h-5 w-5"]} />
             </label>
             <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
               <li>
                 <a phx-click={@on_edit} phx-value-id={Map.get(@chain, :id)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
+                  <span class={["hero-pencil-square", "h-4 w-4"]} />
                   Edit
                 </a>
               </li>
@@ -492,20 +441,7 @@ defmodule DashboardWeb.ChainsLive do
                   data-confirm="Are you sure you want to delete this chain?"
                   class="text-error"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
+                  <span class={["hero-trash", "h-4 w-4"]} />
                   Delete
                 </a>
               </li>
@@ -539,16 +475,7 @@ defmodule DashboardWeb.ChainsLive do
             phx-click={@on_start}
             phx-value-id={Map.get(@chain, :id)}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <span class={["hero-play-circle", "h-4 w-4"]} />
             Start
           </button>
         </div>

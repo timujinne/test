@@ -101,22 +101,8 @@ defmodule DashboardWeb.PortfolioLive do
 
       <%= if @error do %>
         <div class="alert alert-error shadow-lg">
-          <div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="stroke-current flex-shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span><%= @error %></span>
-          </div>
+          <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
+          <span><%= @error %></span>
         </div>
       <% end %>
 
@@ -125,8 +111,8 @@ defmodule DashboardWeb.PortfolioLive do
           <span class="loading loading-spinner loading-lg"></span>
         </div>
       <% else %>
-        <!-- Summary Cards -->
-        <div class="stats stats-horizontal shadow w-full">
+        <%!-- Summary Cards --%>
+        <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
           <div class="stat">
             <div class="stat-title">Total Value</div>
             <div class="stat-value text-base-content">
@@ -151,12 +137,12 @@ defmodule DashboardWeb.PortfolioLive do
             <div class="stat-desc">With non-zero balance</div>
           </div>
         </div>
-        <!-- Portfolio Allocation -->
+        <%!-- Portfolio Allocation --%>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Allocation Chart -->
+          <%!-- Allocation Chart --%>
           <div class="card bg-base-100 shadow-xl">
-            <div class="px-6 py-4 border-b border-base-300">
-              <h2 class="text-xl font-semibold text-base-content">Portfolio Allocation</h2>
+            <div class="card-body pb-0">
+              <h2 class="card-title">Portfolio Allocation</h2>
             </div>
             <div class="px-6 py-6">
               <%= if Enum.empty?(@balances) do %>
@@ -175,25 +161,21 @@ defmodule DashboardWeb.PortfolioLive do
                           <%= calculate_allocation_percentage(balance, @total_value) %>%
                         </span>
                       </div>
-                      <div class="w-full bg-base-300 rounded-full h-2.5">
-                        <div
-                          class="bg-primary h-2.5 rounded-full"
-                          style={"width: #{calculate_allocation_percentage(balance, @total_value)}%"}
-                        >
-                        </div>
-                      </div>
+                      <progress
+                        class="progress progress-primary w-full"
+                        value={calculate_allocation_percentage(balance, @total_value)}
+                        max="100"
+                      />
                     </div>
                   <% end %>
                 </div>
               <% end %>
             </div>
           </div>
-          <!-- Top Holdings -->
+          <%!-- Top Holdings --%>
           <div class="card bg-base-100 shadow-xl">
-            <div class="px-6 py-4 border-b border-base-300">
-              <h2 class="text-xl font-semibold text-base-content">Top Holdings</h2>
-            </div>
-            <div class="px-6 py-4">
+            <div class="card-body">
+              <h2 class="card-title">Top Holdings</h2>
               <%= if Enum.empty?(@balances) do %>
                 <div class="text-center text-base-content/70 py-8">
                   No assets found
@@ -225,10 +207,10 @@ defmodule DashboardWeb.PortfolioLive do
             </div>
           </div>
         </div>
-        <!-- Balances Table -->
+        <%!-- Balances Table --%>
         <div class="card bg-base-100 shadow-xl">
-          <div class="px-6 py-4 border-b border-base-300">
-            <h2 class="text-xl font-semibold text-base-content">All Asset Balances</h2>
+          <div class="card-body pb-0">
+            <h2 class="card-title">All Asset Balances</h2>
           </div>
           <div class="overflow-x-auto">
             <%= if Enum.empty?(@balances) do %>
@@ -236,7 +218,7 @@ defmodule DashboardWeb.PortfolioLive do
                 No assets found. Make sure BINANCE_API_KEY and BINANCE_SECRET_KEY are configured.
               </div>
             <% else %>
-              <table class="table table-zebra">
+              <table class="table table-zebra table-sm">
                 <thead>
                   <tr>
                     <th class="text-left">Asset</th>

@@ -582,11 +582,11 @@ defmodule DashboardWeb.StrategiesLive do
       </div>
 
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Strategies</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">Strategies</h2>
         </div>
         <div class="p-6">
-          <!-- Strategy Form -->
+          <%!-- Strategy Form --%>
           <%= if @show_strategy_form do %>
             <div class="card bg-base-200 mb-6">
               <div class="card-body">
@@ -607,7 +607,7 @@ defmodule DashboardWeb.StrategiesLive do
                       <label class="label">
                         <span class="label-text">Account</span>
                       </label>
-                      <select name="setting[account_id]" class="select select-bordered w-full">
+                      <select name="setting[account_id]" class="select w-full">
                         <option value="">Select account...</option>
                         <%= for account <- @accounts do %>
                           <option
@@ -633,12 +633,12 @@ defmodule DashboardWeb.StrategiesLive do
                         </label>
                       <% end %>
                     </div>
-                    <!-- Symbol Selector -->
+                    <%!-- Symbol Selector --%>
                     <div class="form-control">
                       <label class="label">
                         <span class="label-text">Trading Symbol</span>
                       </label>
-                      <select name="setting[config_symbol]" class="select select-bordered w-full">
+                      <select name="setting[config_symbol]" class="select w-full">
                         <%= for symbol <- Settings.available_symbols() do %>
                           <option
                             value={symbol}
@@ -652,7 +652,7 @@ defmodule DashboardWeb.StrategiesLive do
                         <span class="label-text-alt">Select the cryptocurrency pair to trade</span>
                       </label>
                     </div>
-                    <!-- Strategy-specific config fields -->
+                    <%!-- Strategy-specific config fields --%>
                     <div class="divider">Configuration</div>
 
                     <%= case @selected_strategy_type do %>
@@ -667,7 +667,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="0.001"
                               name="setting[config_buy_threshold]"
                               value={get_config_value(@strategy_form, "buy_threshold", -0.01)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">Price drop to trigger buy</span>
@@ -682,7 +682,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="0.001"
                               name="setting[config_sell_threshold]"
                               value={get_config_value(@strategy_form, "sell_threshold", 0.01)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">Price rise to trigger sell</span>
@@ -697,7 +697,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_trade_amount]"
                               value={get_config_value(@strategy_form, "trade_amount", 100)}
-                              class="input input-bordered"
+                              class="input"
                             />
                           </div>
                         </div>
@@ -712,7 +712,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_grid_levels]"
                               value={get_config_value(@strategy_form, "grid_levels", 10)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">Number of price levels</span>
@@ -727,7 +727,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="0.001"
                               name="setting[config_grid_spacing]"
                               value={get_config_value(@strategy_form, "grid_spacing", 0.01)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">% between levels</span>
@@ -742,7 +742,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_amount_per_grid]"
                               value={get_config_value(@strategy_form, "amount_per_grid", 50)}
-                              class="input input-bordered"
+                              class="input"
                             />
                           </div>
                         </div>
@@ -757,7 +757,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_interval_hours]"
                               value={get_config_value(@strategy_form, "interval_hours", 24)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">Hours between buys</span>
@@ -772,7 +772,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_amount_per_buy]"
                               value={get_config_value(@strategy_form, "amount_per_buy", 100)}
-                              class="input input-bordered"
+                              class="input"
                             />
                           </div>
                           <div class="form-control">
@@ -784,7 +784,7 @@ defmodule DashboardWeb.StrategiesLive do
                               step="1"
                               name="setting[config_max_buys]"
                               value={get_config_value(@strategy_form, "max_buys", 30)}
-                              class="input input-bordered"
+                              class="input"
                             />
                             <label class="label">
                               <span class="label-text-alt">Total number of purchases</span>
@@ -794,7 +794,7 @@ defmodule DashboardWeb.StrategiesLive do
                       <% _ -> %>
                         <p class="text-base-content/70">Select a strategy type to configure.</p>
                     <% end %>
-                    <!-- Start Conditions Section -->
+                    <%!-- Start Conditions Section --%>
                     <div class="collapse collapse-arrow bg-base-100 border border-base-300 mt-4">
                       <input type="checkbox" name="start_conditions_toggle" />
                       <div class="collapse-title font-medium">
@@ -811,7 +811,7 @@ defmodule DashboardWeb.StrategiesLive do
                           </label>
                           <select
                             name="setting[config_start_conditions_logic]"
-                            class="select select-bordered select-sm w-full max-w-xs"
+                            class="select select-sm w-full max-w-xs"
                           >
                             <option
                               value="and"
@@ -839,7 +839,7 @@ defmodule DashboardWeb.StrategiesLive do
                             </option>
                           </select>
                         </div>
-                        <!-- Price Condition -->
+                        <%!-- Price Condition --%>
                         <div class="form-control mb-3">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input
@@ -861,7 +861,7 @@ defmodule DashboardWeb.StrategiesLive do
                           <div class="flex gap-2 ml-8">
                             <select
                               name="setting[config_start_price_op]"
-                              class="select select-bordered select-sm"
+                              class="select select-sm"
                             >
                               <option
                                 value="below"
@@ -906,12 +906,12 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="Price"
-                              class="input input-bordered input-sm w-32"
+                              class="input input-sm w-32"
                             />
                             <span class="self-center text-sm">USDT</span>
                           </div>
                         </div>
-                        <!-- Time Condition -->
+                        <%!-- Time Condition --%>
                         <div class="form-control mb-3">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input
@@ -946,7 +946,7 @@ defmodule DashboardWeb.StrategiesLive do
                                   9
                                 )
                               }
-                              class="input input-bordered input-sm w-16"
+                              class="input input-sm w-16"
                             />
                             <span class="text-sm">to</span>
                             <input
@@ -963,12 +963,12 @@ defmodule DashboardWeb.StrategiesLive do
                                   17
                                 )
                               }
-                              class="input input-bordered input-sm w-16"
+                              class="input input-sm w-16"
                             />
                             <span class="text-sm">UTC</span>
                           </div>
                         </div>
-                        <!-- Volume Condition -->
+                        <%!-- Volume Condition --%>
                         <div class="form-control">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input
@@ -990,7 +990,7 @@ defmodule DashboardWeb.StrategiesLive do
                           <div class="flex gap-2 ml-8">
                             <select
                               name="setting[config_start_volume_op]"
-                              class="select select-bordered select-sm"
+                              class="select select-sm"
                             >
                               <option
                                 value="above"
@@ -1035,14 +1035,14 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="Volume"
-                              class="input input-bordered input-sm w-32"
+                              class="input input-sm w-32"
                             />
                             <span class="self-center text-sm">USDT</span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <!-- Stop Conditions Section -->
+                    <%!-- Stop Conditions Section --%>
                     <div class="collapse collapse-arrow bg-base-100 border border-base-300 mt-2">
                       <input type="checkbox" name="stop_conditions_toggle" />
                       <div class="collapse-title font-medium">
@@ -1059,7 +1059,7 @@ defmodule DashboardWeb.StrategiesLive do
                           </label>
                           <select
                             name="setting[config_stop_conditions_logic]"
-                            class="select select-bordered select-sm w-full max-w-xs"
+                            class="select select-sm w-full max-w-xs"
                           >
                             <option
                               value="or"
@@ -1081,7 +1081,7 @@ defmodule DashboardWeb.StrategiesLive do
                             </option>
                           </select>
                         </div>
-                        <!-- Take Profit -->
+                        <%!-- Take Profit --%>
                         <div class="form-control mb-3">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input type="hidden" name="setting[config_stop_tp_enabled]" value="false" />
@@ -1111,12 +1111,12 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="%"
-                              class="input input-bordered input-sm w-20"
+                              class="input input-sm w-20"
                             />
                             <span class="self-center text-sm">% profit</span>
                           </div>
                         </div>
-                        <!-- Stop Loss -->
+                        <%!-- Stop Loss --%>
                         <div class="form-control mb-3">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input type="hidden" name="setting[config_stop_sl_enabled]" value="false" />
@@ -1146,12 +1146,12 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="%"
-                              class="input input-bordered input-sm w-20"
+                              class="input input-sm w-20"
                             />
                             <span class="self-center text-sm">% loss</span>
                           </div>
                         </div>
-                        <!-- Max Daily Loss -->
+                        <%!-- Max Daily Loss --%>
                         <div class="form-control mb-3">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input
@@ -1189,12 +1189,12 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="Amount"
-                              class="input input-bordered input-sm w-24"
+                              class="input input-sm w-24"
                             />
                             <span class="self-center text-sm">USDT</span>
                           </div>
                         </div>
-                        <!-- Time Stop -->
+                        <%!-- Time Stop --%>
                         <div class="form-control">
                           <label class="label cursor-pointer justify-start gap-2">
                             <input
@@ -1228,7 +1228,7 @@ defmodule DashboardWeb.StrategiesLive do
                                 )
                               }
                               placeholder="HH:MM"
-                              class="input input-bordered input-sm w-20"
+                              class="input input-sm w-20"
                             />
                             <span class="text-sm">UTC</span>
                           </div>
@@ -1266,7 +1266,7 @@ defmodule DashboardWeb.StrategiesLive do
               </div>
             </div>
           <% end %>
-          <!-- Available Strategy Types -->
+          <%!-- Available Strategy Types --%>
           <%= if !@show_strategy_form do %>
             <h3 class="text-lg font-medium text-base-content mb-4">Available Strategies</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1291,7 +1291,7 @@ defmodule DashboardWeb.StrategiesLive do
               <% end %>
             </div>
           <% end %>
-          <!-- Configured Strategies List -->
+          <%!-- Configured Strategies List --%>
           <%= if !Enum.empty?(@strategies) do %>
             <div class="mt-8">
               <h3 class="text-lg font-medium text-base-content mb-4">Your Strategies</h3>

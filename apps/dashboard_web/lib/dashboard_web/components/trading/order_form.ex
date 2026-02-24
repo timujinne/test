@@ -38,7 +38,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
     ~H"""
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body p-4">
-        <!-- BUY/SELL Tabs -->
+        <%!-- BUY/SELL Tabs --%>
         <div class="tabs tabs-boxed mb-4" role="tablist">
           <button
             type="button"
@@ -62,14 +62,14 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </button>
         </div>
 
-        <!-- Order Type -->
+        <%!-- Order Type --%>
         <div class="form-control mb-3">
           <label class="label py-1">
             <span class="label-text text-xs">Order Type</span>
           </label>
           <select
             name="order_type"
-            class="select select-bordered select-sm w-full"
+            class="select select-sm w-full"
             phx-change="change_order_type"
           >
             <option value="LIMIT" selected={@type == "LIMIT"}>Limit</option>
@@ -77,7 +77,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </select>
         </div>
 
-        <!-- Price Input (only for LIMIT orders) -->
+        <%!-- Price Input (only for LIMIT orders) --%>
         <%= if @type == "LIMIT" do %>
           <div class="form-control mb-3">
             <label class="label py-1">
@@ -88,7 +88,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
                 </span>
               <% end %>
             </label>
-            <label class="input input-bordered input-sm flex items-center gap-2">
+            <label class="input input-sm flex items-center gap-2">
               <input
                 type="text"
                 name="price"
@@ -102,7 +102,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </div>
         <% end %>
 
-        <!-- Amount Input with % buttons -->
+        <%!-- Amount Input with % buttons --%>
         <div class="form-control mb-3">
           <label class="label py-1">
             <span class="label-text text-xs">Amount</span>
@@ -110,7 +110,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
               Available: <%= @available_balance %> <%= if @side == "BUY", do: @quote_asset, else: @base_asset %>
             </span>
           </label>
-          <label class="input input-bordered input-sm flex items-center gap-2">
+          <label class="input input-sm flex items-center gap-2">
             <input
               type="text"
               name="quantity"
@@ -123,7 +123,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </label>
         </div>
 
-        <!-- Percentage Buttons -->
+        <%!-- Percentage Buttons --%>
         <div class="flex gap-2 mb-4">
           <button
             type="button"
@@ -159,7 +159,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </button>
         </div>
 
-        <!-- Total Preview -->
+        <%!-- Total Preview --%>
         <div class="bg-base-200 rounded-lg p-3 mb-4">
           <div class="flex justify-between items-center">
             <span class="text-xs text-base-content/60">Total</span>
@@ -169,7 +169,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           </div>
         </div>
 
-        <!-- Submit Button -->
+        <%!-- Submit Button --%>
         <button
           type="submit"
           class={"btn btn-block " <> if(@side == "BUY", do: "btn-success", else: "btn-error")}
@@ -179,7 +179,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           <%= @side %> <%= @base_asset %>
         </button>
 
-        <!-- Order Summary -->
+        <%!-- Order Summary --%>
         <div class="mt-3 text-xs text-base-content/60 space-y-1">
           <div class="flex justify-between">
             <span>Order Type:</span>

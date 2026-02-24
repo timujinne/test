@@ -44,20 +44,20 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
     ~H"""
     <div class={"card bg-base-100 border-2 " <> status_border_class(@status)}>
       <div class="card-body p-4">
-        <!-- Step Header -->
+        <%!-- Step Header --%>
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <!-- Step Type Badge -->
+            <%!-- Step Type Badge --%>
             <span class={"badge badge-sm " <> step_type_badge_class(@step_type)}>
               <%= step_type_label(@step_type) %>
             </span>
 
-            <!-- Step Number -->
+            <%!-- Step Number --%>
             <span class="text-sm font-semibold text-base-content/60">
               Step <%= @index + 1 %>
             </span>
 
-            <!-- Status Badge -->
+            <%!-- Status Badge --%>
             <%= if @status != "pending" do %>
               <span class={"badge badge-sm " <> status_badge_class(@status)}>
                 <%= status_label(@status) %>
@@ -65,7 +65,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
             <% end %>
           </div>
 
-          <!-- Delete Button -->
+          <%!-- Delete Button --%>
           <%= if @editable and @on_delete do %>
             <button
               type="button"
@@ -74,28 +74,15 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               phx-value-index={@index}
               title="Delete step"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <span class={["hero-x-mark", "h-4 w-4"]} />
             </button>
           <% end %>
         </div>
 
-        <!-- Initial Step Form -->
+        <%!-- Initial Step Form --%>
         <%= if @step_type == "initial" do %>
           <div class="space-y-3">
-            <!-- Symbol -->
+            <%!-- Symbol --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Symbol</span>
@@ -103,7 +90,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <%= if @editable do %>
                 <input
                   type="text"
-                  class="input input-bordered input-sm"
+                  class="input input-sm"
                   value={Map.get(@step, :symbol, "")}
                   phx-change={@on_update}
                   phx-value-index={@index}
@@ -118,7 +105,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <% end %>
             </div>
 
-            <!-- Initial Quantity -->
+            <%!-- Initial Quantity --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Initial Quantity</span>
@@ -126,7 +113,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <%= if @editable do %>
                 <input
                   type="text"
-                  class="input input-bordered input-sm font-mono"
+                  class="input input-sm font-mono"
                   value={Map.get(@step, :quantity, "")}
                   phx-change={@on_update}
                   phx-value-index={@index}
@@ -143,10 +130,10 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
           </div>
         <% end %>
 
-        <!-- Regular Step Form -->
+        <%!-- Regular Step Form --%>
         <%= if @step_type == "step" do %>
           <div class="grid grid-cols-4 gap-2">
-            <!-- Symbol (for multi-symbol chains) -->
+            <%!-- Symbol (for multi-symbol chains) --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Symbol</span>
@@ -155,7 +142,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 <%= if @available_symbols != [] do %>
                   <select
                     name={"step_symbol_#{@index}"}
-                    class="select select-bordered select-sm"
+                    class="select select-sm"
                     phx-change={@on_update}
                     phx-value-index={@index}
                     phx-value-field="symbol"
@@ -171,7 +158,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                   <input
                     type="text"
                     name={"step_symbol_#{@index}"}
-                    class="input input-bordered input-sm font-mono"
+                    class="input input-sm font-mono"
                     value={Map.get(@step, :symbol, "")}
                     phx-blur={@on_update}
                     phx-value-index={@index}
@@ -187,7 +174,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <% end %>
             </div>
 
-            <!-- Side -->
+            <%!-- Side --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Side</span>
@@ -195,7 +182,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <%= if @editable do %>
                 <select
                   name={"step_side_#{@index}"}
-                  class={"select select-bordered select-sm " <> side_select_class(Map.get(@step, :side))}
+                  class={"select select-sm " <> side_select_class(Map.get(@step, :side))}
                   phx-change={@on_update}
                   phx-value-index={@index}
                   phx-value-field="side"
@@ -211,7 +198,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <% end %>
             </div>
 
-            <!-- Quantity -->
+            <%!-- Quantity --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Quantity</span>
@@ -220,7 +207,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 <input
                   type="text"
                   name={"step_quantity_#{@index}"}
-                  class="input input-bordered input-sm font-mono"
+                  class="input input-sm font-mono"
                   value={Map.get(@step, :quantity, "")}
                   phx-blur={@on_update}
                   phx-value-index={@index}
@@ -235,7 +222,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <% end %>
             </div>
 
-            <!-- Price -->
+            <%!-- Price --%>
             <div class="form-control">
               <label class="label py-1">
                 <span class="label-text text-xs font-medium">Price</span>
@@ -244,7 +231,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 <input
                   type="text"
                   name={"step_price_#{@index}"}
-                  class="input input-bordered input-sm font-mono"
+                  class="input input-sm font-mono"
                   value={Map.get(@step, :price, "")}
                   phx-blur={@on_update}
                   phx-value-index={@index}
@@ -261,7 +248,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
           </div>
         <% end %>
 
-        <!-- Execution Info (when not editable) -->
+        <%!-- Execution Info (when not editable) --%>
         <%= if !@editable and @status == "completed" do %>
           <div class="mt-3 pt-3 border-t border-base-300">
             <div class="grid grid-cols-2 gap-2 text-xs">

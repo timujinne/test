@@ -220,8 +220,8 @@ defmodule DashboardWeb.SettingsLive do
         </p>
       </div>
         <div class="card bg-base-100 shadow-xl">
-          <div class="px-6 py-4 border-b border-base-300 flex justify-between items-center">
-            <h2 class="text-xl font-semibold text-base-content">Trading Accounts</h2>
+          <div class="card-body pb-0 flex-row justify-between items-center">
+            <h2 class="card-title">Trading Accounts</h2>
             <button
               :if={!@show_account_form}
               phx-click="show_account_form"
@@ -231,18 +231,16 @@ defmodule DashboardWeb.SettingsLive do
             </button>
           </div>
           <div class="p-6">
-            <!-- Security Notice -->
+            <%!-- Security Notice --%>
             <div class="alert alert-warning mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+              <span class={["hero-exclamation-triangle", "stroke-current shrink-0 h-6 w-6"]} />
               <div>
                 <div class="font-bold">Security Notice</div>
                 <div class="text-sm">Your API keys are encrypted in the database. Never share your API keys with anyone.</div>
               </div>
             </div>
 
-            <!-- Add/Edit Account Form -->
+            <%!-- Add/Edit Account Form --%>
             <%= if @show_account_form do %>
               <div class="card bg-base-200 mb-6">
                 <div class="card-body">
@@ -264,7 +262,7 @@ defmodule DashboardWeb.SettingsLive do
                           name="account[label]"
                           value={@account_form[:label].value}
                           placeholder="e.g., Main Trading, Testnet Account"
-                          class="input input-bordered w-full"
+                          class="input w-full"
                         />
                         <%= if @account_form[:label].errors != [] do %>
                           <label class="label">
@@ -286,7 +284,7 @@ defmodule DashboardWeb.SettingsLive do
                           name="account[api_key]"
                           value={@account_form[:api_key].value}
                           placeholder={if @editing_account, do: "Leave empty to keep current key", else: "Enter your Binance API key"}
-                          class="input input-bordered w-full font-mono"
+                          class="input w-full font-mono"
                         />
                         <%= if @account_form[:api_key].errors != [] do %>
                           <label class="label">
@@ -313,7 +311,7 @@ defmodule DashboardWeb.SettingsLive do
                           name="account[secret_key]"
                           value={@account_form[:secret_key].value}
                           placeholder={if @editing_account, do: "Leave empty to keep current key", else: "Enter your Binance secret key"}
-                          class="input input-bordered w-full font-mono"
+                          class="input w-full font-mono"
                         />
                         <%= if @account_form[:secret_key].errors != [] do %>
                           <label class="label">
@@ -359,7 +357,7 @@ defmodule DashboardWeb.SettingsLive do
                           name="account[binance_account_id]"
                           value={@account_form[:binance_account_id].value}
                           placeholder="Will be auto-detected from API"
-                          class="input input-bordered w-full"
+                          class="input w-full"
                         />
                       </div>
 
@@ -395,7 +393,7 @@ defmodule DashboardWeb.SettingsLive do
               </div>
             <% end %>
 
-            <!-- Test Result -->
+            <%!-- Test Result --%>
             <%= if @test_result do %>
               <div class={["alert mb-6", if(@test_result.success, do: "alert-success", else: "alert-error")]}>
                 <div>
@@ -410,7 +408,7 @@ defmodule DashboardWeb.SettingsLive do
               </div>
             <% end %>
 
-            <!-- Accounts List -->
+            <%!-- Accounts List --%>
             <%= if Enum.empty?(@accounts) and !@show_account_form do %>
               <div class="text-center text-base-content/70 py-8">
                 No accounts configured. Add your first trading account to start.

@@ -72,14 +72,12 @@ defmodule DashboardWeb.HistoryLive do
           <%= if @loading do %>
             <span class="loading loading-spinner loading-sm"></span>
           <% else %>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <span class={["hero-arrow-path", "w-5 h-5"]} />
           <% end %>
           Refresh
         </button>
       </div>
-      <!-- Filter -->
+      <%!-- Filter --%>
       <div class="card bg-base-100 shadow-xl p-4">
         <div class="flex items-center gap-4">
           <label for="symbol-select" class="text-sm font-medium text-base-content whitespace-nowrap">
@@ -89,7 +87,7 @@ defmodule DashboardWeb.HistoryLive do
             <select
               id="symbol-select"
               name="symbol"
-              class="select select-bordered select-sm w-48"
+              class="select select-sm w-48"
             >
               <%= for symbol <- @available_symbols do %>
                 <option value={symbol} selected={@filter_symbol == symbol}>
@@ -113,44 +111,20 @@ defmodule DashboardWeb.HistoryLive do
         <% end %>
         <%= if @error do %>
           <div class="alert alert-error mt-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="stroke-current shrink-0 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
             <span><%= @error %></span>
           </div>
         <% end %>
       </div>
-      <!-- Orders Table -->
+      <%!-- Orders Table --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">All Orders</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">All Orders</h2>
         </div>
         <div class="overflow-x-auto">
           <%= if Enum.empty?(@orders) do %>
             <div class="px-6 py-12 text-center">
-              <svg
-                class="mx-auto h-12 w-12 text-base-content/40"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+              <span class={["hero-document-text", "mx-auto h-12 w-12 text-base-content/40"]} />
               <h3 class="mt-2 text-sm font-medium text-base-content">No orders</h3>
               <p class="mt-1 text-sm text-base-content/70">
                 <%= if @filter_symbol == "ALL" do %>
@@ -161,7 +135,7 @@ defmodule DashboardWeb.HistoryLive do
               </p>
             </div>
           <% else %>
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left">Date/Time</th>
@@ -232,14 +206,14 @@ defmodule DashboardWeb.HistoryLive do
           <% end %>
         </div>
       </div>
-      <!-- Trades Table -->
+      <%!-- Trades Table --%>
       <%= if not Enum.empty?(@trades) do %>
         <div class="card bg-base-100 shadow-xl">
-          <div class="px-6 py-4 border-b border-base-300">
-            <h2 class="text-xl font-semibold text-base-content">Executed Trades</h2>
+          <div class="card-body pb-0">
+            <h2 class="card-title">Executed Trades</h2>
           </div>
           <div class="overflow-x-auto">
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left">Date/Time</th>

@@ -247,7 +247,7 @@ defmodule DashboardWeb.OrdersLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <!-- Header -->
+      <%!-- Header --%>
       <div class="flex justify-between items-center">
         <div>
           <h1 class="text-3xl font-bold text-base-content">Open Orders</h1>
@@ -260,9 +260,7 @@ defmodule DashboardWeb.OrdersLive do
             class="btn btn-success"
             phx-click="open_new_order_modal"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
+            <span class={["hero-plus", "w-5 h-5"]} />
             New Order
           </button>
           <button
@@ -273,17 +271,15 @@ defmodule DashboardWeb.OrdersLive do
             <%= if @loading do %>
               <span class="loading loading-spinner loading-sm"></span>
             <% else %>
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <span class={["hero-arrow-path", "w-5 h-5"]} />
             <% end %>
             Refresh
           </button>
         </div>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="stats shadow w-full">
+      <%!-- Stats Cards --%>
+      <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
           <div class="stat-title">Total Orders</div>
           <div class="stat-value text-primary"><%= length(@orders) %></div>
@@ -302,17 +298,15 @@ defmodule DashboardWeb.OrdersLive do
         </div>
       </div>
 
-      <!-- Error Alert -->
+      <%!-- Error Alert --%>
       <%= if @error do %>
         <div class="alert alert-error">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
           <span><%= @error %></span>
         </div>
       <% end %>
 
-      <!-- Filter -->
+      <%!-- Filter --%>
       <div class="card bg-base-100 shadow-xl">
         <div class="card-body py-4">
           <div class="flex items-center gap-4">
@@ -322,7 +316,7 @@ defmodule DashboardWeb.OrdersLive do
               </div>
               <select
                 id="symbol-filter"
-                class="select select-bordered"
+                class="select"
                 name="symbol"
               >
                 <option value="all" selected={@selected_symbol == "all"}>
@@ -336,7 +330,7 @@ defmodule DashboardWeb.OrdersLive do
               </select>
             </form>
 
-            <!-- Quick filter buttons -->
+            <%!-- Quick filter buttons --%>
             <div class="flex gap-1 items-center">
               <button
                 class={["btn btn-sm", if(@selected_symbol == "all", do: "btn-primary", else: "btn-ghost")]}
@@ -364,9 +358,7 @@ defmodule DashboardWeb.OrdersLive do
                 phx-value-symbol={@selected_symbol}
                 data-confirm={"Are you sure you want to cancel all #{Map.get(@grouped_orders, @selected_symbol, []) |> length()} orders for #{@selected_symbol}?"}
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <span class={["hero-trash", "w-5 h-5"]} />
                 Cancel All <%= @selected_symbol %>
               </button>
             <% end %>
@@ -374,7 +366,7 @@ defmodule DashboardWeb.OrdersLive do
         </div>
       </div>
 
-      <!-- Current filter indicator -->
+      <%!-- Current filter indicator --%>
       <%= if @selected_symbol != "all" do %>
         <div class="alert alert-info mb-4">
           <span>Showing orders for: <strong><%= @selected_symbol %></strong> (<%= length(filtered_orders(@orders, @grouped_orders, @selected_symbol)) %> of <%= length(@orders) %> orders)</span>
@@ -382,7 +374,7 @@ defmodule DashboardWeb.OrdersLive do
         </div>
       <% end %>
 
-      <!-- Orders Table -->
+      <%!-- Orders Table --%>
       <div class="card bg-base-100 shadow-xl">
         <div class="card-body p-0">
           <%= if @loading and Enum.empty?(@orders) do %>
@@ -392,9 +384,7 @@ defmodule DashboardWeb.OrdersLive do
           <% else %>
             <%= if Enum.empty?(filtered_orders(@orders, @grouped_orders, @selected_symbol)) do %>
               <div class="text-center py-12">
-                <svg class="mx-auto h-12 w-12 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <span class={["hero-document-text", "mx-auto h-12 w-12 text-base-content/40"]} />
                 <h3 class="mt-2 text-sm font-medium text-base-content">No open orders</h3>
                 <p class="mt-1 text-sm text-base-content/70">
                   You don't have any open orders at the moment.
@@ -402,7 +392,7 @@ defmodule DashboardWeb.OrdersLive do
               </div>
             <% else %>
               <div class="overflow-x-auto">
-                <table class="table table-zebra">
+                <table class="table table-zebra table-sm">
                   <thead>
                     <tr>
                       <th>Time</th>
@@ -476,7 +466,7 @@ defmodule DashboardWeb.OrdersLive do
         </div>
       </div>
 
-      <!-- Per-Symbol Summary -->
+      <%!-- Per-Symbol Summary --%>
       <%= if length(@available_symbols) > 1 do %>
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body">
@@ -514,10 +504,9 @@ defmodule DashboardWeb.OrdersLive do
         </div>
       <% end %>
 
-      <!-- New Order Modal -->
-      <%= if @show_new_order_modal do %>
-        <div class="modal modal-open">
-          <div class="modal-box max-w-lg">
+      <%!-- New Order Modal --%>
+      <dialog class={["modal", @show_new_order_modal && "modal-open"]}>
+        <div class="modal-box max-w-lg">
             <button
               class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
               phx-click="close_new_order_modal"
@@ -527,7 +516,7 @@ defmodule DashboardWeb.OrdersLive do
             <h3 class="font-bold text-lg mb-4">Create New Order</h3>
 
             <form phx-change="update_order_form" phx-submit="create_order" class="space-y-4">
-              <!-- Symbol Search -->
+              <%!-- Symbol Search --%>
               <div class="form-control relative">
                 <label class="label">
                   <span class="label-text font-medium">Symbol *</span>
@@ -537,7 +526,7 @@ defmodule DashboardWeb.OrdersLive do
                   name="order[symbol]"
                   value={@symbol_search}
                   placeholder="Search symbol (e.g., BTCUSDT)"
-                  class="input input-bordered w-full"
+                  class="input w-full"
                   phx-keyup="search_symbol"
                   phx-debounce="200"
                   autocomplete="off"
@@ -560,7 +549,7 @@ defmodule DashboardWeb.OrdersLive do
                 <% end %>
               </div>
 
-              <!-- Side Selection -->
+              <%!-- Side Selection --%>
               <div class="form-control">
                 <label class="label">
                   <span class="label-text font-medium">Side *</span>
@@ -585,12 +574,12 @@ defmodule DashboardWeb.OrdersLive do
                 </div>
               </div>
 
-              <!-- Order Type -->
+              <%!-- Order Type --%>
               <div class="form-control">
                 <label class="label">
                   <span class="label-text font-medium">Order Type *</span>
                 </label>
-                <select name="order[type]" class="select select-bordered w-full">
+                <select name="order[type]" class="select w-full">
                   <option value="LIMIT" selected={@new_order_form["type"] == "LIMIT"}>
                     Limit
                   </option>
@@ -612,7 +601,7 @@ defmodule DashboardWeb.OrdersLive do
                 </select>
               </div>
 
-              <!-- Price (for Limit orders) -->
+              <%!-- Price (for Limit orders) --%>
               <%= if @new_order_form["type"] != "MARKET" do %>
                 <div class="form-control">
                   <label class="label">
@@ -623,13 +612,13 @@ defmodule DashboardWeb.OrdersLive do
                     name="order[price]"
                     value={@new_order_form["price"]}
                     placeholder="0.00"
-                    class="input input-bordered w-full font-mono"
+                    class="input w-full font-mono"
                     inputmode="decimal"
                   />
                 </div>
               <% end %>
 
-              <!-- Quantity -->
+              <%!-- Quantity --%>
               <div class="form-control">
                 <label class="label">
                   <span class="label-text font-medium">Quantity *</span>
@@ -639,18 +628,18 @@ defmodule DashboardWeb.OrdersLive do
                   name="order[quantity]"
                   value={@new_order_form["quantity"]}
                   placeholder="0.00"
-                  class="input input-bordered w-full font-mono"
+                  class="input w-full font-mono"
                   inputmode="decimal"
                 />
               </div>
 
-              <!-- Time in Force (for Limit orders) -->
+              <%!-- Time in Force (for Limit orders) --%>
               <%= if @new_order_form["type"] != "MARKET" do %>
                 <div class="form-control">
                   <label class="label">
                     <span class="label-text font-medium">Time in Force</span>
                   </label>
-                  <select name="order[time_in_force]" class="select select-bordered w-full">
+                  <select name="order[time_in_force]" class="select w-full">
                     <option value="GTC" selected={@new_order_form["time_in_force"] == "GTC"}>
                       GTC (Good Till Cancelled)
                     </option>
@@ -664,7 +653,7 @@ defmodule DashboardWeb.OrdersLive do
                 </div>
               <% end %>
 
-              <!-- Order Summary -->
+              <%!-- Order Summary --%>
               <%= if @new_order_form["symbol"] != "" and @new_order_form["quantity"] != "" do %>
                 <div class="alert alert-info">
                   <div>
@@ -685,7 +674,7 @@ defmodule DashboardWeb.OrdersLive do
                 </div>
               <% end %>
 
-              <!-- Actions -->
+              <%!-- Actions --%>
               <div class="modal-action">
                 <button
                   type="button"
@@ -710,9 +699,10 @@ defmodule DashboardWeb.OrdersLive do
               </div>
             </form>
           </div>
-          <div class="modal-backdrop" phx-click="close_new_order_modal"></div>
-        </div>
-      <% end %>
+        <form method="dialog" class="modal-backdrop">
+          <button phx-click="close_new_order_modal">close</button>
+        </form>
+      </dialog>
     </div>
     """
   end

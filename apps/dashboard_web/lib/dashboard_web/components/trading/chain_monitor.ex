@@ -63,7 +63,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
     ~H"""
     <div class="card bg-base-100 shadow-xl border-2 border-info">
       <div class="card-body p-4">
-        <!-- Header -->
+        <%!-- Header --%>
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <h3 class="card-title text-lg">
@@ -75,7 +75,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
             <span class={"badge " <> chain_status_badge_class(@status)}>
               <%= chain_status_label(@status) %>
             </span>
-            <!-- Process Health Indicator -->
+            <%!-- Process Health Indicator --%>
             <%= if @process_alive do %>
               <span class="badge badge-success badge-sm gap-1" title="Process running">
                 <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
@@ -89,7 +89,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
             <% end %>
           </div>
 
-          <!-- Action Buttons -->
+          <%!-- Action Buttons --%>
           <div class="flex gap-2">
             <%= if @on_stop && @status == "active" do %>
               <button
@@ -99,26 +99,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                 phx-value-id={Map.get(@chain, :id)}
                 title="Stop chain"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                  />
-                </svg>
+                <span class={["hero-stop-circle", "h-4 w-4"]} />
                 Stop
               </button>
             <% end %>
@@ -131,27 +112,14 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                 phx-value-id={Map.get(@chain, :id)}
                 title="Cancel chain"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <span class={["hero-x-mark", "h-4 w-4"]} />
                 Cancel
               </button>
             <% end %>
           </div>
         </div>
 
-        <!-- Progress Bar -->
+        <%!-- Progress Bar --%>
         <div class="mb-4">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-base-content/60">
@@ -169,9 +137,9 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
           </progress>
         </div>
 
-        <!-- Current Price & PnL -->
+        <%!-- Current Price & PnL --%>
         <div class="grid md:grid-cols-2 gap-4 mb-4">
-          <!-- Current Price -->
+          <%!-- Current Price --%>
           <%= if @current_price do %>
             <div class="card bg-base-200">
               <div class="card-body p-3">
@@ -182,7 +150,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
               </div>
             </div>
           <% end %>
-          <!-- PnL Display -->
+          <%!-- PnL Display --%>
           <%= if @pnl != %{} do %>
             <div class={"card " <> pnl_bg_class(Map.get(@pnl, :total, 0))}>
               <div class="card-body p-3">
@@ -197,7 +165,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                     </div>
                   <% end %>
                 </div>
-                <!-- Realized/Unrealized breakdown -->
+                <%!-- Realized/Unrealized breakdown --%>
                 <%= if Map.get(@pnl, :realized) || Map.get(@pnl, :unrealized) do %>
                   <div class="text-xs text-base-content/60 mt-1 space-y-0.5">
                     <%= if Map.get(@pnl, :realized) do %>
@@ -217,14 +185,14 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
           <% end %>
         </div>
 
-        <!-- Chain Info -->
+        <%!-- Chain Info --%>
         <%= if @started_at do %>
           <div class="text-xs text-base-content/60 mb-3">
             Started: <%= format_datetime(@started_at) %>
           </div>
         <% end %>
 
-        <!-- Execution Timeline -->
+        <%!-- Execution Timeline --%>
         <%= if @execution_history != %{} and Map.get(@execution_history, "events", []) != [] do %>
           <div class="collapse collapse-arrow bg-base-200 mb-4">
             <input type="checkbox" />
@@ -240,9 +208,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                       <%= format_event_time(event["timestamp"]) %>
                     </div>
                     <div class="timeline-middle">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class={"h-4 w-4 " <> event_icon_class(event["type"])}>
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-                      </svg>
+                      <span class={["hero-check-circle-solid", "h-4 w-4", event_icon_class(event["type"])]} />
                     </div>
                     <div class="timeline-end timeline-box text-xs">
                       <span class="font-semibold"><%= event_type_label(event["type"]) %></span>
@@ -260,9 +226,9 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
           </div>
         <% end %>
 
-        <!-- Compact View Toggle -->
+        <%!-- Compact View Toggle --%>
         <%= if !@compact do %>
-          <!-- Steps List (Full View) -->
+          <%!-- Steps List (Full View) --%>
           <div class="space-y-3 mt-4">
             <div class="divider text-sm">Chain Steps</div>
 
@@ -284,30 +250,17 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                     status={step_status(step, index, @current_step, @status)}
                   />
                 <% end %>
-                <!-- Arrow Connector -->
+                <%!-- Arrow Connector --%>
                 <%= if index < length(@steps) - 1 do %>
                   <div class="flex justify-center my-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-5 w-5 text-base-content/20"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                      />
-                    </svg>
+                    <span class={["hero-arrow-down", "h-5 w-5 text-base-content/20"]} />
                   </div>
                 <% end %>
               </div>
             <% end %>
           </div>
         <% else %>
-          <!-- Compact Summary -->
+          <%!-- Compact Summary --%>
           <div class="mt-3">
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
               <div class="stat p-3">

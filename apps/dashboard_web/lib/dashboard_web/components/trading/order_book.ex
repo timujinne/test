@@ -48,23 +48,23 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
       <div class="card-body p-3">
         <h2 class="card-title text-sm mb-1">Order Book</h2>
 
-        <!-- Header -->
+        <%!-- Header --%>
         <div class="grid grid-cols-3 gap-1 text-xs font-semibold text-base-content/60 border-b border-base-300 pb-1">
           <div class="text-left">Price</div>
           <div class="text-right">Amount</div>
           <div class="text-right">Total</div>
         </div>
 
-        <!-- Fixed height container -->
+        <%!-- Fixed height container --%>
         <div class="flex flex-col" style="height: 400px;">
-          <!-- Asks (sellers - red) - fixed height -->
+          <%!-- Asks (sellers - red) - fixed height --%>
           <div class="flex-1 flex flex-col justify-end overflow-hidden">
             <%= for row <- @asks_display do %>
               <.order_row row={row} side={:ask} max_volume={@max_volume} precision={@precision} />
             <% end %>
           </div>
 
-          <!-- Spread - fixed height -->
+          <%!-- Spread - fixed height --%>
           <div class="h-10 flex items-center justify-center bg-base-200 rounded my-1 shrink-0">
             <%= if @spread do %>
               <% {spread_value, spread_percent} = @spread %>
@@ -81,7 +81,7 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
             <% end %>
           </div>
 
-          <!-- Bids (buyers - green) - fixed height -->
+          <%!-- Bids (buyers - green) - fixed height --%>
           <div class="flex-1 flex flex-col overflow-hidden">
             <%= for row <- @bids_display do %>
               <.order_row row={row} side={:bid} max_volume={@max_volume} precision={@precision} />
@@ -126,12 +126,12 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
 
     ~H"""
     <div class="h-5 flex items-center relative">
-      <!-- Volume bar background -->
+      <%!-- Volume bar background --%>
       <div
         class={["absolute right-0 top-0 bottom-0 rounded-sm", @bg_class]}
         style={"width: #{min(@volume_percent, 100)}%"}
       />
-      <!-- Data -->
+      <%!-- Data --%>
       <div class="relative grid grid-cols-3 gap-1 text-xs w-full">
         <div class={["text-left font-mono font-medium", @color_class]}>
           <%= format_price(elem(@row, 0), @precision) %>

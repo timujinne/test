@@ -665,12 +665,12 @@ defmodule DashboardWeb.TradingLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <!-- Header with Symbol Selector -->
+      <%!-- Header with Symbol Selector --%>
       <div class="flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center gap-4">
           <h1 class="text-2xl font-bold text-base-content">Trading</h1>
 
-          <!-- Symbol Search -->
+          <%!-- Symbol Search --%>
           <div class="relative">
             <div class="flex items-center gap-2">
               <div class="dropdown dropdown-bottom">
@@ -681,7 +681,7 @@ defmodule DashboardWeb.TradingLive do
                     value={@symbol_search}
                     phx-keyup="search_symbol"
                     phx-focus="search_symbol"
-                    class="input input-sm input-bordered w-40"
+                    class="input input-sm w-40"
                   />
                 </div>
                 <%= if @show_symbol_dropdown and length(@symbol_search_results) > 0 do %>
@@ -702,14 +702,14 @@ defmodule DashboardWeb.TradingLive do
                 <% end %>
               </div>
 
-              <!-- Current Symbol Badge -->
+              <%!-- Current Symbol Badge --%>
               <div class="badge badge-primary badge-lg font-mono">
                 <%= @symbol %>
               </div>
             </div>
           </div>
 
-          <!-- Quick Select Buttons -->
+          <%!-- Quick Select Buttons --%>
           <div class="hidden md:flex gap-1">
             <%= for sym <- ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT"] do %>
               <button
@@ -736,16 +736,16 @@ defmodule DashboardWeb.TradingLive do
         <% end %>
       </div>
 
-      <!-- System Status Panel -->
+      <%!-- System Status Panel --%>
       <%= if length(@active_streams) > 0 do %>
         <div class="card bg-base-100 shadow-xl">
-          <div class="px-6 py-4 border-b border-base-300 flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-base-content">Active Streams</h2>
-            <span class="badge badge-success badge-sm">
-              <%= length(@active_streams) %> active
-            </span>
-          </div>
-          <div class="px-6 py-4">
+          <div class="card-body">
+            <div class="flex justify-between items-center">
+              <h2 class="card-title">Active Streams</h2>
+              <span class="badge badge-success badge-sm">
+                <%= length(@active_streams) %> active
+              </span>
+            </div>
             <div class="flex flex-wrap gap-2">
               <%= for {symbol, count} <- @active_streams do %>
                 <div class="badge badge-outline gap-2">
@@ -758,17 +758,17 @@ defmodule DashboardWeb.TradingLive do
         </div>
       <% end %>
 
-      <!-- Price Chart -->
+      <%!-- Price Chart --%>
       <div class="grid grid-cols-1 gap-4">
         <PriceChart.price_chart id={"price-chart-#{@symbol}"} />
       </div>
 
-      <!-- Market Depth Chart -->
+      <%!-- Market Depth Chart --%>
       <div class="grid grid-cols-1 gap-4">
         <DepthChart.depth_chart id={"depth-chart-#{@symbol}"} />
       </div>
 
-      <!-- Market Prices -->
+      <%!-- Market Prices --%>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <%= for {symbol, price} <- @prices do %>
           <div class="card bg-base-100 shadow-xl p-4">
@@ -779,10 +779,10 @@ defmodule DashboardWeb.TradingLive do
           </div>
         <% end %>
       </div>
-      <!-- Testnet Balances -->
+      <%!-- Testnet Balances --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Testnet Balances</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">Testnet Balances</h2>
         </div>
         <div class="overflow-x-auto">
           <%= if Enum.empty?(@balances) do %>
@@ -790,7 +790,7 @@ defmodule DashboardWeb.TradingLive do
               Loading balances...
             </div>
           <% else %>
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left text-xs font-medium text-base-content/70 uppercase">Asset</th>
@@ -819,17 +819,15 @@ defmodule DashboardWeb.TradingLive do
           <% end %>
         </div>
       </div>
-      <!-- Order Creation Form -->
+      <%!-- Order Creation Form --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Create Test Order</h2>
-        </div>
-        <div class="px-6 py-4">
+        <div class="card-body">
+          <h2 class="card-title">Create Test Order</h2>
           <form phx-change="update_form" phx-submit="create_order">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-base-content/70">Symbol</label>
-                <select name="order[symbol]" class="mt-1 select select-bordered w-full">
+                <select name="order[symbol]" class="mt-1 select w-full">
                   <option value="BTCUSDT" selected={@order_form["symbol"] == "BTCUSDT"}>
                     BTC/USDT
                   </option>
@@ -843,14 +841,14 @@ defmodule DashboardWeb.TradingLive do
               </div>
               <div>
                 <label class="block text-sm font-medium text-base-content/70">Side</label>
-                <select name="order[side]" class="mt-1 select select-bordered w-full">
+                <select name="order[side]" class="mt-1 select w-full">
                   <option value="BUY" selected={@order_form["side"] == "BUY"}>BUY</option>
                   <option value="SELL" selected={@order_form["side"] == "SELL"}>SELL</option>
                 </select>
               </div>
               <div>
                 <label class="block text-sm font-medium text-base-content/70">Type</label>
-                <select name="order[type]" class="mt-1 select select-bordered w-full">
+                <select name="order[type]" class="mt-1 select w-full">
                   <option value="LIMIT" selected={@order_form["type"] == "LIMIT"}>LIMIT</option>
                   <option value="MARKET" selected={@order_form["type"] == "MARKET"}>MARKET</option>
                 </select>
@@ -861,7 +859,7 @@ defmodule DashboardWeb.TradingLive do
                   type="text"
                   name="order[quantity]"
                   value={@order_form["quantity"]}
-                  class="mt-1 input input-bordered w-full"
+                  class="mt-1 input w-full"
                   placeholder="0.001"
                 />
               </div>
@@ -873,7 +871,7 @@ defmodule DashboardWeb.TradingLive do
                   type="text"
                   name="order[price]"
                   value={@order_form["price"]}
-                  class="mt-1 input input-bordered w-full"
+                  class="mt-1 input w-full"
                   placeholder="50000"
                 />
               </div>
@@ -899,10 +897,10 @@ defmodule DashboardWeb.TradingLive do
           <% end %>
         </div>
       </div>
-      <!-- Open Orders (from Binance API) -->
+      <%!-- Open Orders (from Binance API) --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Open Orders</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">Open Orders</h2>
         </div>
         <div class="overflow-x-auto">
           <%= if Enum.empty?(@open_orders) do %>
@@ -910,7 +908,7 @@ defmodule DashboardWeb.TradingLive do
               No open orders
             </div>
           <% else %>
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left text-xs font-medium text-base-content/70 uppercase">Symbol</th>
@@ -964,10 +962,10 @@ defmodule DashboardWeb.TradingLive do
           <% end %>
         </div>
       </div>
-      <!-- Active Orders -->
+      <%!-- Active Orders --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Active Orders (Database)</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">Active Orders (Database)</h2>
         </div>
         <div class="overflow-x-auto">
           <%= if Enum.empty?(@active_orders) do %>
@@ -975,7 +973,7 @@ defmodule DashboardWeb.TradingLive do
               No active orders
             </div>
           <% else %>
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left text-xs font-medium text-base-content/70 uppercase">Symbol</th>
@@ -1041,10 +1039,10 @@ defmodule DashboardWeb.TradingLive do
           <% end %>
         </div>
       </div>
-      <!-- Recent Trades -->
+      <%!-- Recent Trades --%>
       <div class="card bg-base-100 shadow-xl">
-        <div class="px-6 py-4 border-b border-base-300">
-          <h2 class="text-xl font-semibold text-base-content">Recent Trades</h2>
+        <div class="card-body pb-0">
+          <h2 class="card-title">Recent Trades</h2>
         </div>
         <div class="overflow-x-auto">
           <%= if Enum.empty?(@recent_trades) do %>
@@ -1052,7 +1050,7 @@ defmodule DashboardWeb.TradingLive do
               No recent trades
             </div>
           <% else %>
-            <table class="table table-zebra">
+            <table class="table table-zebra table-sm">
               <thead>
                 <tr>
                   <th class="text-left text-xs font-medium text-base-content/70 uppercase">Time</th>
