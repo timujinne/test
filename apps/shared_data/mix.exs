@@ -35,7 +35,7 @@ defmodule SharedData.MixProject do
       {:jason, "~> 1.4"},
       {:cloak_ecto, "~> 1.2"},
       {:decimal, "~> 2.1"},
-      {:argon2_elixir, "~> 3.1"},
+      {:argon2_elixir, "~> 4.0"},
       {:phoenix_pubsub, "~> 2.1"}
     ]
   end

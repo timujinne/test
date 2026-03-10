@@ -1,0 +1,284 @@
+---
+slug: elixir-lsp-claude-code-containers
+status: published
+published_at: 2026-03-10T12:00:00Z
+featured_image_uuid: 019cd78a-04d5-7c47-9c86-a7936b7f2468
+updated_by_email: timujeen@gmail.com
+updated_by_uuid: 1
+---
+
+<Image file_uuid="019cd78a-04d5-7c47-9c86-a7936b7f2468" alt="Elixir LSP в Claude Code" />
+# Elixir LSP в Claude Code: настройка для контейнеров
+
+## Суть проблемы
+
+Claude Code имеет встроенный LSP tool, но он несовместим с Lexical (новый официальный LS) из-за `client/registerCapability`. Совместим только ElixirLS (старый, сторонний).
+
+---
+
+## Архитектура решения
+
+```
+Claude Code (LSP tool)
+        │
+        │ JSON-RPC / stdio
+        ▼
+elixir-lsp плагин
+        │ запускает
+        ▼
+/opt/elixir-ls/language_server.sh   ← ElixirLS бинарник
+        │
+        │ анализирует
+        ▼
+Elixir проект (mix.exs)
+.elixir_ls/   ← кэш индекса (персистентный)
+```
+
+---
+
+## Что нужно установить
+
+### 1. ElixirLS бинарник
+
+```bash
+# В Dockerfile или setup скрипте
+RUN mkdir -p /opt/elixir-ls && \
+    cd /opt/elixir-ls && \
+    curl -L https://github.com/elixir-lsp/elixir-ls/releases/download/v0.30.0/elixir-ls-v0.30.0.zip \
+      -o elixir-ls.zip && \
+    unzip elixir-ls.zip && \
+    rm elixir-ls.zip && \
+    chmod +x language_server.sh
+
+# Добавить в PATH
+ENV PATH="/opt/elixir-ls:$PATH"
+```
+
+Версию проверить на: https://github.com/elixir-lsp/elixir-ls/releases
+
+**Важно:** zip-архив распаковывает скрипты в подпапку `scripts/`. Нужен симлинк:
+
+```bash
+ln -s /opt/elixir-ls/scripts/language_server.sh /opt/elixir-ls/language_server.sh
+```
+
+И добавить в PATH (в `~/.bashrc`):
+
+```bash
+export PATH="/opt/elixir-ls:$PATH"
+```
+
+### 2. Плагин elixir-lsp в Claude Code
+
+`elixir-lsp` — плагин, которого нет в официальном маркетплейсе. Его нужно добавить вручную.
+
+**2а. Добавить в marketplace.json:**
+
+```bash
+python3 << 'EOF'
+import json
+
+path = '/root/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json'
+with open(path, 'r') as f:
+    d = json.load(f)
+
+# Проверить, что ещё не добавлен
+if not any(p['name'] == 'elixir-lsp' for p in d['plugins']):
+    d['plugins'].append({
+        "name": "elixir-lsp",
+        "description": "Elixir language server (ElixirLS) for Claude Code",
+        "version": "1.0.0",
+        "author": {"name": "Anthropic", "email": "support@anthropic.com"},
+        "source": "./plugins/elixir-lsp",
+        "category": "development",
+        "strict": False,
+        "lspServers": {
+            "elixirls": {
+                "command": "language_server.sh",
+                "extensionToLanguage": {
+                    ".ex": "elixir",
+                    ".exs": "elixir",
+                    ".heex": "elixir",
+                    ".eex": "elixir",
+                    ".leex": "elixir"
+                }
+            }
+        }
+    })
+    with open(path, 'w') as f:
+        json.dump(d, f, indent=2)
+    print("Added elixir-lsp to marketplace")
+else:
+    print("Already exists")
+EOF
+```
+
+**2б. Создать plugin.json в кэше:**
+
+```bash
+mkdir -p /root/.claude/plugins/cache/claude-plugins-official/elixir-lsp/1.0.0
+
+cat > /root/.claude/plugins/cache/claude-plugins-official/elixir-lsp/1.0.0/plugin.json << 'EOF'
+{
+  "name": "elixir-lsp",
+  "version": "1.0.0",
+  "category": "development",
+  "strict": false,
+  "lspServers": {
+    "elixirls": {
+      "command": "language_server.sh",
+      "extensionToLanguage": {
+        ".ex": "elixir",
+        ".exs": "elixir",
+        ".heex": "elixir",
+        ".eex": "elixir",
+        ".leex": "elixir"
+      }
+    }
+  }
+}
+EOF
+```
+
+**2в. Зарегистрировать плагин как установленный:**
+
+```bash
+python3 << 'EOF'
+import json
+from datetime import datetime
+
+path = '/root/.claude/plugins/installed_plugins.json'
+with open(path, 'r') as f:
+    d = json.load(f)
+
+if 'elixir-lsp@claude-plugins-official' not in d['plugins']:
+    d['plugins']['elixir-lsp@claude-plugins-official'] = [{
+        "scope": "user",
+        "installPath": "/root/.claude/plugins/cache/claude-plugins-official/elixir-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": datetime.utcnow().isoformat() + "Z",
+        "lastUpdated": datetime.utcnow().isoformat() + "Z"
+    }]
+    with open(path, 'w') as f:
+        json.dump(d, f, indent=2)
+    print("Registered elixir-lsp plugin")
+else:
+    print("Already registered")
+EOF
+```
+
+**2г. Включить плагин в settings.json:**
+
+```bash
+python3 << 'EOF'
+import json
+
+path = '/root/.claude/settings.json'
+with open(path, 'r') as f:
+    d = json.load(f)
+
+d.setdefault('enabledPlugins', {})['elixir-lsp@claude-plugins-official'] = True
+
+with open(path, 'w') as f:
+    json.dump(d, f, indent=2)
+print("Plugin enabled")
+EOF
+```
+
+**Важно:** `claude plugin install elixir-lsp` **не сработает** — плагина нет в официальном маркетплейсе. Только ручная установка выше.
+
+---
+
+## Что происходит при старте сессии
+
+```
+claude запускается
+    │
+    ├─ читает плагины → находит elixir-lsp
+    │
+    ├─ спавнит: /opt/elixir-ls/language_server.sh
+    │           (отдельный OS-процесс)
+    │
+    └─ ElixirLS инициализируется:
+           1. Читает mix.exs
+           2. Компилирует зависимости (первый раз ~2-5 мин)
+           3. Строит индекс символов
+           4. Пишет кэш → .elixir_ls/
+           5. Готов (~9000+ символов для PhoenixKit)
+```
+
+**Важно:** Первый запуск в новом контейнере медленный. Последующие — быстрые (кэш из `.elixir_ls/`).
+
+---
+
+## Проверка работоспособности
+
+После старта сессии Claude Code — попросить выполнить проверку:
+
+```
+Use the LSP tool to run documentSymbol on lib/<any_file>.ex
+```
+
+Ожидаемый результат:
+- Список функций файла → LSP активен
+- Ошибка "No LSP server" → ElixirLS не найден или не запустился
+
+Для полной проверки — `workspaceSymbol` (возвращает тысячи символов после индексации):
+
+```
+Use the LSP tool: workspaceSymbol on any project file
+```
+
+---
+
+## Типичные проблемы
+
+| Симптом | Причина | Решение |
+|---------|---------|---------|
+| "No LSP server available" | ElixirLS не найден или плагин не настроен | Проверить симлинк, PATH и `plugin.json` (шаги 1 и 2) |
+| "requires restart" после `/reload-plugins` | Нормально — LSP стартует при следующем запуске claude | Перезапустить claude (не TMUX) |
+| `workspaceSymbol` → 0 результатов | Индексация ещё не завершена | Подождать 1-2 мин, повторить |
+| LSP зависает навсегда | Попытка использовать Lexical вместо ElixirLS | Lexical несовместим, использовать только ElixirLS |
+| Медленная индексация | Первый запуск, нет `.elixir_ls/` кэша | Нормально, ждать 2-5 мин |
+
+---
+
+## Персистентность кэша между сессиями
+
+```
+Контейнер
+├── /opt/elixir-ls/          ← монтировать или билдить в image
+│   └── language_server.sh
+│
+└── /app/                    ← проект
+    └── .elixir_ls/          ← МОНТИРОВАТЬ как volume
+        ├── build/           (скомпилированные .beam)
+        └── dialyzer/        (PLT файлы, большие)
+```
+
+Если `.elixir_ls/` не персистентный — каждое пересоздание контейнера = полная переиндексация.
+
+```yaml
+# docker-compose.yml
+volumes:
+  - ./:/app
+  - elixir_ls_cache:/app/.elixir_ls   # ← важно
+
+volumes:
+  elixir_ls_cache:
+```
+
+---
+
+## Минимальный чеклист
+
+- [ ] ElixirLS распакован в `/opt/elixir-ls/` (скрипты в `scripts/`)
+- [ ] Симлинк: `ln -s /opt/elixir-ls/scripts/language_server.sh /opt/elixir-ls/language_server.sh`
+- [ ] `/opt/elixir-ls` добавлен в PATH (`~/.bashrc`)
+- [ ] `elixir-lsp` добавлен в marketplace.json (см. шаг 2а — только ручная установка)
+- [ ] `plugin.json` создан в `~/.claude/plugins/cache/claude-plugins-official/elixir-lsp/1.0.0/`
+- [ ] Плагин зарегистрирован в `installed_plugins.json` и включён в `settings.json`
+- [ ] `.elixir_ls/` персистентный (volume в docker-compose)
+- [ ] Перезапустить claude в **новой** bash-сессии (чтобы PATH перечитался)
+- [ ] Первый запуск — подождать индексацию (1-5 мин)
+- [ ] Lexical НЕ использовать с LSP tool — несовместим

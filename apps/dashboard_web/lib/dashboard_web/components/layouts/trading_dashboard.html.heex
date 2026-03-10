@@ -9,7 +9,7 @@
     <div class="flex items-center justify-between h-16 px-4">
       <%!-- Left: Logo and Title --%>
       <div class="flex items-center gap-3">
-        <.link navigate="/articles" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <.link navigate="/news" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <img src={~p"/images/logo-48.png"} alt={project_title} class="w-8 h-8" />
           <span class="font-bold text-base-content hidden sm:inline"><%= project_title %></span>
         </.link>
@@ -120,7 +120,7 @@
         <%!-- Blog link at bottom --%>
         <div class="absolute bottom-4 left-0 right-0 px-4">
           <.link
-            navigate="/articles"
+            navigate="/news"
             class="flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-base-content/70 hover:bg-base-200 transition-colors"
           >
             <DashboardWeb.Components.DashboardNav.nav_icon name="blog" />

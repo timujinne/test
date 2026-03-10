@@ -2,6 +2,6 @@ defmodule DashboardWeb.PageController do
   use DashboardWeb, :controller
 
   def home(conn, _params) do
-    redirect(conn, to: "/articles")
+    redirect(conn, to: "/news")
   end
 end

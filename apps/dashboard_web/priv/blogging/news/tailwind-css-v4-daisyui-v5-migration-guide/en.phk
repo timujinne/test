@@ -2,13 +2,13 @@
 slug: tailwind-css-v4-daisyui-v5-migration-guide
 status: published
 published_at: 2025-12-05T15:08:00Z
-featured_image_id: 019aef10-2d00-7192-8738-17908bb393e3
-updated_by_id: 1
+featured_image_uuid: 019aef10-2d00-7192-8738-17908bb393e3
+updated_by_uuid: 1
 updated_by_email: timujeen@gmail.com
 ---
 
 
-<Image file_id="019aef10-2d00-7192-8738-17908bb393e3" alt="Description here" />
+<Image file_uuid="019aef10-2d00-7192-8738-17908bb393e3" alt="Description here" />
 # Tailwind CSS v4 + DaisyUI v5 Migration Guide
 
 Guide for upgrading a Phoenix project from Tailwind CSS v3 + DaisyUI v4 to Tailwind CSS v4 + DaisyUI v5.

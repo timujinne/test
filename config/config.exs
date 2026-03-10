@@ -5,7 +5,8 @@ config :swoosh, api_client: Swoosh.ApiClient.Finch
 config :phoenix_kit,
   parent_app_name: :dashboard_web,
   parent_module: DashboardWeb,
-  repo: SharedData.Repo
+  repo: SharedData.Repo,
+  url_prefix: "/phoenix_kit"
 
 # Shared configuration for all applications
 config :shared_data,

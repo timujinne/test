@@ -15,3 +15,7 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
 config :phoenix, :plug_init_mode, :runtime
+
+# Use local Swoosh adapter so sent emails appear in /dev/mailbox
+config :phoenix_kit, PhoenixKit.Mailer, adapter: Swoosh.Adapters.Local
+config :swoosh, :api_client, false

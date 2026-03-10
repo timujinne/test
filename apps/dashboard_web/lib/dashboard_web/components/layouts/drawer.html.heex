@@ -27,7 +27,7 @@
           <li><.link navigate="/trading" class="text-sm">Trading</.link></li>
           <li><.link navigate="/portfolio" class="text-sm">Portfolio</.link></li>
           <li><.link navigate="/history" class="text-sm">History</.link></li>
-          <li><.link navigate="/articles" class="text-sm">Blog</.link></li>
+          <li><.link navigate="/news" class="text-sm">Blog</.link></li>
         </ul>
         <%!-- Theme Switcher --%>
         <DashboardWeb.Components.DashboardNav.theme_switcher />
@@ -104,7 +104,7 @@
           current_path={@current_path}
         />
         <DashboardWeb.Components.DashboardNav.nav_item
-          href="/articles"
+          href="/news"
           icon="blog"
           label="Blog"
           current_path={@current_path}

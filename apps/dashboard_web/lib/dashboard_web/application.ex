@@ -12,10 +12,10 @@ defmodule DashboardWeb.Application do
     children = [
       PhoenixKit.Supervisor,
       {Finch, [name: Swoosh.Finch]},
-      {Oban, Application.get_env(:dashboard_web, Oban)},
       DashboardWeb.Telemetry,
       # PubSub is started in DataCollector.Application as BinanceSystem.PubSub
-      DashboardWeb.Endpoint
+      DashboardWeb.Endpoint,
+      {Oban, Application.get_env(:dashboard_web, Oban)}
     ]
 
     opts = [strategy: :one_for_one, name: DashboardWeb.Supervisor]

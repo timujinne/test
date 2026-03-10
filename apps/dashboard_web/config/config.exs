@@ -75,7 +75,8 @@ config :dashboard_web, Oban,
     posts: 10,
     sitemap: 5,
     sqs_polling: 1,
-    sync: 5
+    sync: 5,
+    shop_imports: 2
   ],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 30},

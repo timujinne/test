@@ -1,0 +1,169 @@
+---
+slug: agent-teams-claude-code
+status: published
+published_at: 2026-03-10T10:00:00Z
+featured_image_uuid: 019cd756-0bf4-7751-b95d-64345930a461
+updated_by_uuid: 1
+updated_by_email: timujeen@gmail.com
+description: Full setup guide for Claude Code Agent Teams — environment variable, agent files, CLAUDE.local.md instructions, invocation patterns, and known limitations.
+---
+
+<Image file_uuid="019cd756-0bf4-7751-b95d-64345930a461" alt="Claude Code Agent Teams — split panes view" />
+
+# Agent Teams в Claude Code: полная структура настройки
+
+Agent Teams — это экспериментальная функция Claude Code, позволяющая оркестратору запускать специализированных субагентов внутри именованной команды, общаться с ними через `SendMessage` и разделять зоны ответственности. Вот полная структура, которую мы используем в production.
+
+---
+
+## 1. Включение фичи (env переменная)
+
+```bash
+# ~/.bashrc (работает в Docker-контейнерах и dev-средах)
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+# /etc/environment — только для PAM-логин сессий (не Docker)
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
+
+Без этой переменной `TeamCreate` и `SendMessage` недоступны.
+
+Проверить: `printenv | grep AGENT_TEAMS`.
+
+> **В Docker-контейнерах** `/etc/environment` не читается при запуске шелла. Добавляйте `export` в `~/.bashrc` — это надёжнее.
+
+---
+
+## 2. Файлы агентов: `~/.claude/agents/<name>.md`
+
+Каждый агент — отдельный `.md` файл с YAML frontmatter. Frontmatter определяет имя, модель, цвет и доступные инструменты.
+
+**Структура файла:**
+
+```yaml
+---
+name: researcher          # ← subagent_type при вызове Agent tool
+model: claude-sonnet-4-6  # ← ИГНОРИРУЕТСЯ в Agent Teams (баг Claude Code)
+color: cyan               # ← цвет в UI: cyan/green/yellow/red/blue/magenta
+allowedTools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  # MCP инструменты — перечислять явно, иначе агент зависнет на permission request
+  # Имена зависят от MCP серверов вашего проекта (см. .mcp.json)
+  - mcp__<your_server>__<tool_name>
+disallowedTools:
+  - Edit
+  - Write
+---
+
+# [Имя] Agent
+
+[Описание роли и инструкции...]
+```
+
+> **Критично:** `model:` в frontmatter не работает для Team агентов. Все агенты запускаются на модели текущей сессии (Opus). Это известный баг Claude Code.
+
+> **Про MCP инструменты:** Имена инструментов в `allowedTools` формируются как `mcp__<server>__<tool>`, где `<server>` — ключ из `.mcp.json` вашего проекта. Это частный случай — у каждого проекта свой набор MCP серверов. Список доступных инструментов смотрите в начале сессии Claude Code или в `.mcp.json`.
+
+---
+
+## 3. Наши 4 агента
+
+| Файл | Цвет | Роль | Write? | MCP |
+|------|------|------|--------|-----|
+| `researcher.md` | cyan | Исследование кодовой базы | ❌ | project MCP tools |
+| `implementer.md` | green | Написание кода | ✅ | project MCP tools |
+| `reviewer.md` | yellow | Spec + Quality review (два этапа в одном) | ❌ | project MCP tools |
+| `elixir-debugger.md` | magenta | Диагностика в live app | ❌ | project MCP tools |
+
+---
+
+## 4. Инструкции в `CLAUDE.local.md`
+
+Минимальный набор, который нужно добавить:
+
+```markdown
+## Agent Teams (MANDATORY)
+
+`CLAUDE_CODE_EXPERIMENTAL_AGENTS=1` включён. Агенты общаются через `SendMessage`.
+
+**ПЕРЕД ЛЮБОЙ РАБОТОЙ:**
+1. Прочитай `memory/agent-teams.md` (паттерны оркестрации)
+2. Используй `TeamCreate` для создания команды
+3. Запускай агентов через `Agent` с параметрами `team_name` + `name`
+
+**НИКОГДА:**
+- Не использовать plain `Agent` без `team_name` — создаёт анонимных субагентов
+- Не изобретать имена агентов — только 4 предопределённых из `~/.claude/agents/`
+- Не использовать `subagent_type: "general-purpose"`
+
+**4 агента:**
+- `researcher` (cyan) — исследование кода, read-only
+- `implementer` (green) — реализация, full access
+- `reviewer` (yellow) — проверка spec + качества, read-only
+- `elixir-debugger` (magenta) — live диагностика, read-only
+
+**Порядок review:** reviewer ВСЕГДА после implementer.
+
+**Permission requests:** агенты шлют запросы ТЕБЕ (team lead). Одобряй в UI — иначе агент зависнет.
+```
+
+---
+
+## 5. Как использовать (паттерн вызова)
+
+```elixir
+# 1. Создать команду
+TeamCreate(team_name: "feature-auth", description: "Implement auth feature")
+
+# 2. Запустить researcher
+Agent(
+  team_name: "feature-auth",
+  name: "researcher",
+  subagent_type: "researcher",
+  prompt: "Research auth patterns in codebase.
+           Teammates: implementer (will implement), reviewer (will review).
+           When done: SendMessage to team-lead with findings."
+)
+
+# 3. После research — запустить implementer
+Agent(
+  team_name: "feature-auth",
+  name: "implementer",
+  subagent_type: "implementer",
+  prompt: "Implement X based on [findings].
+           When done: SendMessage to `reviewer` with report."
+)
+
+# 4. reviewer слушает SendMessage от implementer, делает review
+Agent(
+  team_name: "feature-auth",
+  name: "reviewer",
+  subagent_type: "reviewer",
+  prompt: "Wait for implementer's report. Review spec + quality.
+           If FAIL: SendMessage to `implementer` with issues.
+           If PASS: SendMessage to team-lead with verdict."
+)
+```
+
+---
+
+## 6. Ключевые ограничения (известные баги)
+
+| Проблема | Поведение | Обходной путь |
+|----------|-----------|---------------|
+| `model:` в frontmatter | Игнорируется — все агенты на Opus | Вручную `/model sonnet` в TMUX |
+| Permission request от агента | Агент зависает, оркестратор не может одобрить программно | Одобрять вручную в UI (кнопка `y`) |
+| MCP не наследуется | Каждый агент видит только инструменты из `allowedTools` | Заранее добавить все MCP инструменты в `allowedTools` |
+
+---
+
+## 7. Чеклист для нового контейнера
+
+- [ ] `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` в `/etc/environment`
+- [ ] `~/.claude/agents/` — 4 файла агентов скопированы
+- [ ] `CLAUDE.local.md` — раздел "Agent Teams" добавлен
+- [ ] `memory/agent-teams.md` — файл с паттернами оркестрации
+- [ ] MCP инструменты в `allowedTools` каждого агента соответствуют доступным MCP серверам проекта

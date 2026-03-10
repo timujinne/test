@@ -22,7 +22,7 @@ defmodule DashboardWeb.Endpoint do
 
   # Tidewave MCP Server for AI-assisted development (dev only)
   if Code.ensure_loaded?(Tidewave) do
-    plug Tidewave
+    plug Tidewave, allow_remote_access: true
   end
 
   if code_reloading? do

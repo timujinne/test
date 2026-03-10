@@ -100,11 +100,11 @@ defmodule DashboardWeb.Components.DashboardNav do
           nil
       end
 
-    avatar_file_id = user && user.custom_fields && user.custom_fields["avatar_file_id"]
+    avatar_file_uuid = user && user.custom_fields && user.custom_fields["avatar_file_uuid"]
 
     avatar_url =
-      if avatar_file_id do
-        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+      if avatar_file_uuid do
+        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_uuid, "medium")
       else
         nil
       end
@@ -224,11 +224,11 @@ defmodule DashboardWeb.Components.DashboardNav do
           nil
       end
 
-    avatar_file_id = user && user.custom_fields && user.custom_fields["avatar_file_id"]
+    avatar_file_uuid = user && user.custom_fields && user.custom_fields["avatar_file_uuid"]
 
     avatar_url =
-      if avatar_file_id do
-        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_id, "medium")
+      if avatar_file_uuid do
+        PhoenixKit.Modules.Storage.URLSigner.signed_url(avatar_file_uuid, "medium")
       else
         nil
       end

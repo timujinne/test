@@ -26,18 +26,6 @@ defmodule DashboardWeb.Router do
     get "/", PageController, :home
   end
 
-  # Public routes - Blog (no authentication required)
-  scope "/", DashboardWeb do
-    pipe_through :browser
-
-    live_session :public,
-      layout: {DashboardWeb.Layouts, :public},
-      on_mount: [{PhoenixKitWeb.Users.Auth, :phoenix_kit_mount_current_scope}] do
-      live "/articles", BlogLive
-      live "/articles/:slug", BlogPostLive
-    end
-  end
-
   # Protected routes - Trading App (authentication required)
   # Note: phoenix_kit_ensure_authenticated includes mount_current_scope internally
   scope "/app", DashboardWeb do
@@ -63,6 +51,7 @@ defmodule DashboardWeb.Router do
       pipe_through :browser
 
       live_dashboard "/live-dashboard", metrics: DashboardWeb.Telemetry
+      forward "/dev/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 

@@ -25,6 +25,9 @@
  *   - CookieConsent ... Cookie consent banner and preferences modal
  *   - ResetSelect ..... Reset select element to first option on event
  *   - TimeAgo ......... Client-side relative time updates
+ *   - LanguageSwitcherSearch ... Client-side language filtering for dropdown
+ *   - LanguageSwitcherPosition . Auto-position dropdown based on viewport space
+ *   - PreserveScroll ........... Preserve scroll position during LiveView updates
  *
  * @version 2.0.0
  * @license MIT
@@ -36,6 +39,47 @@
   // Prevent double initialization
   if (window.PhoenixKitInitialized) return;
   window.PhoenixKitInitialized = true;
+
+  // ============================================================================
+  // WEBSOCKET TRANSPORT CACHE CLEARING
+  // ============================================================================
+  //
+  // Phoenix LiveView caches transport fallback preferences in browser storage.
+  // If WebSocket fails once, Phoenix remembers this and uses LongPoll for all
+  // subsequent page loads, even after the WebSocket issue is fixed.
+  //
+  // This clears the cached preference on every page load to ensure WebSocket
+  // is always tried first, providing much better performance when available.
+  //
+  // See: https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.Socket.html
+  //
+  // ============================================================================
+
+  (function clearPhoenixTransportCache() {
+    try {
+      // Clear localStorage keys containing 'phx' (transport fallback cache)
+      // IMPORTANT: Exclude 'phx:' prefixed keys - those are PhoenixKit features (e.g., phx:theme)
+      var lsKeys = Object.keys(localStorage).filter(function(k) {
+        return k.includes('phx') && !k.startsWith('phx:');
+      });
+      if (lsKeys.length > 0) {
+        console.debug("[PhoenixKit] Clearing cached transport preferences from localStorage:", lsKeys);
+        lsKeys.forEach(function(k) { localStorage.removeItem(k); });
+      }
+
+      // Clear sessionStorage keys containing 'phx' (excluding phx: prefixed keys)
+      var ssKeys = Object.keys(sessionStorage).filter(function(k) {
+        return k.includes('phx') && !k.startsWith('phx:');
+      });
+      if (ssKeys.length > 0) {
+        console.debug("[PhoenixKit] Clearing cached transport preferences from sessionStorage:", ssKeys);
+        ssKeys.forEach(function(k) { sessionStorage.removeItem(k); });
+      }
+    } catch (e) {
+      // Storage might be unavailable in some contexts (e.g., private browsing)
+      console.debug("[PhoenixKit] Could not clear transport cache:", e);
+    }
+  })();
 
   // Initialize hooks collection
   window.PhoenixKitHooks = window.PhoenixKitHooks || {};
@@ -234,6 +278,10 @@
     function getConfigEndpoint() {
       var meta = document.querySelector('meta[name="phoenix-kit-prefix"]');
       var prefix = meta ? meta.getAttribute("content") : "/phoenix_kit";
+      // Handle case when prefix is "/" to avoid double slash (//api/...)
+      if (prefix === "/") {
+        return "/api/consent-config";
+      }
       return prefix + "/api/consent-config";
     }
 
@@ -1100,6 +1148,206 @@
       if (seconds < 3600) return 30000;     // Update every 30 seconds
       if (seconds < 86400) return 300000;   // Update every 5 minutes
       return 3600000;                        // Update every hour
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // LanguageSwitcherSearch Hook
+  // ---------------------------------------------------------------------------
+  //
+  // Provides client-side search filtering for the language switcher dropdown.
+  // Filters languages by name as the user types, without server round-trips.
+  //
+  // Usage in LiveView template:
+  //   <input phx-hook="LanguageSwitcherSearch" id="language-search-input" />
+  //
+  // The language items should have data-name and optionally data-native attributes:
+  //   <li class="language-item" data-name="english" data-native="english">...</li>
+  //
+  // ---------------------------------------------------------------------------
+
+  window.PhoenixKitHooks.LanguageSwitcherSearch = {
+    mounted() {
+      this.el.addEventListener("input", (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const container = this.el.closest(".dropdown-content") || this.el.closest(".dropdown");
+        if (!container) return;
+
+        const items = container.querySelectorAll(".language-item");
+
+        items.forEach(item => {
+          const name = (item.dataset.name || "").toLowerCase();
+          const native = (item.dataset.native || "").toLowerCase();
+
+          // Show if search term is found in name or native name
+          const matches = searchTerm === "" ||
+                          name.includes(searchTerm) ||
+                          native.includes(searchTerm);
+
+          item.style.display = matches ? "" : "none";
+        });
+      });
+
+      // Clear search when dropdown closes
+      this.el.addEventListener("blur", () => {
+        // Small delay to allow click events to fire first
+        setTimeout(() => {
+          this.el.value = "";
+          const container = this.el.closest(".dropdown-content") || this.el.closest(".dropdown");
+          if (container) {
+            container.querySelectorAll(".language-item").forEach(item => {
+              item.style.display = "";
+            });
+          }
+        }, 200);
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // LanguageSwitcherPosition Hook
+  // ---------------------------------------------------------------------------
+  //
+  // Automatically positions the language switcher dropdown above or below
+  // based on available viewport space. Opens downward by default, switches
+  // to upward when there's not enough space below.
+  //
+  // Usage in LiveView template:
+  //   <details class="dropdown" phx-hook="LanguageSwitcherPosition">
+  //     <summary>...</summary>
+  //     <div class="dropdown-content">...</div>
+  //   </details>
+  //
+  // ---------------------------------------------------------------------------
+
+  window.PhoenixKitHooks.LanguageSwitcherPosition = {
+    mounted() {
+      this.el.addEventListener("toggle", (e) => {
+        if (e.target.open) {
+          const rect = this.el.getBoundingClientRect();
+          const dropdownContent = this.el.querySelector(".dropdown-content");
+          if (!dropdownContent) return;
+
+          // Get actual or estimated content height
+          const contentHeight = dropdownContent.offsetHeight || 300;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+
+          // Remove existing position classes
+          this.el.classList.remove("dropdown-top", "dropdown-bottom");
+
+          // Add appropriate position class based on available space
+          if (spaceBelow < contentHeight && spaceAbove > spaceBelow) {
+            this.el.classList.add("dropdown-top");
+          } else {
+            this.el.classList.add("dropdown-bottom");
+          }
+        }
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // FadeOut Hook
+  // ---------------------------------------------------------------------------
+  //
+  // Handles smooth fade-out animations by listening for CSS animationend event
+  // before notifying the server to remove the element. This prevents the race
+  // condition where LiveView removes the element before the animation completes.
+  //
+  // Usage in LiveView template:
+  //   <div id="progress-bar"
+  //        phx-hook="FadeOut"
+  //        data-status={@status}
+  //        data-fade-event="animation_finished"
+  //        class={@status == :completed && "animate-fade-out"}>
+  //     ...content...
+  //   </div>
+  //
+  // Handle in LiveView:
+  //   def handle_event("animation_finished", %{"id" => id}, socket)
+  //
+  // ---------------------------------------------------------------------------
+
+  window.PhoenixKitHooks.FadeOut = {
+    mounted() {
+      this.handleStatusChange();
+    },
+    updated() {
+      this.handleStatusChange();
+    },
+    handleStatusChange() {
+      const status = this.el.dataset.status;
+      const eventName = this.el.dataset.fadeEvent || "animation_finished";
+
+      if (status === "completed" || status === "exiting") {
+        // Add the fade-out class if not already present
+        if (!this.el.classList.contains("animate-fade-out")) {
+          this.el.classList.add("animate-fade-out");
+        }
+
+        // Remove any existing listener to avoid duplicates
+        if (this._animationHandler) {
+          this.el.removeEventListener("animationend", this._animationHandler);
+        }
+
+        // Listen for animation to complete, then notify server
+        this._animationHandler = () => {
+          this.pushEvent(eventName, { id: this.el.id });
+        };
+        this.el.addEventListener("animationend", this._animationHandler, { once: true });
+      }
+    },
+    destroyed() {
+      if (this._animationHandler) {
+        this.el.removeEventListener("animationend", this._animationHandler);
+      }
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // PreserveScroll Hook
+  // ---------------------------------------------------------------------------
+  //
+  // Preserves scroll position during LiveView updates. Useful for pages with
+  // toggles or interactive elements that trigger re-renders.
+  //
+  // Usage in LiveView template:
+  //   <div id="content" phx-hook="PreserveScroll">
+  //     ...content with toggles...
+  //   </div>
+  //
+  // ---------------------------------------------------------------------------
+
+  window.PhoenixKitHooks.PreserveScroll = {
+    mounted() {
+      this.scrollPosition = 0;
+      this.openDetails = [];
+    },
+    beforeUpdate() {
+      // Save scroll position
+      this.scrollPosition = window.scrollY;
+
+      // Save which details elements are open (by their index or id)
+      this.openDetails = [];
+      this.el.querySelectorAll("details").forEach((detail, index) => {
+        if (detail.open) {
+          // Use id if available, otherwise use index
+          this.openDetails.push(detail.id || "idx-" + index);
+        }
+      });
+    },
+    updated() {
+      // Restore scroll position
+      window.scrollTo(0, this.scrollPosition);
+
+      // Restore open state of details elements
+      this.el.querySelectorAll("details").forEach((detail, index) => {
+        const identifier = detail.id || "idx-" + index;
+        if (this.openDetails.includes(identifier)) {
+          detail.open = true;
+        }
+      });
     }
   };
 
