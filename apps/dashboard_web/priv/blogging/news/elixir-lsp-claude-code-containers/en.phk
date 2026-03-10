@@ -40,33 +40,21 @@ Elixir проект (mix.exs)
 
 ### 1. ElixirLS бинарник
 
-```bash
-# В Dockerfile или setup скрипте
-RUN mkdir -p /opt/elixir-ls && \
-    cd /opt/elixir-ls && \
-    curl -L https://github.com/elixir-lsp/elixir-ls/releases/download/v0.30.0/elixir-ls-v0.30.0.zip \
-      -o elixir-ls.zip && \
-    unzip elixir-ls.zip && \
-    rm elixir-ls.zip && \
-    chmod +x language_server.sh
+ElixirLS можно поставить через Mix прямо при сборке образа — тогда он живёт в image и не требует скачивания при старте контейнера.
 
-# Добавить в PATH
+**В `Dockerfile.elixir-dev`:**
+
+```dockerfile
+# Собрать ElixirLS release
+RUN MIX_ENV=prod mix elixir_ls.release2 -o /usr/local/bin/elixir-ls && \
+    ln -s /usr/local/bin/elixir-ls/language_server.sh /opt/elixir-ls/language_server.sh
+
 ENV PATH="/opt/elixir-ls:$PATH"
 ```
 
-Версию проверить на: https://github.com/elixir-lsp/elixir-ls/releases
+`mix elixir_ls.release2` собирает скомпилированный релиз в указанную папку. Симлинк из `/opt/elixir-ls/` нужен потому, что именно этот путь ищет Claude Code plugin через PATH.
 
-**Важно:** zip-архив распаковывает скрипты в подпапку `scripts/`. Нужен симлинк:
-
-```bash
-ln -s /opt/elixir-ls/scripts/language_server.sh /opt/elixir-ls/language_server.sh
-```
-
-И добавить в PATH (в `~/.bashrc`):
-
-```bash
-export PATH="/opt/elixir-ls:$PATH"
-```
+Симлинк прописан прямо в Dockerfile — он живёт в image и переживает любой `down && up`.
 
 ### 2. Плагин elixir-lsp в Claude Code
 
@@ -270,14 +258,76 @@ volumes:
 
 ---
 
+## Персистентность между пересозданиями контейнера
+
+При `docker compose down && up` без volumes теряется всё: настройки Claude, плагины, ElixirLS и его симлинки.
+
+### Что нужно сохранять
+
+**`/root`** — Claude настройки, плагины, mix кэш:
+
+```bash
+docker cp binance_system:/root/. ./docker/root_home/
+```
+
+**`/app/.elixir_ls`** — индекс проекта (иначе полная переиндексация на каждом старте):
+
+```yaml
+volumes:
+  - elixir_ls_cache:/app/.elixir_ls
+```
+
+### Проблема: `scripts/VERSION`
+
+В "native installer" версии ElixirLS installer.exs ищет файл по пути `scripts/VERSION`, которого нет. ElixirLS не стартует:
+
+```
+** (File.Error) could not read file "/opt/elixir-ls/scripts/VERSION": no such file or directory
+```
+
+**Три варианта решения:**
+
+**Вариант А — запечь ElixirLS прямо в образ** (идеально, никакой установки при старте):
+
+```dockerfile
+# Копируем уже готовый ElixirLS из bind mount или заранее скачанного архива
+COPY ./docker/elixir_ls /opt/elixir-ls
+RUN ln -sf /opt/elixir-ls/VERSION /opt/elixir-ls/scripts/VERSION && \
+    chmod +x /opt/elixir-ls/scripts/language_server.sh && \
+    ln -sf /opt/elixir-ls/scripts/language_server.sh /opt/elixir-ls/language_server.sh
+ENV PATH="/opt/elixir-ls:$PATH"
+```
+
+Образ получается самодостаточным: ElixirLS не скачивается и не компилируется — он уже внутри. `docker compose up` — и LSP сразу готов.
+
+**Вариант Б — Dockerfile с симлинком** (если ElixirLS уже установлен в образе другим способом):
+
+```dockerfile
+RUN ln -sf /opt/elixir-ls/VERSION /opt/elixir-ls/scripts/VERSION
+```
+
+**Вариант В — bind mount `/opt/elixir-ls`** (если Dockerfile недоступен):
+
+```bash
+docker cp binance_system:/opt/elixir-ls/. ./docker/elixir_ls/
+```
+
+```yaml
+volumes:
+  - ./docker/elixir_ls:/opt/elixir-ls   # симлинки сохраняются вместе с остальным
+```
+
+---
+
 ## Минимальный чеклист
 
-- [ ] ElixirLS распакован в `/opt/elixir-ls/` (скрипты в `scripts/`)
-- [ ] Симлинк: `ln -s /opt/elixir-ls/scripts/language_server.sh /opt/elixir-ls/language_server.sh`
-- [ ] `/opt/elixir-ls` добавлен в PATH (`~/.bashrc`)
-- [ ] `elixir-lsp` добавлен в marketplace.json (см. шаг 2а — только ручная установка)
+- [ ] В Dockerfile: `mix elixir_ls.release2 -o /usr/local/bin/elixir-ls`
+- [ ] В Dockerfile: `ln -s /usr/local/bin/elixir-ls/language_server.sh /opt/elixir-ls/language_server.sh`
+- [ ] В Dockerfile: `ENV PATH="/opt/elixir-ls:$PATH"`
+- [ ] `elixir-lsp` добавлен в marketplace.json (только ручная установка, см. шаг 2а)
 - [ ] `plugin.json` создан в `~/.claude/plugins/cache/claude-plugins-official/elixir-lsp/1.0.0/`
 - [ ] Плагин зарегистрирован в `installed_plugins.json` и включён в `settings.json`
+- [ ] `/root` смонтирован как bind mount — сохраняет Claude настройки и mix кэш
 - [ ] `.elixir_ls/` персистентный (volume в docker-compose)
 - [ ] Перезапустить claude в **новой** bash-сессии (чтобы PATH перечитался)
 - [ ] Первый запуск — подождать индексацию (1-5 мин)
