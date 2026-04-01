@@ -1,35 +1,148 @@
 ---
 name: phoenixkit-blogging
-description: PhoenixKit blog management - create posts, upload images, publish articles, manage blog sections
-tags: phoenixkit, blogging, cms, images, markdown
+description: PhoenixKit Publishing module - DB-based CMS for creating posts, managing groups, publishing content, uploading images
+tags: phoenixkit, publishing, cms, images, markdown
 ---
 
-# PhoenixKit Blogging Quick Reference
+# PhoenixKit Publishing Quick Reference
+
+> **Important**: The old file-based Blogging module (`priv/blogging/`, `/admin/blogging/`) has been
+> replaced by the DB-based **Publishing module** (`phoenix_kit_publishing_*` tables, `/admin/publishing/`).
+
+## Prerequisites
+
+Publishing module must be enabled in DB settings:
+
+```elixir
+# In IEx or via tidewave:
+PhoenixKit.Modules.Publishing.enable_system()
+# Or directly:
+PhoenixKit.Settings.update_setting("publishing_enabled", "true")
+```
 
 ## Admin Routes
 
 | URL | Purpose |
 |-----|---------|
-| `/admin/blogging` | Blog dashboard (all blogs overview) |
-| `/admin/blogging/:blog` | Posts list for specific blog |
-| `/admin/blogging/:blog/edit?new=true` | Create new post |
-| `/admin/blogging/:blog/edit?path=...` | Edit existing post |
-| `/admin/blogging/:blog/preview` | Preview post |
-| `/admin/settings/blogging` | Manage blogs |
-| `/admin/settings/blogging/new` | Create new blog |
-| `/admin/settings/blogging/:blog/edit` | Edit blog settings |
+| `/admin/publishing` | Publishing dashboard (all groups overview) |
+| `/admin/publishing/:group` | Posts list for specific group |
+| `/admin/publishing/:group/new` | Create new post |
+| `/admin/publishing/:group/:post_uuid/edit` | Edit existing post |
+| `/admin/publishing/:group/:post_uuid/preview` | Preview post |
+| `/admin/publishing/new-group` | Create new group |
+| `/admin/publishing/edit-group/:group` | Edit group settings |
+| `/admin/settings/publishing` | Publishing settings |
 
-## Creating a Post
+## Creating a Post (UI)
 
-1. Navigate to `/admin/blogging/:blog`
-2. Click **"Create Post"**
+1. Navigate to `/admin/publishing/:group`
+2. Click **"New Post"**
 3. Write content in Markdown or PHK format
-4. Auto-save is enabled (changes saved automatically)
-5. Set metadata in the sidebar (slug, status, featured image)
+4. Auto-save enabled (changes saved automatically)
+5. Set metadata in sidebar (slug, status, featured image)
+6. Click **"Publish"** to make it live
+
+## Creating a Post (Programmatic)
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# 1. Create post record
+{:ok, post} = Publishing.create_post("news", %{
+  slug: "my-post-slug",
+  primary_language: "en"
+})
+
+# 2. Update with content
+Publishing.update_post("news", post, %{
+  content: "# Post Title\n\nContent here...",
+  title: "Post Title",
+  language: "en",
+  url_slug: "my-post-slug"
+})
+
+# 3. Publish version
+Publishing.publish_version("news", post.uuid, 1)
+
+# 4. Invalidate listing cache
+Publishing.invalidate_cache("news")
+```
+
+## Group Management
+
+```elixir
+# Create new group (replaces "blog")
+Publishing.add_group("News", mode: "timestamp", type: "blog")
+Publishing.add_group("FAQ", mode: "slug", type: "faq")
+
+# List groups
+Publishing.list_groups()
+# => [%{"name" => "News", "slug" => "news", "mode" => "timestamp", ...}]
+
+# Get group
+Publishing.get_group("news")
+# => {:ok, %{"name" => "News", "slug" => "news", "mode" => "timestamp", ...}}
+
+# Update group
+Publishing.update_group("news", %{name: "Company News"})
+
+# Soft-delete group
+Publishing.trash_group("news")
+```
+
+### Group Modes
+
+| Mode | URL structure | Best for |
+|------|--------------|---------|
+| `timestamp` | `/news/2025-01-15` | News, updates, chronological |
+| `slug` | `/tutorials/getting-started` | Docs, evergreen content |
+
+### Group Types
+
+| Type | Item name | Purpose |
+|------|-----------|---------|
+| `blog` (default) | post/posts | Blog posts |
+| `faq` | question/questions | FAQ entries |
+| `legal` | document/documents | Legal documents |
+| custom | configurable | Custom content types |
+
+## Post Management
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# List posts (with preferred language)
+Publishing.list_posts("news", "en")
+
+# Read post by slug
+Publishing.read_post("news", "my-post-slug", "en")
+
+# Read post by UUID
+Publishing.read_post_by_uuid(post_uuid, "en")
+
+# Update post content
+Publishing.update_post("news", post, %{
+  content: "Updated content...",
+  title: "Updated Title",
+  language: "en"
+})
+
+# Change status
+Publishing.change_post_status("news", post_uuid, "published")
+Publishing.change_post_status("news", post_uuid, "draft")
+Publishing.change_post_status("news", post_uuid, "archived")
+
+# Trash post
+Publishing.trash_post("news", post_uuid)
+
+# Find by URL slug (for routing)
+Publishing.find_by_url_slug("news", "en", "my-post-slug")
+```
 
 ## Image Upload
 
 ### Via API
+
 ```bash
 # Upload image
 curl -X POST http://localhost:4000/api/upload \
@@ -39,7 +152,8 @@ curl -X POST http://localhost:4000/api/upload \
 # Response: { "file_id": "uuid", "status": "processing" }
 ```
 
-### Get Image URL
+### Image Variants
+
 ```
 GET /file/:file_id/:variant/:token
 
@@ -51,97 +165,69 @@ Variants:
 - large       (1920x1080)
 ```
 
-### In Editor
-- Drag-and-drop files to upload zone
-- Click **"Upload Media"** button
-- Select uploaded image from media library
+### Using Images in Content
 
-### Using in Content
 ```markdown
-![Alt text](/file/FILE_ID/medium/TOKEN)
+![Alt text](/file/FILE_UUID/medium/TOKEN)
 ```
 
 ## Publishing Workflow
 
 ### Status Flow
+
 ```
 draft → published → archived → draft (cycle)
 ```
 
-### Change Status
-- In editor sidebar: click status dropdown
-- Or edit YAML frontmatter:
-
-```yaml
----
-status: published
-published_at: 2025-01-15T12:00:00Z
----
-```
-
 ### Status Behavior
+
 | Status | Visible | Cached |
 |--------|---------|--------|
 | draft | No | No |
 | published | Yes | Yes |
 | archived | No | No |
 
-## Creating a New Blog/Section
+### Versioning
 
-1. Go to `/admin/settings/blogging/new`
-2. Fill in:
-   - **Name**: Display name (e.g., "Company News")
-   - **Slug**: URL identifier (e.g., "news")
-3. Choose storage mode:
-   - **Timestamp**: Posts organized by date/time folders
-   - **Slug**: Posts organized by slug folders
-4. Click **Save**
+```elixir
+# Publish version
+Publishing.publish_version("news", post_uuid, 1)
 
-### Storage Modes
+# Create new version (if auto-versioning is needed)
+Publishing.create_new_version("news", post, %{reason: "major update"})
 
-**Timestamp mode** (default):
-```
-priv/blogging/news/
-├── 2025-01-15/
-│   └── 14:30/
-│       ├── en.phk
-│       └── es.phk
-```
-
-**Slug mode**:
-```
-priv/blogging/tutorials/
-├── getting-started/
-│   ├── en.phk
-│   └── es.phk
+# List versions
+Publishing.list_versions("news", "my-post-slug")
 ```
 
 ## Content Formats
 
 ### Markdown
+
 ```markdown
 # Post Title
 
-Introduction paragraph with **bold** and _italic_ text.
+Introduction with **bold** and _italic_.
 
 ## Section Header
 
 - Bullet point
 - Another point
 
-![Image alt](/file/FILE_ID/medium/TOKEN)
+![Image](/file/FILE_UUID/medium/TOKEN)
 
 [Link text](https://example.com)
 ```
 
 ### PHK (XML Components)
+
 ```xml
 <Page>
   <Hero variant="split-image">
     <Headline>Welcome to Our Blog</Headline>
     <Subheadline>Latest news and updates</Subheadline>
     <CTA primary="true" action="/signup">Get Started</CTA>
-    <Image src="/file/FILE_ID/large/TOKEN" alt="Hero" />
+    <Image src="/file/FILE_UUID/large/TOKEN" alt="Hero" />
   </Hero>
 </Page>
 ```
@@ -150,44 +236,78 @@ Introduction paragraph with **bold** and _italic_ text.
 
 | Component | Props | Description |
 |-----------|-------|-------------|
-| `<Page>` | - | Page wrapper |
+| `<Page>` | — | Page wrapper |
 | `<Hero>` | variant: split-image, centered, minimal | Hero section |
-| `<Headline>` | - | Main heading (h1) |
-| `<Subheadline>` | - | Secondary heading |
+| `<Headline>` | — | Main heading (h1) |
+| `<Subheadline>` | — | Secondary heading |
 | `<CTA>` | action, primary | Call-to-action button |
 | `<Image>` | src, alt, class | Image element |
 | `<Video>` | src, youtube, poster | Video player (MP4/YouTube/HLS) |
 
-## Post Metadata (YAML Frontmatter)
-
-```yaml
----
-slug: my-post-url                    # URL slug
-status: draft                        # draft | published | archived
-published_at: 2025-01-15T12:00:00Z   # ISO8601 datetime
-featured_image_id: abc123            # Image UUID for preview
-description: Post summary text       # SEO description
-created_by_email: author@example.com # Author email (auto)
-updated_by_email: editor@example.com # Last editor (auto)
----
-
-# Post content starts here...
-```
-
 ## Multilanguage Support
 
-Each post can have multiple language versions:
-- Files named by language code: `en.phk`, `es.phk`, `fr.phk`
-- Add language via editor sidebar: **"Add Language"** button
-- Switch between languages in editor tabs
+```elixir
+# Add language to post
+Publishing.add_language_to_post("news", post_uuid, "ru")
+Publishing.add_language_to_post("news", post_uuid, "es")
 
-## Quick Tips
+# Delete language
+Publishing.delete_language("news", post_uuid, "es")
 
-1. **Preview before publish**: Use preview button to check rendering
-2. **Featured image**: Set `featured_image_id` for post thumbnails
-3. **SEO**: Always fill `description` in metadata
-4. **URLs**: Use descriptive slugs for better SEO
-5. **Caching**: Published posts are cached; changes invalidate cache automatically
+# Set translation status
+Publishing.set_translation_status("news", post_slug, version, "ru", "published")
+```
+
+## Cache Management
+
+```elixir
+# Invalidate listing cache (call after publish/update)
+Publishing.invalidate_cache("news")
+
+# Regenerate cache explicitly
+Publishing.regenerate_cache("news")
+
+# Check if cache exists
+Publishing.cache_exists?("news")
+```
+
+## Troubleshooting
+
+### Posts not showing / 302 redirect loop
+
+1. Check `publishing_enabled` setting:
+   ```elixir
+   PhoenixKit.Settings.get_setting("publishing_enabled")
+   # Must be "true"
+   PhoenixKit.Modules.Publishing.enable_system()
+   ```
+
+2. Check post status is `published`:
+   ```elixir
+   Publishing.read_post("news", "my-slug", "en")
+   # Check post.status == "published"
+   ```
+
+3. Invalidate cache:
+   ```elixir
+   Publishing.invalidate_cache("news")
+   ```
+
+### Session fingerprint mismatch in dev
+
+In `config/dev.exs`:
+```elixir
+config :phoenix_kit,
+  session_fingerprint_enabled: false
+```
+
+### Quick Tips
+
+1. **Enable module first** — `publishing_enabled` must be `true` in DB settings
+2. **Cache after publish** — always call `invalidate_cache/1` after publishing
+3. **UUID is binary** — `post.uuid` is a binary UUID, not a string, use it as-is in API calls
+4. **Slugs are unique per group** — each group has its own slug namespace
+5. **Primary language** — set at post creation, determines default display language
 
 ---
 

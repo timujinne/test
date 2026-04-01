@@ -1,0 +1,361 @@
+---
+slug: expert-lsp-claude-code
+status: published
+published_at: 2026-03-26T12:00:00Z
+updated_by_email: timujeen@gmail.com
+updated_by_uuid: 1
+---
+
+# Expert LSP для Elixir в Claude Code: официальный Language Server без хаков
+
+Мы [уже писали о настройке ElixirLS в контейнерах](/news/elixir-lsp-claude-code-containers) — тот подход работал, но требовал хака: 4 Python-скрипта для ручной регистрации плагина, сборка ElixirLS через `mix elixir_ls.release2`, обходное решение для `scripts/VERSION`. Теперь есть лучший путь. **Expert LSP** — официальный Language Server от elixir-lang — работает как precompiled binary. **claude-code-elixir** — плагин для Claude Code — решает проблему совместимости через 120-строчный Python-wrapper.
+
+---
+
+## Что такое Expert LSP
+
+В экосистеме Elixir долгое время сосуществовали три Language Server:
+
+- **ElixirLS** — первопроходец, работает с 2017 года, сторонний проект
+- **Lexical** — современная альтернатива от Community
+- **Next LS** — ещё одна попытка переосмыслить LSP для Elixir
+
+В 2024 году **elixir-lang** (официальная организация языка) объединил усилия и выпустил **Expert** — официальный Language Server, призванный заменить все три.
+
+| Параметр | ElixirLS | Expert |
+|---------|---------|--------|
+| Поддержка | Сообщество | elixir-lang (официальный) |
+| Статус | Stable | RC (v0.1.0-rc.6) |
+| Лицензия | Apache 2.0 | Apache 2.0 |
+| Распространение | Сборка из исходников | Precompiled binary |
+| Запуск | `language_server.sh` | `expert --stdio` |
+| `client/registerCapability` | Не требует | Требует (проблема с CC) |
+| Hover / Go-to-definition | Да | Да |
+
+Expert запускается одной командой (`expert --stdio`) и не требует сборки. Бинарник статически скомпилирован — никаких зависимостей.
+
+```bash
+$ expert --version
+0.1.0-rc.6
+
+$ expert --help
+Expert v0.1.0-rc.6
+The official language server for Elixir
+
+expert [flags]
+expert engine <subcommand> [options]
+
+FLAGS
+  --stdio             Use stdio as the transport mechanism
+  --port <port>       Use TCP as the transport mechanism
+  --help              Show this help message
+  --version           Show Expert version
+```
+
+---
+
+## Проблема: server-initiated requests
+
+Claude Code имеет встроенный LSP tool, но его реализация не обрабатывает **server-initiated requests** — сообщения, которые сервер отправляет клиенту и ожидает ответа (сообщения с обоими полями `id` и `method`). Именно через этот механизм работает `client/registerCapability` — запрос, которым Expert при инициализации регистрирует textDocument-обработчики.
+
+Что происходит при прямом подключении Expert к Claude Code:
+
+```
+Claude Code                     Expert LSP
+     │                               │
+     │── initialize ────────────────>│
+     │<─ initialized ────────────────│
+     │                               │
+     │<─ client/registerCapability ──│  ← server-initiated request
+     │                               │     (has both "id" + "method")
+     │                               │
+     │   [нет обработчика]           │  ← CC игнорирует, не отвечает
+     │                               │
+     │── textDocument/hover ─────────│  ← запрос hover
+     │<─ error: not initialized ─────│  ← Expert не готов к работе
+```
+
+Это [известная проблема](https://github.com/anthropics/claude-code/issues/32595) — Claude Code не реализует сторону `client` для server-initiated запросов.
+
+---
+
+## Решение: expert-wrapper из claude-code-elixir
+
+**[georgeguimaraes/claude-code-elixir](https://github.com/georgeguimaraes/claude-code-elixir)** — плагин для Claude Code, решающий эту проблему через Python-обёртку над Expert.
+
+`expert-wrapper` — 120 строк Python — делает одно: запускает `expert --stdio` как subprocess и проксирует сообщения между Claude Code и Expert. При этом перехватывает server-initiated requests и автоматически отвечает на них до того, как они попадут к Claude Code:
+
+```
+Claude Code
+     │
+     │ stdio
+     ▼
+expert-wrapper (Python)
+     │  перехватывает msg с "id" + "method"
+     │  отвечает: {"jsonrpc":"2.0","id":N,"result":null}
+     │  остальное проксирует прозрачно
+     │
+     │ stdio
+     ▼
+expert --stdio
+```
+
+Когда Expert отправляет `client/registerCapability`, wrapper перехватывает его, отправляет Expert пустой успешный ответ (`result: null`), и не пропускает его дальше в Claude Code. Expert считает, что capabilities зарегистрированы, и продолжает нормальную работу.
+
+Это временный workaround — будет удалён, когда Claude Code добавит поддержку server-initiated requests.
+
+### Состав плагина
+
+claude-code-elixir содержит 5 плагинов:
+
+| Плагин | Назначение |
+|--------|-----------|
+| `elixir-lsp` | Expert LSP через expert-wrapper |
+| `elixir` | Thinking skills для Elixir/Phoenix/OTP |
+| `mix-compile` | Автокомпиляция с `--warnings-as-errors` после Edit |
+| `mix-format` | Автоформатирование через `mix format` после Edit |
+| `mix-credo` | Запуск Credo после Edit |
+
+Плагин `elixir-lsp` регистрирует Expert как LSP-сервер для расширений `.ex`, `.exs`, `.heex`, `.leex`:
+
+```json
+{
+  "lspServers": {
+    "expert": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/expert-wrapper",
+      "extensionToLanguage": {
+        ".ex": "elixir",
+        ".exs": "elixir",
+        ".heex": "heex",
+        ".leex": "leex"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Установка в контейнере
+
+### Шаг 1: Expert LSP бинарник
+
+Expert распространяется как статически скомпилированный binary. В `Dockerfile`:
+
+```dockerfile
+# Expert LSP — официальный Language Server от elixir-lang
+ARG EXPERT_VERSION=0.1.0-rc.6
+RUN curl -fsSL \
+    "https://github.com/elixir-lang/expert/releases/download/v${EXPERT_VERSION}/expert_linux_amd64" \
+    -o /usr/local/bin/expert && \
+    chmod +x /usr/local/bin/expert
+```
+
+Имя файла — `expert_linux_amd64`, не tar.gz. Никакой распаковки, никакой сборки.
+
+Проверить:
+
+```bash
+$ expert --version
+0.1.0-rc.6
+```
+
+### Шаг 2: Python 3
+
+`expert-wrapper` — Python-скрипт без внешних зависимостей. Python 3 достаточно:
+
+```dockerfile
+# Python нужен для expert-wrapper (стандартная библиотека, без pip-пакетов)
+RUN apt-get install -y --no-install-recommends python3
+```
+
+В большинстве образов на основе Debian/Ubuntu Python 3 уже есть.
+
+Кэш Expert хранится в `~/.cache/expert/` — смонтируйте как volume, чтобы не переиндексировать при каждом перезапуске контейнера:
+
+```yaml
+services:
+  dev:
+    volumes:
+      - ./:/app
+      - expert_cache:/root/.cache/expert
+
+volumes:
+  expert_cache:
+```
+
+### Шаг 3: Установить плагин claude-code-elixir
+
+Устанавливается через Claude Code marketplace или вручную. Вариант с `git clone`:
+
+```bash
+git clone https://github.com/georgeguimaraes/claude-code-elixir.git /tmp/cc-elixir
+# установка через Claude Code CLI
+claude plugin install /tmp/cc-elixir/plugins/elixir-lsp
+claude plugin install /tmp/cc-elixir/plugins/elixir
+# и остальные по желанию
+```
+
+Или добавить в marketplace через UI Claude Code и установить оттуда.
+
+После установки — **перезапустить Claude Code**. Откройте любой `.ex` файл, и Expert автоматически запустится через `expert-wrapper`.
+
+---
+
+## Результаты тестирования
+
+Протестировали Expert LSP v0.1.0-rc.6 на реальном проекте (trading engine, ~15k строк Elixir). Expert запустился, проиндексировал кодовую базу, вот что работает.
+
+### Hover — документация под курсором
+
+**На модуле** (`Logger` в `require Logger`):
+
+```
+Logger
+
+A logger for Elixir applications.
+
+This application is mostly a wrapper around Erlang's :logger functionality,
+to provide message translation and formatting to Elixir terms.
+
+Overall, you will find that Logger:
+  * Provides all 8 syslog levels
+  * Supports both message-based and structural logging.
+  * Integrate with Erlang's :logger and support custom filters
+```
+
+**На вызове функции** (`Logger.info` в коде):
+
+```elixir
+(macro) Logger.info(message_or_fun, metadata \\ [])
+
+Logs an info message. Returns :ok.
+
+## Examples
+    Logger.info("this is an info message")
+    Logger.info([something: :reported, this: :info])
+    Logger.info(%{this: :info, something: :reported})
+```
+
+Hover возвращает полный `@doc` с типами, сигнатурой и примерами — прямо из исходников Elixir.
+
+### Go-to-definition — переход к исходникам
+
+**На модуле Logger:**
+
+```
+→ /usr/local/src/elixir/lib/logger/lib/logger.ex  line 5
+```
+
+Expert переходит к исходникам стандартной библиотеки Elixir. ElixirLS требовал отдельной скачки исходников; Expert находит их из своего bundled runtime.
+
+### Document symbols — структура файла
+
+Запрос `textDocument/documentSymbol` для `naive.ex` возвращает полное дерево:
+
+```
+Module     TradingEngine.Strategies.Naive  (line 1)
+  @behaviour                               (line 8)
+  Function   def requirements(_config)     (line 13)
+  Function   def required_symbols(config)  (line 23)
+  Function   def init(config)              (line 28)
+  Function   defp to_decimal/2             (line 55)
+  Function   def on_tick(market_data, state) (line 62)
+  Function   def on_execution(execution, state) (line 100)
+  Function   defp should_buy?/2            (line 126)
+  Function   defp should_sell?/2           (line 137)
+  Function   defp get_symbol_precision(symbol) (line 151)
+```
+
+### Что работает и что нет
+
+| Возможность | Статус | Примечание |
+|-------------|--------|------------|
+| Hover на модуле | ✅ | Полный `@moduledoc` |
+| Hover на вызове функции | ✅ | Сигнатура + `@doc` + примеры |
+| Go-to-definition (stdlib) | ✅ | Точная строка в исходниках Elixir |
+| Document symbols | ✅ | Полное дерево модуля |
+| Автозапуск через expert-wrapper | ✅ | `client/registerCapability` обработан |
+| Hover на def-имени функции | ⚠️ | null — работает на вызовах, не на определениях |
+| Workspace symbols | ⚠️ | Пустой ответ при малом времени индексации |
+| Hover на сторонних либах (`Decimal`) | ⚠️ | Требует дольше индексации |
+
+### Что происходит при старте
+
+Expert при инициализации:
+1. Находит системный `elixir` и `erl`
+2. Поднимает собственный ERTS (bundled в бинарнике)
+3. Создаёт engine-кэш в `~/.cache/expert/0.1.0-rc.6/ex-1.19.5-erl-16.3/`
+4. Запускает отдельный project node для каждого umbrella-приложения
+5. После готовности отвечает на LSP-запросы
+
+```
+[app] Found elixir executable at /usr/local/bin/elixir
+[app] Preparing engine
+[app] Engine available at: ~/.cache/expert/0.1.0-rc.6/ex-1.19.5-erl-16.3/...
+[app] Engine initialized for project app
+[trading_engine] Started project node for trading_engine
+```
+
+Первый запуск: 15-25 секунд. Последующие (кэш есть): быстрее.
+
+---
+
+## БЫЛО vs СТАЛО
+
+| | Старый подход (ElixirLS + скрипты) | Новый подход (Expert + cc-elixir) |
+|---|---|---|
+| **Dockerfile: сборка** | `mix elixir_ls.release2 -o /usr/local/bin/elixir-ls` | `curl .../expert_linux_amd64 -o /usr/local/bin/expert` |
+| **Dockerfile: хак** | `ln -sf /opt/elixir-ls/VERSION scripts/VERSION` | — |
+| **Регистрация плагина** | 4 Python-скрипта (`marketplace.json`, `plugin.json`, и др.) | `claude plugin install` |
+| **Обход registerCapability** | Не требовалось | `expert-wrapper` (автоматически) |
+| **LSP для .heex** | ❌ | ✅ |
+| **Compile after edit** | ❌ | ✅ (mix-compile плагин) |
+| **Format after edit** | ❌ | ✅ (mix-format плагин) |
+| **Итого шагов** | 7 шагов | 3 шага |
+
+---
+
+## Проверка работоспособности
+
+Откройте любой `.ex` файл в Claude Code — Language Server запустится автоматически через expert-wrapper. Статус можно проверить через LSP-индикатор в Claude Code.
+
+Если что-то не работает:
+
+| Симптом | Причина | Решение |
+|---------|---------|---------|
+| Hover не работает, нет autocomplete | Expert не запустился | Проверить `expert --version`, убедиться в PATH |
+| `expert: command not found` при запуске wrapper | Expert не в PATH | Добавить `/usr/local/bin` в PATH или указать полный путь |
+| `python3: command not found` | Python не установлен | `apt-get install python3` |
+| LSP features есть, но медленно | Первичная индексация проекта | Норма при первом открытии, Expert индексирует `.beam` |
+| После `docker compose up` LSP не стартует | Плагин не установлен в новый контейнер | Убедиться, что плагин установлен в image или volume |
+
+---
+
+## Что изменилось с прошлой статьи
+
+Если вы настраивали Elixir LSP по нашей [предыдущей инструкции](/news/elixir-lsp-claude-code-containers), вот что больше **не нужно**:
+
+**Убрать из Dockerfile:**
+- `mix elixir_ls.release2 -o /usr/local/bin/elixir-ls` — сборка ElixirLS
+- `ln -s .../language_server.sh /opt/elixir-ls/` — симлинк для плагина
+- `ln -sf /opt/elixir-ls/VERSION /opt/elixir-ls/scripts/VERSION` — хак для `scripts/VERSION`
+
+**Убрать из entrypoint/init скриптов:**
+- Все 4 Python-скрипта для регистрации плагина
+- Проверки наличия `language_server.sh`
+
+**Добавить:**
+- Скачать `expert_linux_amd64` в `/usr/local/bin/expert`
+- Установить плагин `claude-code-elixir`
+
+---
+
+## Минимальный чеклист
+
+- [ ] В Dockerfile: `curl .../expert_linux_amd64 -o /usr/local/bin/expert && chmod +x`
+- [ ] В Dockerfile: Python 3 установлен (`python3 --version`)
+- [ ] `expert --version` выводит `0.1.0-rc.6` внутри контейнера
+- [ ] Плагин `elixir-lsp` из `claude-code-elixir` установлен в Claude Code
+- [ ] После перезапуска Claude Code: открыть `.ex` файл, убедиться что LSP запустился
+- [ ] Hover / go-to-definition работают в Elixir-файлах

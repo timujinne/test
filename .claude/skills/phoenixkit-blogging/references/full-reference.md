@@ -1,120 +1,340 @@
-# PhoenixKit Blogging - Full Reference
+# PhoenixKit Publishing - Full Reference
 
 ## System Architecture
 
 ### Overview
-PhoenixKit Blogging is a **file-based CMS** integrated into PhoenixKit v1.6.14+. Posts are stored as `.phk` files in the filesystem, not in a database.
+
+PhoenixKit Publishing is a **database-backed CMS** (replaced the old file-based Blogging module). Posts are stored in PostgreSQL tables, not the filesystem.
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `phoenix_kit_publishing_groups` | Content groups (formerly "blogs") |
+| `phoenix_kit_publishing_posts` | Post records with UUID, slug, status |
+| `phoenix_kit_publishing_versions` | Versioned snapshots of posts |
+| `phoenix_kit_publishing_contents` | Language-specific content per version |
 
 ### Key Modules
 
-| Module | Location | Purpose |
-|--------|----------|---------|
-| `PhoenixKitWeb.Live.Modules.Blogging` | `deps/phoenix_kit/lib/phoenix_kit_web/live/modules/blogging/blogging.ex` | Main context (549 lines) |
-| `Blogging.Storage` | `context/storage.ex` | File system operations (1000+ lines) |
-| `Blogging.Metadata` | `context/metadata.ex` | YAML frontmatter parsing |
-| `Blogging.PageBuilder` | `context/page_builder.ex` | PHK rendering |
-| `PhoenixKit.Blogging.Renderer` | `deps/phoenix_kit/lib/phoenix_kit/blogging/renderer.ex` | Post rendering with caching |
+| Module | Purpose |
+|--------|---------|
+| `PhoenixKit.Modules.Publishing` | Main facade (delegates to submodules) |
+| `Publishing.Groups` | Group CRUD |
+| `Publishing.Posts` | Post CRUD, reading, listing |
+| `Publishing.Versions` | Version create, publish, delete |
+| `Publishing.TranslationManager` | Language/translation management |
+| `Publishing.DBStorage` | Raw DB operations (Ecto) |
+| `Publishing.ListingCache` | Listing cache management |
+| `Publishing.StaleFixer` | Stale value detection and repair |
 
-### LiveView Components
+### LiveView Admin Components
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| Index | `index.ex` | Blog dashboard |
-| Blog | `blog.ex` | Posts list |
-| Editor | `editor.ex` | Post editor |
-| New | `new.ex` | Create blog |
-| Edit | `edit.ex` | Edit blog settings |
-| Settings | `settings.ex` | Blogging settings |
-| Preview | `preview.ex` | Post preview |
-
----
-
-## File Storage
-
-### Directory Structure
-
-```
-priv/blogging/
-├── blog-slug-1/           # Blog directory
-│   ├── 2025-01-15/        # Date folder (timestamp mode)
-│   │   └── 14:30/         # Time folder
-│   │       ├── en.phk     # English version
-│   │       ├── es.phk     # Spanish version
-│   │       └── fr.phk     # French version
-│   └── another-post/      # Slug folder (slug mode)
-│       └── en.phk
-├── blog-slug-2/
-│   └── ...
-└── .trash/                # Deleted blogs
-```
-
-### Storage Modes
-
-**Timestamp Mode** (default):
-- Posts organized by `YYYY-MM-DD/HH:MM/`
-- Good for news, updates, chronological content
-- Post order determined by timestamp
-
-**Slug Mode**:
-- Posts organized by slug folder name
-- Good for tutorials, docs, evergreen content
-- Custom ordering via metadata
+| Path | Module | Purpose |
+|------|--------|---------|
+| `/admin/publishing` | `Publishing.Web.Index` | Dashboard |
+| `/admin/publishing/:group` | `Publishing.Web.Listing` | Posts list |
+| `/admin/publishing/:group/new` | `Publishing.Web.Editor` | Create post |
+| `/admin/publishing/:group/:post_uuid/edit` | `Publishing.Web.Editor` | Edit post |
+| `/admin/publishing/:group/:post_uuid/preview` | `Publishing.Web.Preview` | Preview |
+| `/admin/publishing/new-group` | `Publishing.Web.New` | Create group |
+| `/admin/publishing/edit-group/:group` | `Publishing.Web.Edit` | Edit group |
+| `/admin/settings/publishing` | `Publishing.Web.Settings` | Settings |
 
 ---
 
-## Data Schemas
+## Data Model
 
-### Post Type
+### Group Structure
+
 ```elixir
-@type post :: %{
-  blog: String.t(),              # Blog slug
-  slug: String.t(),              # Post slug (slug mode)
-  date: Date.t(),                # Post date (timestamp mode)
-  time: Time.t(),                # Post time (timestamp mode)
-  path: String.t(),              # Relative path
-  full_path: String.t(),         # Absolute file path
-  metadata: metadata(),          # YAML frontmatter
-  content: String.t(),           # Post content
-  language: String.t(),          # Current language (en, es, etc.)
-  available_languages: [String.t()], # All translations
-  mode: :slug | :timestamp       # Storage mode
+%{
+  "name" => "News",          # Display name
+  "slug" => "news",          # URL identifier (unique)
+  "mode" => "timestamp",     # "timestamp" | "slug"
+  "type" => "blog",          # "blog" | "faq" | "legal" | custom
+  "status" => "active",      # "active" | "trashed"
+  "item_singular" => "post", # e.g., "post", "question", "document"
+  "item_plural" => "posts"
 }
 ```
 
-### Metadata Type
+### Post Structure
+
 ```elixir
-@type metadata :: %{
-  status: String.t(),            # "draft" | "published" | "archived"
-  title: String.t(),             # Extracted from # heading
-  description: String.t(),       # SEO description
-  slug: String.t(),              # URL slug
-  published_at: String.t(),      # ISO8601 datetime
-  featured_image_id: String.t(), # Image UUID
-  created_at: String.t(),        # Creation timestamp
-  created_by_id: String.t(),     # Creator user ID
-  created_by_email: String.t(),  # Creator email
-  updated_by_id: String.t(),     # Last editor ID
-  updated_by_email: String.t()   # Last editor email
+%{
+  uuid: <<binary>>,          # Binary UUID (use as-is in API calls)
+  slug: "my-post-slug",      # Post slug (unique per group)
+  group_slug: "news",        # Parent group slug
+  status: "published",       # "draft" | "published" | "archived"
+  mode: "slug",              # Inherited from group
+  primary_language: "en",    # Primary language code
+  title: "Post Title",       # Current language title
+  content: "# ...",          # Current language content
+  language: "en",            # Currently loaded language
+  available_languages: ["en", "ru"], # All translated languages
+  metadata: %{
+    published_at: "2026-03-26T12:00:00Z",
+    featured_image_uuid: "...",
+    url_slug: "custom-url",
+    description: "SEO description"
+  }
 }
 ```
 
-### YAML Frontmatter Format
-```yaml
----
-slug: post-url-slug
-status: published
-published_at: 2025-01-15T12:00:00Z
-featured_image_id: 018e3c4a-9f6b-7890-abcd-ef1234567890
-description: Brief post description for SEO
-created_by_id: user-uuid
-created_by_email: author@example.com
-updated_by_id: editor-uuid
-updated_by_email: editor@example.com
 ---
 
-# Post Title
+## Group API
 
-Content starts here...
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# List all active groups
+Publishing.list_groups()
+
+# List by status
+Publishing.list_groups("active")
+Publishing.list_groups("trashed")
+
+# Get group by slug
+Publishing.get_group("news")          # {:ok, %{...}} | {:error, :not_found}
+
+# Create group
+Publishing.add_group("News")
+Publishing.add_group("News", mode: "timestamp", type: "blog")
+Publishing.add_group("FAQ", mode: "slug", type: "faq", slug: "faq")
+
+# Update group
+Publishing.update_group("news", %{name: "Company News"})
+Publishing.update_group("news", %{name: "News", slug: "news"})
+
+# Soft-delete
+Publishing.trash_group("news")
+
+# Restore
+Publishing.restore_group("news")
+
+# List trashed
+Publishing.list_trashed_groups()
+
+# Force delete with all posts
+Publishing.remove_group("news", force: true)
+
+# Get mode for group
+Publishing.get_group_mode("news")     # "timestamp" | "slug"
+
+# Get group name
+Publishing.group_name("news")         # "News" | nil
+```
+
+---
+
+## Post API
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# Create post
+Publishing.create_post("news")
+Publishing.create_post("news", %{slug: "my-slug", primary_language: "en"})
+
+# List posts
+Publishing.list_posts("news")
+Publishing.list_posts("news", "en")
+
+# List by status
+Publishing.list_posts_by_status("news", "published")
+Publishing.list_posts_by_status("news", "draft")
+
+# Read post
+Publishing.read_post("news", "my-slug")
+Publishing.read_post("news", "my-slug", "en")
+Publishing.read_post("news", "my-slug", "en", 1)  # specific version
+
+# Read by UUID (binary)
+Publishing.read_post_by_uuid(post_uuid_bin)
+Publishing.read_post_by_uuid(post_uuid_bin, "en")
+
+# Update post
+Publishing.update_post("news", post, %{
+  content: "Updated content...",
+  title: "New Title",
+  language: "en",
+  url_slug: "custom-url",      # optional custom URL slug
+  status: "published"
+})
+
+# Change status
+Publishing.change_post_status("news", post_uuid, "published")
+Publishing.change_post_status("news", post_uuid, "draft")
+Publishing.change_post_status("news", post_uuid, "archived")
+
+# Trash / restore
+Publishing.trash_post("news", post_uuid)
+Publishing.restore_post("news", post_uuid)
+
+# Find by URL slug (routing)
+Publishing.find_by_url_slug("news", "en", "custom-url")
+
+# Find by previous URL slug (301 redirects)
+Publishing.find_by_previous_url_slug("news", "en", "old-url")
+
+# Validate slug
+Publishing.valid_slug?("my-post")     # true | false
+Publishing.validate_slug("my-post")   # :ok | {:error, reason}
+
+# Check slug exists
+Publishing.slug_exists?("news", "my-post")  # true | false
+
+# Generate unique slug
+Publishing.generate_unique_slug("news", "Post Title")
+Publishing.generate_unique_slug("news", "Post Title", "preferred-slug")
+```
+
+---
+
+## Version API
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# Publish current version (makes post publicly visible)
+Publishing.publish_version("news", post_uuid, 1)
+
+# List version numbers
+Publishing.list_versions("news", "my-slug")    # [1, 2, 3]
+
+# Get published version number
+Publishing.get_published_version("news", "my-slug")  # {:ok, 1} | {:error, ...}
+
+# Get version status
+Publishing.get_version_status("news", "my-slug", 1, "en")  # "published" | "draft"
+
+# Get version metadata
+Publishing.get_version_metadata("news", "my-slug", 1, "en")
+
+# Create new version from existing
+Publishing.create_new_version("news", post, %{}, %{})
+
+# Delete version
+Publishing.delete_version("news", post_uuid, version_number)
+```
+
+---
+
+## Translation API
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# Add language version to post
+Publishing.add_language_to_post("news", post_uuid, "ru")
+Publishing.add_language_to_post("news", post_uuid, "es")
+
+# Delete language version
+Publishing.delete_language("news", post_uuid, "ru")
+
+# Set translation status
+Publishing.set_translation_status("news", post_slug, 1, "ru", "published")
+
+# Update primary language
+Publishing.update_post_primary_language("news", post_uuid, "en")
+
+# Get primary language
+Publishing.get_post_primary_language("news", "my-slug")
+
+# Get enabled language codes
+Publishing.enabled_language_codes()    # ["en", "ru"]
+
+# Check language enabled
+Publishing.language_enabled?("en", enabled_languages)
+```
+
+---
+
+## Cache API
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# Invalidate (clear) listing cache for group
+Publishing.invalidate_cache("news")
+
+# Regenerate cache explicitly
+Publishing.regenerate_cache("news")
+
+# Check if cache exists
+Publishing.cache_exists?("news")
+
+# Find post in cache
+Publishing.find_cached_post("news", "my-slug")
+
+# Find timestamp-mode post in cache
+Publishing.find_cached_post_by_path("news", "2025-01-15", "14:30")
+```
+
+---
+
+## Module Enable/Disable
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+# Check if enabled
+Publishing.enabled?()    # true | false
+
+# Enable
+Publishing.enable_system()
+
+# Disable (hides all public routes)
+Publishing.disable_system()
+
+# Or via settings directly
+PhoenixKit.Settings.update_setting("publishing_enabled", "true")
+PhoenixKit.Settings.get_setting("publishing_enabled")
+```
+
+---
+
+## Programmatic Post Creation Workflow
+
+Full example for creating and publishing a post programmatically (e.g., from IEx or a script):
+
+```elixir
+alias PhoenixKit.Modules.Publishing
+
+group_slug = "news"
+slug = "my-article"
+content = """
+# My Article Title
+
+Article content in **Markdown**.
+
+## Section
+
+More content here.
+"""
+
+# 1. Create post record
+{:ok, post} = Publishing.create_post(group_slug, %{
+  slug: slug,
+  primary_language: "en"
+})
+
+# 2. Update with actual content
+Publishing.update_post(group_slug, post, %{
+  content: content,
+  title: "My Article Title",
+  language: "en",
+  url_slug: slug,
+  status: "published"
+})
+
+# 3. Publish version (makes it publicly visible)
+Publishing.publish_version(group_slug, post.uuid, 1)
+
+# 4. Invalidate cache
+Publishing.invalidate_cache(group_slug)
 ```
 
 ---
@@ -122,51 +342,55 @@ Content starts here...
 ## Image Storage System
 
 ### Architecture
-Images are managed by PhoenixKit Storage module, separate from blogging.
+
+Images are managed by PhoenixKit Storage module, separate from publishing.
 
 ### Storage Location
+
 ```
 priv/media/
-├── 6e/
-│   └── 6e9d8ed23e82e6c9faeab77b80e2ede4/
-│       ├── 6e9d8ed23e82e6c9faeab77b80e2ede4_original.png
-│       ├── 6e9d8ed23e82e6c9faeab77b80e2ede4_thumbnail.jpg
-│       ├── 6e9d8ed23e82e6c9faeab77b80e2ede4_small.jpg
-│       ├── 6e9d8ed23e82e6c9faeab77b80e2ede4_medium.jpg
-│       └── 6e9d8ed23e82e6c9faeab77b80e2ede4_large.jpg
+└── 6e/
+    └── 6e9d8ed23e82e6c9faeab77b80e2ede4/
+        ├── ..._original.png
+        ├── ..._thumbnail.jpg
+        ├── ..._small.jpg
+        ├── ..._medium.jpg
+        └── ..._large.jpg
 ```
 
 ### Image Variants
 
-| Variant | Size | Quality | Format |
-|---------|------|---------|--------|
-| original | Full | - | Original |
-| thumbnail | 150x150 | 85% | JPEG |
-| small | 300x300 | 85% | JPEG |
-| medium | 800x600 | 85% | JPEG |
-| large | 1920x1080 | 85% | JPEG |
+| Variant | Size | Format |
+|---------|------|--------|
+| original | Full | Original |
+| thumbnail | 150x150 | JPEG |
+| small | 300x300 | JPEG |
+| medium | 800x600 | JPEG |
+| large | 1920x1080 | JPEG |
 
 ### Video Variants
 
-| Variant | Size | CRF | Format |
-|---------|------|-----|--------|
-| 360p | 640x360 | 28 | MP4 |
-| 720p | 1280x720 | 28 | MP4 |
-| 1080p | 1920x1080 | 28 | MP4 |
-| video_thumbnail | 640x360 | 85% | JPEG |
+| Variant | Size | Format |
+|---------|------|--------|
+| 360p | 640x360 | MP4 |
+| 720p | 1280x720 | MP4 |
+| 1080p | 1920x1080 | MP4 |
+| video_thumbnail | 640x360 | JPEG |
 
 ### Database Tables
-- `phoenix_kit_files` - Original file records
-- `phoenix_kit_file_instances` - Generated variants
-- `phoenix_kit_file_locations` - Physical storage tracking
-- `phoenix_kit_buckets` - Storage configuration
-- `phoenix_kit_storage_dimensions` - Variant presets
+
+- `phoenix_kit_files` — Original file records
+- `phoenix_kit_file_instances` — Generated variants
+- `phoenix_kit_file_locations` — Physical storage tracking
+- `phoenix_kit_buckets` — Storage configuration
+- `phoenix_kit_storage_dimensions` — Variant presets
 
 ---
 
 ## API Endpoints
 
 ### Upload File
+
 ```http
 POST /api/upload
 Content-Type: multipart/form-data
@@ -176,165 +400,38 @@ file=@image.jpg
 Response:
 {
   "file_id": "018e3c4a-9f6b-7890-abcd-ef1234567890",
-  "status": "processing",
-  "message": "File uploaded successfully"
+  "status": "processing"
 }
 ```
 
 ### Get File
+
 ```http
 GET /file/:file_id/:variant/:token
-
-Parameters:
-- file_id: UUID of the file
-- variant: original, thumbnail, small, medium, large
-- token: Signed URL token
-
-Response: File binary with caching headers
 ```
 
 ### Get File Info
+
 ```http
 GET /api/files/:file_id/info
 
 Response:
 {
   "file_id": "uuid",
-  "original_filename": "photo.jpg",
   "mime_type": "image/jpeg",
   "file_type": "image",
-  "size": 1234567,
-  "width": 1920,
-  "height": 1080,
-  "status": "active",
   "variants": [
-    {
-      "variant_name": "original",
-      "url": "/file/uuid/original/token",
-      "size": 1234567
-    },
-    {
-      "variant_name": "medium",
-      "url": "/file/uuid/medium/token",
-      "size": 234567
-    }
+    {"variant_name": "medium", "url": "/file/uuid/medium/token"}
   ]
 }
 ```
 
 ---
 
-## Blogging Context Functions
-
-### Blog Management
-```elixir
-# List all blogs
-Blogging.list_blogs()
-# => [%{name: "News", slug: "news", mode: :timestamp}, ...]
-
-# Create new blog
-Blogging.add_blog("News", "news", :timestamp)
-# => {:ok, %{name: "News", slug: "news"}}
-
-# Update blog
-Blogging.update_blog("news", %{name: "Company News"})
-
-# Delete blog (move to trash)
-Blogging.trash_blog("news")
-
-# Get blog mode
-Blogging.get_blog_mode("news")
-# => :timestamp | :slug
-```
-
-### Post Management
-```elixir
-# List posts
-Blogging.list_posts("news", "en")
-# => [%{slug: "...", metadata: %{...}, ...}, ...]
-
-# Read post
-Blogging.read_post("news", "2025-01-15/14:30", "en")
-# => {:ok, %{content: "...", metadata: %{...}}}
-
-# Create post
-Blogging.create_post("news", %{
-  content: "# Title\n\nContent...",
-  language: "en",
-  metadata: %{status: "draft"}
-})
-
-# Update post
-Blogging.update_post("news", "2025-01-15/14:30", "en", %{
-  content: "Updated content...",
-  metadata: %{status: "published"}
-})
-
-# Add language to post
-Blogging.add_language_to_post("news", "2025-01-15/14:30", "es")
-```
-
-### Utility Functions
-```elixir
-# Validate slug format
-Blogging.valid_slug?("my-post")
-# => true
-
-# Generate slug from text
-Blogging.slugify("My Post Title!")
-# => "my-post-title"
-
-# Check if module enabled
-Blogging.enabled?()
-# => true
-```
-
----
-
-## Rendering System
-
-### Content Processing Pipeline
-```
-1. Read .phk file
-2. Parse YAML frontmatter → metadata
-3. Extract content
-4. Detect format (PHK XML or Markdown)
-5. Parse to AST
-6. Resolve components
-7. Inject variables ({{var}})
-8. Apply theme/variants
-9. Render to HTML
-10. Cache result (if published)
-```
-
-### Renderer Functions
-```elixir
-# Render post with caching
-PhoenixKit.Blogging.Renderer.render_post(post)
-# => {:ok, html_string}
-
-# Render markdown/PHK content directly
-PhoenixKit.Blogging.Renderer.render_markdown(content)
-# => html_string
-
-# Invalidate post cache
-PhoenixKit.Blogging.Renderer.invalidate_cache(blog, path, language)
-
-# Clear all cache
-PhoenixKit.Blogging.Renderer.clear_all_cache()
-```
-
-### Caching Behavior
-- Only **published** posts are cached
-- Cache key includes MD5 hash of content
-- Content changes automatically invalidate cache
-- Drafts and archived posts never cached
-
----
-
 ## PHK Component Reference
 
 ### Page Wrapper
+
 ```xml
 <Page>
   <!-- All content must be inside Page -->
@@ -342,6 +439,7 @@ PhoenixKit.Blogging.Renderer.clear_all_cache()
 ```
 
 ### Hero Section
+
 ```xml
 <Hero variant="split-image">
   <Headline>Main Title</Headline>
@@ -353,31 +451,21 @@ PhoenixKit.Blogging.Renderer.clear_all_cache()
 <!-- Variants: split-image, centered, minimal -->
 ```
 
-### Headlines
-```xml
-<Headline>Main Heading (H1)</Headline>
-<Subheadline>Secondary Heading</Subheadline>
-```
-
-### Call-to-Action
-```xml
-<CTA action="/path" primary="true">Button Text</CTA>
-<CTA action="https://external.com" primary="false">Secondary</CTA>
-```
-
 ### Image
+
 ```xml
 <Image
-  src="/file/FILE_ID/medium/TOKEN"
+  src="/file/FILE_UUID/medium/TOKEN"
   alt="Description"
   class="rounded-lg shadow"
 />
 ```
 
 ### Video
+
 ```xml
 <!-- MP4 file -->
-<Video src="/file/VIDEO_ID/720p/TOKEN" poster="/file/THUMB_ID/medium/TOKEN" />
+<Video src="/file/VIDEO_UUID/720p/TOKEN" poster="/file/THUMB_UUID/medium/TOKEN" />
 
 <!-- YouTube -->
 <Video youtube="dQw4w9WgXcQ" />
@@ -386,153 +474,118 @@ PhoenixKit.Blogging.Renderer.clear_all_cache()
 <Video src="https://stream.example.com/video.m3u8" />
 ```
 
----
+### CTA
 
-## Multilanguage Support
-
-### Language Files
-Each language version is a separate file:
+```xml
+<CTA action="/path" primary="true">Button Text</CTA>
+<CTA action="https://external.com" primary="false">Secondary</CTA>
 ```
-priv/blogging/news/post-slug/
-├── en.phk    # English
-├── es.phk    # Spanish
-├── fr.phk    # French
-├── de.phk    # German
-└── zh.phk    # Chinese
-```
-
-### Adding Languages
-1. In editor, click **"Add Language"**
-2. Select target language
-3. Content is copied from current language
-4. Translate and save
-
-### Language Detection
-- URL parameter: `?lang=es`
-- Accept-Language header
-- User preference (if logged in)
-- Default: first enabled language
-
-### Enabled Languages
-Configured in PhoenixKit settings. Common codes:
-- `en` - English
-- `es` - Spanish
-- `fr` - French
-- `de` - German
-- `pt` - Portuguese
-- `zh` - Chinese
-- `ja` - Japanese
-- `ko` - Korean
 
 ---
 
 ## Configuration
 
 ### PhoenixKit Config
+
 ```elixir
 # config/config.exs
 config :phoenix_kit,
-  parent_app_name: :dashboard_web,
-  parent_module: DashboardWeb,
   repo: SharedData.Repo,
-  layouts_module: DashboardWeb.Layouts
+  url_prefix: "",
+  from_email: "noreply@example.com",
+  from_name: "My App"
 ```
 
-### Router Integration
-```elixir
-# router.ex
-import PhoenixKitWeb.Integration, only: [phoenix_kit_routes: 0]
+### Dev Config (important)
 
-scope "/admin" do
-  phoenix_kit_routes()
-end
+```elixir
+# config/dev.exs
+# Disable fingerprinting — ephemeral ports cause false positives
+config :phoenix_kit,
+  session_fingerprint_enabled: false
 ```
 
-### Oban Queue (for file processing)
+### Oban Queues (for file processing)
+
 ```elixir
-# config/config.exs
 config :dashboard_web, Oban,
-  repo: SharedData.Repo,
   queues: [
-    file_processing: 20
+    file_processing: 20,
+    posts: 10
   ]
+```
+
+---
+
+## Rendering
+
+### Content Processing
+
+```
+1. Fetch post record from DB (phoenix_kit_publishing_*)
+2. Get content for language from phoenix_kit_publishing_contents
+3. Detect format: PHK XML or Markdown
+4. Parse to AST → resolve components
+5. Render to HTML
+6. Cache result (if published)
+```
+
+### Renderer Functions
+
+```elixir
+alias PhoenixKit.Modules.Publishing.Renderer
+
+# Render markdown/PHK content
+Renderer.render_markdown(content)    # => html_string
 ```
 
 ---
 
 ## Troubleshooting
 
-### Posts not showing
-1. Check status is `published`
-2. Verify `published_at` is set
-3. Check file permissions on `priv/blogging/`
+### Module disabled (302 redirect loop)
 
-### Images not loading
-1. Verify file was processed (status: "active" in DB)
-2. Check token validity
-3. Ensure `priv/media/` directory exists
-
-### Cache issues
 ```elixir
-# Clear all blogging cache
-PhoenixKit.Blogging.Renderer.clear_all_cache()
+# Check status
+PhoenixKit.Modules.Publishing.enabled?()
 
-# Invalidate specific post
-PhoenixKit.Blogging.Renderer.invalidate_cache("blog-slug", "post-path", "en")
+# Enable
+PhoenixKit.Modules.Publishing.enable_system()
+```
+
+### Post not visible after publishing
+
+```elixir
+# Verify post status
+post = PhoenixKit.Modules.Publishing.read_post("news", "my-slug", "en")
+# post.status should be "published"
+
+# Invalidate cache
+PhoenixKit.Modules.Publishing.invalidate_cache("news")
+```
+
+### Session fingerprint mismatch (dev only)
+
+Add to `config/dev.exs`:
+
+```elixir
+config :phoenix_kit, session_fingerprint_enabled: false
 ```
 
 ### PHK not rendering
+
 1. Ensure content starts with `<Page>` or `<Hero>`
 2. Check XML syntax (properly closed tags)
 3. Verify component names are capitalized
-
-### Debugging
-```elixir
-# In IEx console
-Blogging.list_blogs()
-Blogging.list_posts("blog-slug", "en")
-Blogging.read_post("blog-slug", "path", "en")
-```
-
----
-
-## File Upload Flow
-
-```
-User selects file
-       ↓
-POST /api/upload (multipart)
-       ↓
-UploadController.create/2
-  - Validate MIME type
-  - Validate size (<100MB)
-  - Calculate checksum
-  - Check deduplication
-       ↓
-Storage.store_file_in_buckets/5
-  - Save to priv/media/
-  - Create DB record
-       ↓
-Oban ProcessFileJob
-  - Extract metadata
-  - Generate variants
-  - Update status
-       ↓
-File ready (status: "active")
-       ↓
-GET /file/:id/:variant/:token
-```
 
 ---
 
 ## Best Practices
 
-1. **Always set featured_image_id** for post thumbnails in listings
-2. **Use medium variant** for in-content images (800x600)
-3. **Use large variant** for hero images (1920x1080)
-4. **Use thumbnail** for galleries and previews
-5. **Set description** in metadata for SEO
-6. **Use meaningful slugs** for better URLs
-7. **Preview before publishing** to check rendering
-8. **Use slug mode** for evergreen content (tutorials, docs)
-9. **Use timestamp mode** for time-sensitive content (news, updates)
+1. **Enable module first** — set `publishing_enabled` to `true` in settings
+2. **Always invalidate cache** after publishing or updating posts
+3. **Use UUID as-is** — `post.uuid` is a binary, pass it directly to API functions
+4. **Set `url_slug`** in update_post for custom SEO-friendly URLs
+5. **Use timestamp mode** for news/updates, slug mode for evergreen content
+6. **Set primary language** at create time (cannot be changed without migration)
+7. **Preview before publishing** — use `/admin/publishing/:group/:post_uuid/preview`
