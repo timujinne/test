@@ -1,12 +1,25 @@
 defmodule DataCollector.BinanceClient do
   @moduledoc """
   HTTP client for Binance REST API with rate limiting and signature generation.
+
+  Rate limiting is applied via `with_rate_limit/2`, which acquires a weighted
+  slot before issuing the request. If the limiter asks the caller to wait, the
+  retry is **bounded** (`@rate_limit_max_retries` attempts, each capped at
+  `@rate_limit_max_wait_ms`) so a saturated limit can never freeze the calling
+  process (e.g. a Trader GenServer) for the full window or recurse forever; it
+  gives up with `{:error, :rate_limited}` and lets the caller decide.
   """
   require Logger
 
   alias SharedData.Types
 
   @base_url Application.compile_env(:binance, :end_point, "https://api.binance.com")
+
+  # Bounded rate-limit retry: worst-case blocking is
+  # @rate_limit_max_retries * @rate_limit_max_wait_ms (6s), well under
+  # SharedData.Config.timeout(:api) (30s), so the GenServer.call never times out.
+  @rate_limit_max_retries 3
+  @rate_limit_max_wait_ms 2_000
 
   @doc """
   Get account information including balances.
@@ -24,8 +37,7 @@ defmodule DataCollector.BinanceClient do
     ]
 
     result =
-      with :ok <- DataCollector.RateLimiter.check_limit(10) do
-        # Wrap HTTP call in circuit breaker
+      with_rate_limit(10, fn ->
         DataCollector.CircuitBreaker.call(:binance_api, fn ->
           case HTTPoison.get(
                  "#{@base_url}/api/v3/account",
@@ -42,12 +54,7 @@ defmodule DataCollector.BinanceClient do
               {:error, reason}
           end
         end)
-      else
-        {:wait, ms} ->
-          Logger.warning("Rate limit reached, waiting #{ms}ms")
-          Process.sleep(ms)
-          get_account(api_key, secret_key)
-      end
+      end)
 
     log_response(result, "/api/v3/account")
   end
@@ -90,8 +97,7 @@ defmodule DataCollector.BinanceClient do
     ]
 
     result =
-      with :ok <- DataCollector.RateLimiter.check_limit(1) do
-        # Wrap HTTP call in circuit breaker
+      with_rate_limit(1, fn ->
         DataCollector.CircuitBreaker.call(:binance_api, fn ->
           case HTTPoison.post(
                  "#{@base_url}/api/v3/order",
@@ -108,12 +114,7 @@ defmodule DataCollector.BinanceClient do
               {:error, reason}
           end
         end)
-      else
-        {:wait, ms} ->
-          Logger.warning("Rate limit reached, waiting #{ms}ms")
-          Process.sleep(ms)
-          create_order(api_key, secret_key, params)
-      end
+      end)
 
     log_response(result, "/api/v3/order")
   end
@@ -140,8 +141,7 @@ defmodule DataCollector.BinanceClient do
     ]
 
     result =
-      with :ok <- DataCollector.RateLimiter.check_limit(1) do
-        # Wrap HTTP call in circuit breaker
+      with_rate_limit(1, fn ->
         DataCollector.CircuitBreaker.call(:binance_api, fn ->
           case HTTPoison.delete(
                  "#{@base_url}/api/v3/order",
@@ -158,12 +158,7 @@ defmodule DataCollector.BinanceClient do
               {:error, reason}
           end
         end)
-      else
-        {:wait, ms} ->
-          Logger.warning("Rate limit reached, waiting #{ms}ms")
-          Process.sleep(ms)
-          cancel_order(api_key, secret_key, symbol, order_id)
-      end
+      end)
 
     log_response(result, "/api/v3/order")
   end
@@ -186,7 +181,7 @@ defmodule DataCollector.BinanceClient do
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
+    with_rate_limit(1, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.delete(
                "#{@base_url}/api/v3/openOrders",
@@ -203,12 +198,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        cancel_all_orders(api_key, secret_key, symbol)
-    end
+    end)
   end
 
   @doc """
@@ -217,7 +207,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_exchange_info() :: Types.result(map())
   def get_exchange_info do
-    with :ok <- DataCollector.RateLimiter.check_limit(10) do
+    with_rate_limit(10, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get("#{@base_url}/api/v3/exchangeInfo") do
           {:ok, %{status_code: 200, body: body}} ->
@@ -230,11 +220,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Process.sleep(ms)
-        get_exchange_info()
-    end
+    end)
   end
 
   @doc """
@@ -243,7 +229,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_exchange_info(Types.symbol()) :: Types.result(map())
   def get_exchange_info(symbol) do
-    with :ok <- DataCollector.RateLimiter.check_limit(10) do
+    with_rate_limit(10, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get("#{@base_url}/api/v3/exchangeInfo", [], params: %{symbol: symbol}) do
           {:ok, %{status_code: 200, body: body}} ->
@@ -256,11 +242,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Process.sleep(ms)
-        get_exchange_info(symbol)
-    end
+    end)
   end
 
   @doc """
@@ -268,7 +250,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_all_ticker_prices() :: Types.result([map()])
   def get_all_ticker_prices do
-    with :ok <- DataCollector.RateLimiter.check_limit(2) do
+    with_rate_limit(2, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get("#{@base_url}/api/v3/ticker/price") do
           {:ok, %{status_code: 200, body: body}} ->
@@ -281,11 +263,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Process.sleep(ms)
-        get_all_ticker_prices()
-    end
+    end)
   end
 
   @doc """
@@ -293,8 +271,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_ticker_price(Types.symbol()) :: Types.result(map())
   def get_ticker_price(symbol) do
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
-      # Wrap HTTP call in circuit breaker
+    with_rate_limit(1, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get("#{@base_url}/api/v3/ticker/price", [], params: %{symbol: symbol}) do
           {:ok, %{status_code: 200, body: body}} ->
@@ -307,11 +284,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Process.sleep(ms)
-        get_ticker_price(symbol)
-    end
+    end)
   end
 
   @doc """
@@ -330,8 +303,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_depth(Types.symbol(), pos_integer()) :: Types.result(map())
   def get_depth(symbol, limit \\ 100) do
-    with :ok <- DataCollector.RateLimiter.check_limit(5) do
-      # Wrap HTTP call in circuit breaker
+    with_rate_limit(5, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get(
                "#{@base_url}/api/v3/depth",
@@ -348,12 +320,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_depth(symbol, limit)
-    end
+    end)
   end
 
   @doc """
@@ -380,8 +347,7 @@ defmodule DataCollector.BinanceClient do
       |> maybe_put(:startTime, opts[:startTime])
       |> maybe_put(:endTime, opts[:endTime])
 
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
-      # Wrap HTTP call in circuit breaker
+    with_rate_limit(1, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get(
                "#{@base_url}/api/v3/klines",
@@ -398,12 +364,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_klines(symbol, interval, opts)
-    end
+    end)
   end
 
   @doc """
@@ -424,8 +385,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_24h_ticker(Types.symbol()) :: Types.result(map())
   def get_24h_ticker(symbol) do
-    with :ok <- DataCollector.RateLimiter.check_limit(1) do
-      # Wrap HTTP call in circuit breaker
+    with_rate_limit(1, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get(
                "#{@base_url}/api/v3/ticker/24hr",
@@ -442,12 +402,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_24h_ticker(symbol)
-    end
+    end)
   end
 
   @doc """
@@ -490,7 +445,7 @@ defmodule DataCollector.BinanceClient do
     ]
 
     result =
-      with :ok <- DataCollector.RateLimiter.check_limit(3) do
+      with_rate_limit(3, fn ->
         DataCollector.CircuitBreaker.call(:binance_api, fn ->
           case HTTPoison.get(
                  "#{@base_url}/api/v3/openOrders",
@@ -507,12 +462,7 @@ defmodule DataCollector.BinanceClient do
               {:error, reason}
           end
         end)
-      else
-        {:wait, ms} ->
-          Logger.warning("Rate limit reached, waiting #{ms}ms")
-          Process.sleep(ms)
-          get_open_orders(api_key, secret_key, symbol)
-      end
+      end)
 
     log_response(result, "/api/v3/openOrders")
   end
@@ -563,7 +513,7 @@ defmodule DataCollector.BinanceClient do
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(10) do
+    with_rate_limit(10, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get(
                "#{@base_url}/api/v3/allOrders",
@@ -580,12 +530,7 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_all_orders(api_key, secret_key, symbol, opts)
-    end
+    end)
   end
 
   @doc """
@@ -638,7 +583,7 @@ defmodule DataCollector.BinanceClient do
       {"X-MBX-APIKEY", api_key}
     ]
 
-    with :ok <- DataCollector.RateLimiter.check_limit(10) do
+    with_rate_limit(10, fn ->
       DataCollector.CircuitBreaker.call(:binance_api, fn ->
         case HTTPoison.get(
                "#{@base_url}/api/v3/myTrades",
@@ -655,15 +600,43 @@ defmodule DataCollector.BinanceClient do
             {:error, reason}
         end
       end)
-    else
-      {:wait, ms} ->
-        Logger.warning("Rate limit reached, waiting #{ms}ms")
-        Process.sleep(ms)
-        get_my_trades(api_key, secret_key, symbol, opts)
-    end
+    end)
   end
 
   # Private functions
+
+  # Acquire a weighted rate-limit slot, then run `fun`. On {:wait, ms} the retry
+  # is bounded: at most @rate_limit_max_retries attempts, each sleeping at most
+  # @rate_limit_max_wait_ms, so the calling process is never frozen for the full
+  # rate-limit window nor recurses forever. Gives up with {:error, :rate_limited}.
+  @spec with_rate_limit(pos_integer(), (-> Types.result(any())), pos_integer()) ::
+          Types.result(any())
+  defp with_rate_limit(weight, fun, attempt \\ 1)
+
+  defp with_rate_limit(weight, fun, attempt) do
+    case DataCollector.RateLimiter.check_limit(weight) do
+      :ok ->
+        fun.()
+
+      {:wait, ms} when attempt <= @rate_limit_max_retries ->
+        wait = min(ms, @rate_limit_max_wait_ms)
+
+        Logger.warning(
+          "Rate limit reached (attempt #{attempt}/#{@rate_limit_max_retries}), waiting #{wait}ms"
+        )
+
+        Process.sleep(wait)
+        with_rate_limit(weight, fun, attempt + 1)
+
+      {:wait, ms} ->
+        Logger.error(
+          "Rate limit still exceeded after #{@rate_limit_max_retries} retries " <>
+            "(limiter wanted #{ms}ms); giving up"
+        )
+
+        {:error, :rate_limited}
+    end
+  end
 
   @spec timestamp() :: Types.timestamp()
   defp timestamp do
