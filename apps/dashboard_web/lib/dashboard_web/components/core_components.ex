@@ -20,7 +20,7 @@ defmodule DashboardWeb.CoreComponents do
       <div class="fixed inset-0 bg-zinc-50/90 transition-opacity" />
       <div class="fixed inset-0 overflow-y-auto">
         <div class="flex min-h-full items-center justify-center">
-          <%= render_slot(@inner_block) %>
+          {render_slot(@inner_block)}
         </div>
       </div>
     </div>
@@ -52,7 +52,7 @@ defmodule DashboardWeb.CoreComponents do
         role="alert"
       >
         <span class={["hero-information-circle", "stroke-current shrink-0 w-6 h-6"]} />
-        <span><%= msg %></span>
+        <span>{msg}</span>
         <button
           phx-click={JS.push("lv:clear-flash", value: %{key: :info}) |> hide("#flash-info")}
           class="btn btn-sm btn-ghost"
@@ -71,7 +71,7 @@ defmodule DashboardWeb.CoreComponents do
         role="alert"
       >
         <span class={["hero-x-circle", "stroke-current shrink-0 h-6 w-6"]} />
-        <span><%= msg %></span>
+        <span>{msg}</span>
         <button
           phx-click={JS.push("lv:clear-flash", value: %{key: :error}) |> hide("#flash-error")}
           class="btn btn-sm btn-ghost"

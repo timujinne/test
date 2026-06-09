@@ -591,9 +591,9 @@ defmodule DashboardWeb.StrategiesLive do
             <div class="card bg-base-200 mb-6">
               <div class="card-body">
                 <h3 class="card-title">
-                  <%= if @editing_strategy, do: "Edit", else: "Configure" %> Strategy: <%= String.capitalize(
+                  {if @editing_strategy, do: "Edit", else: "Configure"} Strategy: {String.capitalize(
                     @selected_strategy_type || ""
-                  ) %>
+                  )}
                 </h3>
                 <.form for={@strategy_form} phx-change="validate_strategy" phx-submit="save_strategy">
                   <div class="space-y-4">
@@ -614,14 +614,14 @@ defmodule DashboardWeb.StrategiesLive do
                             value={account.id}
                             selected={@strategy_form[:account_id].value == account.id}
                           >
-                            <%= account.label %>
+                            {account.label}
                           </option>
                         <% end %>
                       </select>
                       <%= if @strategy_form[:account_id].errors != [] do %>
                         <label class="label">
                           <span class="label-text-alt text-error">
-                            <%= translate_error(@strategy_form[:account_id].errors) %>
+                            {translate_error(@strategy_form[:account_id].errors)}
                           </span>
                         </label>
                       <% end %>
@@ -644,7 +644,7 @@ defmodule DashboardWeb.StrategiesLive do
                             value={symbol}
                             selected={get_config_value(@strategy_form, "symbol", "BTCUSDT") == symbol}
                           >
-                            <%= symbol %>
+                            {symbol}
                           </option>
                         <% end %>
                       </select>
@@ -1255,7 +1255,7 @@ defmodule DashboardWeb.StrategiesLive do
 
                     <div class="flex gap-2">
                       <button type="submit" class="btn btn-primary" disabled={Enum.empty?(@accounts)}>
-                        <%= if @editing_strategy, do: "Update", else: "Create" %> Strategy
+                        {if @editing_strategy, do: "Update", else: "Create"} Strategy
                       </button>
                       <button type="button" phx-click="hide_strategy_form" class="btn btn-ghost">
                         Cancel
@@ -1273,9 +1273,9 @@ defmodule DashboardWeb.StrategiesLive do
               <%= for strategy_type <- @available_strategies do %>
                 <div class="card bg-base-100 border border-base-300">
                   <div class="card-body">
-                    <h3 class="card-title"><%= strategy_type.label %></h3>
+                    <h3 class="card-title">{strategy_type.label}</h3>
                     <p class="text-base-content/70">
-                      <%= strategy_type.description %>
+                      {strategy_type.description}
                     </p>
                     <div class="card-actions justify-end mt-4">
                       <button
@@ -1303,7 +1303,7 @@ defmodule DashboardWeb.StrategiesLive do
                         <div class="flex-1">
                           <div class="flex items-center gap-2">
                             <h4 class="font-medium text-base-content text-lg">
-                              <%= String.capitalize(strategy.strategy_name) %>
+                              {String.capitalize(strategy.strategy_name)}
                             </h4>
                             <%= if Map.has_key?(@running_strategies, strategy.id) do %>
                               <span class="badge badge-success">
@@ -1324,13 +1324,13 @@ defmodule DashboardWeb.StrategiesLive do
                           <div class="mt-2 space-y-1">
                             <%= if strategy.account do %>
                               <p class="text-sm text-base-content/70">
-                                <span class="font-medium">Account:</span> <%= strategy.account.label %>
+                                <span class="font-medium">Account:</span> {strategy.account.label}
                               </p>
                             <% end %>
                             <div class="text-sm text-base-content/70">
                               <span class="font-medium">Config:</span>
                               <span class="font-mono text-xs">
-                                <%= inspect(strategy.config, pretty: true, limit: 50) %>
+                                {inspect(strategy.config, pretty: true, limit: 50)}
                               </span>
                             </div>
                           </div>

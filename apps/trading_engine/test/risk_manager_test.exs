@@ -7,7 +7,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.05"  # Below 0.1 BTC limit
+        # Below 0.1 BTC limit
+        quantity: "0.05"
       }
 
       state = %{positions: %{}}
@@ -19,7 +20,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.15"  # Above 0.1 BTC limit
+        # Above 0.1 BTC limit
+        quantity: "0.15"
       }
 
       state = %{positions: %{}}
@@ -32,7 +34,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.1"  # Exactly at limit
+        # Exactly at limit
+        quantity: "0.1"
       }
 
       state = %{positions: %{}}
@@ -74,7 +77,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.1"  # Within order size limit
+        # Within order size limit
+        quantity: "0.1"
       }
 
       # Already have 0.95 BTC position, adding 0.1 would exceed 1.0 limit
@@ -92,7 +96,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "SELL",
-        quantity: "0.05"  # Within order size limit
+        # Within order size limit
+        quantity: "0.05"
       }
 
       state = %{
@@ -108,7 +113,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.08"  # Within order size limit
+        # Within order size limit
+        quantity: "0.08"
       }
 
       # Already have 0.47 BTC + 0.47 ETH (calculated as BTC equivalent)
@@ -150,7 +156,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.2"  # Exceeds 0.1 limit
+        # Exceeds 0.1 limit
+        quantity: "0.2"
       }
 
       state = %{positions: %{}}
@@ -165,7 +172,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.099999999"  # Just below limit
+        # Just below limit
+        quantity: "0.099999999"
       }
 
       state = %{positions: %{}}
@@ -177,7 +185,8 @@ defmodule TradingEngine.RiskManagerTest do
       order_params = %{
         symbol: "BTCUSDT",
         side: "BUY",
-        quantity: "0.05"  # String format
+        # String format
+        quantity: "0.05"
       }
 
       state = %{positions: %{}}

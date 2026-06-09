@@ -16,13 +16,14 @@ defmodule TradingEngine.Conditions.TimeStopCondition do
 
     case parse_time(stop_at) do
       {:ok, {hour, minute}} ->
-        {:ok, %{
-          stop_hour: hour,
-          stop_minute: minute,
-          timezone: timezone,
-          triggered_today: false,
-          last_check_date: nil
-        }}
+        {:ok,
+         %{
+           stop_hour: hour,
+           stop_minute: minute,
+           timezone: timezone,
+           triggered_today: false,
+           last_check_date: nil
+         }}
 
       :error ->
         {:error, :invalid_time}

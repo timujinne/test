@@ -16,10 +16,11 @@ defmodule TradingEngine.Conditions.MaxDailyLossCondition do
     limit = Condition.parse_number(config["limit"])
 
     if is_number(limit) and limit > 0 do
-      {:ok, %{
-        limit: Decimal.negate(Decimal.new("#{limit}")),
-        last_reset_date: Date.utc_today()
-      }}
+      {:ok,
+       %{
+         limit: Decimal.negate(Decimal.new("#{limit}")),
+         last_reset_date: Date.utc_today()
+       }}
     else
       {:error, :invalid_limit}
     end
@@ -29,6 +30,7 @@ defmodule TradingEngine.Conditions.MaxDailyLossCondition do
   def evaluate(market_data, state) do
     # Check if we need to reset for a new day
     today = Date.utc_today()
+
     state =
       if Date.compare(today, state.last_reset_date) != :eq do
         %{state | last_reset_date: today}

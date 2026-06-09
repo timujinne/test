@@ -23,4 +23,5 @@ config :phoenix_kit, PhoenixKit.Mailer, adapter: Swoosh.Adapters.Local
 # causing constant IP mismatch false positives. Enable only in production.
 config :phoenix_kit,
   session_fingerprint_enabled: false
+
 config :swoosh, :api_client, false

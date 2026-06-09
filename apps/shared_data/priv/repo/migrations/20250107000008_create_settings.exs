@@ -7,7 +7,9 @@ defmodule SharedData.Repo.Migrations.CreateSettings do
       add :strategy_name, :string, null: false
       add :config, :map, null: false
       add :is_active, :boolean, default: false
-      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id), null: false
+
+      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id),
+        null: false
 
       timestamps()
     end

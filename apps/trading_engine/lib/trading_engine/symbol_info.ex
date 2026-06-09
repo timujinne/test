@@ -58,12 +58,13 @@ defmodule TradingEngine.SymbolInfo do
 
   defp extract_precision(info) do
     # Handle both exchange info formats: full response or single symbol
-    symbol_info = case info do
-      %{"symbols" => [first | _]} -> first
-      %{"symbols" => symbols} when is_list(symbols) -> List.first(symbols)
-      symbol_map when is_map(symbol_map) -> symbol_map
-      _ -> %{}
-    end
+    symbol_info =
+      case info do
+        %{"symbols" => [first | _]} -> first
+        %{"symbols" => symbols} when is_list(symbols) -> List.first(symbols)
+        symbol_map when is_map(symbol_map) -> symbol_map
+        _ -> %{}
+      end
 
     filters = symbol_info["filters"] || []
 

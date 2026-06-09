@@ -65,9 +65,11 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   @impl true
   def requirements(_config) do
     %{
-      ticks: true,        # Need ticks for branch condition evaluation
+      # Need ticks for branch condition evaluation
+      ticks: true,
       timers: [],
-      executions: true    # Need executions to advance chain
+      # Need executions to advance chain
+      executions: true
     }
   end
 
@@ -78,20 +80,25 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   end
 
   defp extract_symbols_from_steps(steps) do
-    symbols = steps
-    |> Enum.flat_map(fn step ->
-      cond do
-        step["symbol"] -> [step["symbol"]]
-        step["type"] == "branch" ->
-          [
-            get_in(step, ["price_rises", "symbol"]),
-            get_in(step, ["price_falls", "symbol"])
-          ]
-        true -> []
-      end
-    end)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
+    symbols =
+      steps
+      |> Enum.flat_map(fn step ->
+        cond do
+          step["symbol"] ->
+            [step["symbol"]]
+
+          step["type"] == "branch" ->
+            [
+              get_in(step, ["price_rises", "symbol"]),
+              get_in(step, ["price_falls", "symbol"])
+            ]
+
+          true ->
+            []
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
 
     if symbols == [], do: nil, else: symbols
   end
@@ -116,23 +123,26 @@ defmodule TradingEngine.Strategies.ConditionalChain do
 
     # Determine current symbol based on step index
     current_step = Enum.at(steps, chain_state.current_step_index || 0)
-    current_symbol = (current_step && current_step["symbol"]) || config["symbol"] || List.first(symbols)
+
+    current_symbol =
+      (current_step && current_step["symbol"]) || config["symbol"] || List.first(symbols)
 
     # Handle "stopped" state specially - it means clean shutdown, can resume
-    recovered_state = case chain_state.current_state do
-      "stopped" ->
-        # Determine what state to resume to based on pending order
-        if chain_state.pending_order_id, do: :awaiting_step, else: :idle
-      state_string ->
-        String.to_existing_atom(state_string)
-    end
+    recovered_state =
+      case chain_state.current_state do
+        "stopped" ->
+          # Determine what state to resume to based on pending order
+          if chain_state.pending_order_id, do: :awaiting_step, else: :idle
+
+        state_string ->
+          String.to_existing_atom(state_string)
+      end
 
     state = %{
       symbols: symbols,
       current_symbol: current_symbol,
       symbol: config["symbol"],
       setting_id: chain_state.setting_id,
-
       chain_id: chain_state.chain_id,
       steps: steps,
       current_step_index: chain_state.current_step_index || 0,
@@ -141,36 +151,48 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       reference_price: chain_state.reference_price,
       last_fill_price: chain_state.last_fill_price,
       initial_fill_price: chain_state.initial_fill_price,
-      initial_quantity: chain_state.initial_quantity || to_decimal(config["initial_quantity"], "0"),
+      initial_quantity:
+        chain_state.initial_quantity || to_decimal(config["initial_quantity"], "0"),
       current_quantity: chain_state.current_quantity || Decimal.new("0"),
       branch_threshold_percent: to_decimal(config["branch_threshold_percent"], "1.0"),
       state_history: [],
       execution_events: chain_state.execution_history["events"] || [],
-      needs_initial_order: false,  # Don't place new order - recovering
+      # Don't place new order - recovering
+      needs_initial_order: false,
       last_sell_proceeds: nil,
       db_chain_state_id: chain_state.id
     }
 
     # Add recovery event
-    state = add_execution_event(state, :recovery, %{
-      "from_state" => chain_state.current_state,
-      "to_state" => to_string(recovered_state),
-      "pending_order_id" => chain_state.pending_order_id
-    })
+    state =
+      add_execution_event(state, :recovery, %{
+        "from_state" => chain_state.current_state,
+        "to_state" => to_string(recovered_state),
+        "pending_order_id" => chain_state.pending_order_id
+      })
 
     # Check if pending order still exists
     if recovery.pending_order_exists do
-      Logger.info("ConditionalChain[#{chain_state.chain_id}]: Recovered - pending order ##{chain_state.pending_order_id} still exists")
+      Logger.info(
+        "ConditionalChain[#{chain_state.chain_id}]: Recovered - pending order ##{chain_state.pending_order_id} still exists"
+      )
+
       {:ok, state}
     else
       if state.pending_order_id do
         # Pending order doesn't exist - might have been filled or cancelled
-        Logger.warning("ConditionalChain[#{chain_state.chain_id}]: Recovered but pending order ##{chain_state.pending_order_id} not found on Binance")
+        Logger.warning(
+          "ConditionalChain[#{chain_state.chain_id}]: Recovered but pending order ##{chain_state.pending_order_id} not found on Binance"
+        )
+
         # Mark as needing investigation - don't auto-place new orders
         {:ok, %{state | current_state: :error}}
       else
         # No pending order expected, proceed normally
-        Logger.info("ConditionalChain[#{chain_state.chain_id}]: Recovered from #{chain_state.current_state} state")
+        Logger.info(
+          "ConditionalChain[#{chain_state.chain_id}]: Recovered from #{chain_state.current_state} state"
+        )
+
         {:ok, state}
       end
     end
@@ -181,13 +203,18 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     steps = config["steps"] || []
     symbols = config["symbols"] || extract_symbols_from_steps(steps) || [config["symbol"]]
     first_step = List.first(steps)
-    initial_symbol = (first_step && first_step["symbol"]) || config["symbol"] || List.first(symbols)
+
+    initial_symbol =
+      (first_step && first_step["symbol"]) || config["symbol"] || List.first(symbols)
 
     # Check for orphaned orders
     has_orphaned = recovery && recovery.type == :orphaned_orders && length(recovery.orders) > 0
 
     if has_orphaned do
-      Logger.warning("ConditionalChain: Found #{length(recovery.orders)} orphaned orders - starting in error state to prevent duplicates")
+      Logger.warning(
+        "ConditionalChain: Found #{length(recovery.orders)} orphaned orders - starting in error state to prevent duplicates"
+      )
+
       chain_id = generate_chain_id()
 
       state = %{
@@ -198,7 +225,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         chain_id: chain_id,
         steps: steps,
         current_step_index: 0,
-        current_state: :error,  # Error state - needs manual intervention
+        # Error state - needs manual intervention
+        current_state: :error,
         pending_order_id: nil,
         reference_price: nil,
         last_fill_price: nil,
@@ -206,7 +234,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         initial_quantity: to_decimal(config["initial_quantity"], "0"),
         current_quantity: Decimal.new("0"),
         branch_threshold_percent: to_decimal(config["branch_threshold_percent"], "1.0"),
-        state_history: [{:error, "Orphaned orders found: #{inspect(Enum.map(recovery.orders, & &1["orderId"]))}"}],
+        state_history: [
+          {:error,
+           "Orphaned orders found: #{inspect(Enum.map(recovery.orders, & &1["orderId"]))}"}
+        ],
         execution_events: [],
         needs_initial_order: false,
         last_sell_proceeds: nil,
@@ -240,7 +271,9 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         last_sell_proceeds: nil
       }
 
-      Logger.info("ConditionalChain[#{chain_id}]: Fresh start for symbols #{inspect(symbols)}, #{length(steps)} steps")
+      Logger.info(
+        "ConditionalChain[#{chain_id}]: Fresh start for symbols #{inspect(symbols)}, #{length(steps)} steps"
+      )
 
       {:ok, state}
     end
@@ -261,12 +294,18 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         state.needs_initial_order && state.current_state == :idle ->
           case place_initial_order(state) do
             {:ok, order_params, new_state} ->
-              Logger.info("ConditionalChain[#{state.chain_id}]: Placing initial order on first tick")
+              Logger.info(
+                "ConditionalChain[#{state.chain_id}]: Placing initial order on first tick"
+              )
+
               new_state = %{new_state | needs_initial_order: false}
               {{:place_order, order_params}, new_state}
 
             {:error, reason} ->
-              Logger.error("ConditionalChain[#{state.chain_id}]: Failed to place initial order: #{inspect(reason)}")
+              Logger.error(
+                "ConditionalChain[#{state.chain_id}]: Failed to place initial order: #{inspect(reason)}"
+              )
+
               {:noop, %{state | current_state: :error, needs_initial_order: false}}
           end
 
@@ -291,7 +330,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         if order_id == state.pending_order_id do
           handle_order_filled(execution, state)
         else
-          Logger.debug("ConditionalChain[#{state.chain_id}]: Ignoring execution for non-pending order #{order_id}")
+          Logger.debug(
+            "ConditionalChain[#{state.chain_id}]: Ignoring execution for non-pending order #{order_id}"
+          )
+
           {:noop, state}
         end
 
@@ -317,30 +359,39 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     Logger.info("ConditionalChain[#{state.chain_id}]: Terminating, reason: #{inspect(reason)}")
 
     # Determine final state based on termination reason
-    final_state_atom = case reason do
-      :stopped -> :stopped
-      :shutdown -> :stopped
-      {:shutdown, _} -> :stopped
-      {:crash, _} -> :error
-      _ -> :stopped
-    end
+    final_state_atom =
+      case reason do
+        :stopped -> :stopped
+        :shutdown -> :stopped
+        {:shutdown, _} -> :stopped
+        {:crash, _} -> :error
+        _ -> :stopped
+      end
 
     # Record termination event
-    new_state = add_execution_event(state, :termination, %{
-      "reason" => inspect(reason),
-      "final_state" => to_string(final_state_atom),
-      "pending_order_id" => state.pending_order_id
-    })
+    new_state =
+      add_execution_event(state, :termination, %{
+        "reason" => inspect(reason),
+        "final_state" => to_string(final_state_atom),
+        "pending_order_id" => state.pending_order_id
+      })
 
     # Update state if not already completed or in error
-    new_state = if state.current_state not in [:completed, :error] do
-      %{new_state |
-        current_state: final_state_atom,
-        state_history: add_to_history(new_state, final_state_atom, "Process terminated: #{inspect(reason)}")
-      }
-    else
-      new_state
-    end
+    new_state =
+      if state.current_state not in [:completed, :error] do
+        %{
+          new_state
+          | current_state: final_state_atom,
+            state_history:
+              add_to_history(
+                new_state,
+                final_state_atom,
+                "Process terminated: #{inspect(reason)}"
+              )
+        }
+      else
+        new_state
+      end
 
     # Persist final state to database
     persist_state(new_state)
@@ -355,18 +406,23 @@ defmodule TradingEngine.Strategies.ConditionalChain do
 
     if step && step["type"] == "initial" do
       order_params = build_order_params(step, state)
-      new_state = %{state |
-        current_state: :awaiting_initial,
-        state_history: add_to_history(state, :awaiting_initial, "Placed initial order")
+
+      new_state = %{
+        state
+        | current_state: :awaiting_initial,
+          state_history: add_to_history(state, :awaiting_initial, "Placed initial order")
       }
+
       # Record event for execution history
-      new_state = add_execution_event(new_state, :order_placed, %{
-        "step_type" => "initial",
-        "side" => step["side"],
-        "price" => step["price"],
-        "quantity" => step["quantity"],
-        "symbol" => step["symbol"] || state.current_symbol
-      })
+      new_state =
+        add_execution_event(new_state, :order_placed, %{
+          "step_type" => "initial",
+          "side" => step["side"],
+          "price" => step["price"],
+          "quantity" => step["quantity"],
+          "symbol" => step["symbol"] || state.current_symbol
+        })
+
       # Persist state after placing initial order
       new_state = persist_state(new_state)
       {:ok, order_params, new_state}
@@ -378,52 +434,61 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   defp handle_order_filled(execution, state) do
     side = execution["S"]
     fill_price = Decimal.new(execution["L"])
-    fill_qty = Decimal.new(execution["z"])  # Cumulative filled quantity
+    # Cumulative filled quantity
+    fill_qty = Decimal.new(execution["z"])
     symbol = execution["s"]
 
-    Logger.info("ConditionalChain[#{state.chain_id}]: Order filled - #{side} #{fill_qty} #{symbol} @ #{fill_price}")
+    Logger.info(
+      "ConditionalChain[#{state.chain_id}]: Order filled - #{side} #{fill_qty} #{symbol} @ #{fill_price}"
+    )
 
     # Calculate proceeds if SELL (for "use_profit" feature)
-    last_sell_proceeds = if side == "SELL" do
-      Decimal.mult(fill_price, fill_qty)
-    else
-      state.last_sell_proceeds
-    end
+    last_sell_proceeds =
+      if side == "SELL" do
+        Decimal.mult(fill_price, fill_qty)
+      else
+        state.last_sell_proceeds
+      end
 
     # Update state with fill information
-    new_state = case state.current_state do
-      :awaiting_initial ->
-        %{state |
-          initial_fill_price: fill_price,
-          last_fill_price: fill_price,
-          current_quantity: fill_qty,
-          pending_order_id: nil,
-          last_sell_proceeds: last_sell_proceeds
-        }
+    new_state =
+      case state.current_state do
+        :awaiting_initial ->
+          %{
+            state
+            | initial_fill_price: fill_price,
+              last_fill_price: fill_price,
+              current_quantity: fill_qty,
+              pending_order_id: nil,
+              last_sell_proceeds: last_sell_proceeds
+          }
 
-      _ ->
-        # Update quantity based on side
-        updated_qty = case side do
-          "BUY" -> Decimal.add(state.current_quantity, fill_qty)
-          "SELL" -> Decimal.sub(state.current_quantity, fill_qty)
-        end
+        _ ->
+          # Update quantity based on side
+          updated_qty =
+            case side do
+              "BUY" -> Decimal.add(state.current_quantity, fill_qty)
+              "SELL" -> Decimal.sub(state.current_quantity, fill_qty)
+            end
 
-        %{state |
-          last_fill_price: fill_price,
-          current_quantity: updated_qty,
-          pending_order_id: nil,
-          last_sell_proceeds: last_sell_proceeds
-        }
-    end
+          %{
+            state
+            | last_fill_price: fill_price,
+              current_quantity: updated_qty,
+              pending_order_id: nil,
+              last_sell_proceeds: last_sell_proceeds
+          }
+      end
 
     # Record order filled event
-    new_state = add_execution_event(new_state, :order_filled, %{
-      "side" => side,
-      "price" => Decimal.to_string(fill_price),
-      "quantity" => Decimal.to_string(fill_qty),
-      "symbol" => symbol,
-      "order_id" => execution["i"]
-    })
+    new_state =
+      add_execution_event(new_state, :order_filled, %{
+        "side" => side,
+        "price" => Decimal.to_string(fill_price),
+        "quantity" => Decimal.to_string(fill_qty),
+        "symbol" => symbol,
+        "order_id" => execution["i"]
+      })
 
     # Advance to next step
     advance_chain(new_state)
@@ -435,16 +500,21 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     if next_index >= length(state.steps) do
       # Chain completed
       Logger.info("ConditionalChain[#{state.chain_id}]: Chain completed successfully")
-      new_state = %{state |
-        current_state: :completed,
-        current_symbol: nil,
-        state_history: add_to_history(state, :completed, "Chain completed")
+
+      new_state = %{
+        state
+        | current_state: :completed,
+          current_symbol: nil,
+          state_history: add_to_history(state, :completed, "Chain completed")
       }
+
       # Record completion event
-      new_state = add_execution_event(new_state, :chain_completed, %{
-        "total_steps" => length(state.steps),
-        "final_quantity" => Decimal.to_string(state.current_quantity)
-      })
+      new_state =
+        add_execution_event(new_state, :chain_completed, %{
+          "total_steps" => length(state.steps),
+          "final_quantity" => Decimal.to_string(state.current_quantity)
+        })
+
       # Persist final state
       new_state = persist_state(new_state)
       {:noop, new_state}
@@ -455,7 +525,9 @@ defmodule TradingEngine.Strategies.ConditionalChain do
 
       # Log symbol transition if changed
       if next_symbol != state.current_symbol do
-        Logger.info("ConditionalChain[#{state.chain_id}]: Switching symbol from #{state.current_symbol} to #{next_symbol}")
+        Logger.info(
+          "ConditionalChain[#{state.chain_id}]: Switching symbol from #{state.current_symbol} to #{next_symbol}"
+        )
       end
 
       case next_step["type"] do
@@ -465,30 +537,41 @@ defmodule TradingEngine.Strategies.ConditionalChain do
 
         "branch" ->
           # Branch step - wait for price condition
-          Logger.info("ConditionalChain[#{state.chain_id}]: Entering branch step, monitoring price movements for #{next_symbol}")
-          new_state = %{state |
-            current_step_index: next_index,
-            current_state: :awaiting_branch,
-            current_symbol: next_symbol,
-            reference_price: state.last_fill_price,
-            state_history: add_to_history(state, :awaiting_branch, "Waiting for branch condition")
+          Logger.info(
+            "ConditionalChain[#{state.chain_id}]: Entering branch step, monitoring price movements for #{next_symbol}"
+          )
+
+          new_state = %{
+            state
+            | current_step_index: next_index,
+              current_state: :awaiting_branch,
+              current_symbol: next_symbol,
+              reference_price: state.last_fill_price,
+              state_history:
+                add_to_history(state, :awaiting_branch, "Waiting for branch condition")
           }
+
           # Record branch entry event
-          new_state = add_execution_event(new_state, :branch_entered, %{
-            "reference_price" => Decimal.to_string(state.last_fill_price),
-            "threshold_percent" => Decimal.to_string(state.branch_threshold_percent),
-            "symbol" => next_symbol
-          })
+          new_state =
+            add_execution_event(new_state, :branch_entered, %{
+              "reference_price" => Decimal.to_string(state.last_fill_price),
+              "threshold_percent" => Decimal.to_string(state.branch_threshold_percent),
+              "symbol" => next_symbol
+            })
+
           # Persist state when entering branch
           new_state = persist_state(new_state)
           {:noop, new_state}
 
         unknown_type ->
           Logger.error("ConditionalChain[#{state.chain_id}]: Unknown step type: #{unknown_type}")
-          new_state = %{state |
-            current_state: :error,
-            state_history: add_to_history(state, :error, "Unknown step type: #{unknown_type}")
+
+          new_state = %{
+            state
+            | current_state: :error,
+              state_history: add_to_history(state, :error, "Unknown step type: #{unknown_type}")
           }
+
           # Persist error state
           new_state = persist_state(new_state)
           {:noop, new_state}
@@ -499,22 +582,28 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   defp place_step_order(step, step_index, state) do
     order_params = build_order_params(step, state)
 
-    Logger.info("ConditionalChain[#{state.chain_id}]: Placing step #{step_index} order - #{step["side"]} @ #{step["price"]}")
+    Logger.info(
+      "ConditionalChain[#{state.chain_id}]: Placing step #{step_index} order - #{step["side"]} @ #{step["price"]}"
+    )
 
-    new_state = %{state |
-      current_step_index: step_index,
-      current_state: :awaiting_step,
-      state_history: add_to_history(state, :awaiting_step, "Placed step #{step_index} order")
+    new_state = %{
+      state
+      | current_step_index: step_index,
+        current_state: :awaiting_step,
+        state_history: add_to_history(state, :awaiting_step, "Placed step #{step_index} order")
     }
+
     # Record step order event
-    new_state = add_execution_event(new_state, :order_placed, %{
-      "step_type" => "step",
-      "step_index" => step_index,
-      "side" => step["side"],
-      "price" => step["price"],
-      "quantity" => step["quantity"],
-      "symbol" => step["symbol"] || state.current_symbol
-    })
+    new_state =
+      add_execution_event(new_state, :order_placed, %{
+        "step_type" => "step",
+        "step_index" => step_index,
+        "side" => step["side"],
+        "price" => step["price"],
+        "quantity" => step["quantity"],
+        "symbol" => step["symbol"] || state.current_symbol
+      })
+
     # Persist state after placing step order
     new_state = persist_state(new_state)
 
@@ -523,7 +612,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
 
   defp evaluate_branch_condition(current_price, state) do
     if state.reference_price == nil do
-      Logger.warning("ConditionalChain[#{state.chain_id}]: No reference price for branch evaluation")
+      Logger.warning(
+        "ConditionalChain[#{state.chain_id}]: No reference price for branch evaluation"
+      )
+
       :noop
     else
       threshold_decimal = Decimal.div(state.branch_threshold_percent, 100)
@@ -533,12 +625,18 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       cond do
         # Price rose above threshold
         Decimal.compare(current_price, upper_threshold) == :gt ->
-          Logger.info("ConditionalChain[#{state.chain_id}]: Price rose above threshold (#{current_price} > #{upper_threshold}), taking price_rises branch")
+          Logger.info(
+            "ConditionalChain[#{state.chain_id}]: Price rose above threshold (#{current_price} > #{upper_threshold}), taking price_rises branch"
+          )
+
           execute_branch(state, "price_rises")
 
         # Price fell below threshold
         Decimal.compare(current_price, lower_threshold) == :lt ->
-          Logger.info("ConditionalChain[#{state.chain_id}]: Price fell below threshold (#{current_price} < #{lower_threshold}), taking price_falls branch")
+          Logger.info(
+            "ConditionalChain[#{state.chain_id}]: Price fell below threshold (#{current_price} < #{lower_threshold}), taking price_falls branch"
+          )
+
           execute_branch(state, "price_falls")
 
         true ->
@@ -555,26 +653,31 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     if branch_config do
       order_params = build_order_params(branch_config, state)
 
-      new_state = %{state |
-        current_state: :awaiting_step,
-        reference_price: nil,
-        state_history: add_to_history(state, :awaiting_step, "Executing #{branch_path} branch")
+      new_state = %{
+        state
+        | current_state: :awaiting_step,
+          reference_price: nil,
+          state_history: add_to_history(state, :awaiting_step, "Executing #{branch_path} branch")
       }
 
       # Record branch taken event
-      new_state = add_execution_event(new_state, :branch_taken, %{
-        "branch" => branch_path,
-        "side" => branch_config["side"],
-        "price" => branch_config["price"],
-        "symbol" => branch_config["symbol"] || state.current_symbol
-      })
+      new_state =
+        add_execution_event(new_state, :branch_taken, %{
+          "branch" => branch_path,
+          "side" => branch_config["side"],
+          "price" => branch_config["price"],
+          "symbol" => branch_config["symbol"] || state.current_symbol
+        })
 
       # Persist state before placing order
       new_state = persist_state(new_state)
 
       {{:place_order, order_params}, new_state}
     else
-      Logger.error("ConditionalChain[#{state.chain_id}]: Branch path #{branch_path} not configured")
+      Logger.error(
+        "ConditionalChain[#{state.chain_id}]: Branch path #{branch_path} not configured"
+      )
+
       :noop
     end
   end
@@ -587,12 +690,14 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     price = to_decimal(step_config["price"], "0") |> Decimal.round(price_precision)
 
     # Handle "use_profit" quantity - calculate from previous sell proceeds
-    quantity = case step_config["quantity"] do
-      "use_profit" ->
-        calculate_profit_quantity(state, price, qty_precision)
-      qty ->
-        to_decimal(qty, state.initial_quantity) |> Decimal.round(qty_precision)
-    end
+    quantity =
+      case step_config["quantity"] do
+        "use_profit" ->
+          calculate_profit_quantity(state, price, qty_precision)
+
+        qty ->
+          to_decimal(qty, state.initial_quantity) |> Decimal.round(qty_precision)
+      end
 
     %{
       symbol: symbol,
@@ -611,7 +716,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       Decimal.div(state.last_sell_proceeds, target_price)
       |> Decimal.round(qty_precision)
     else
-      Logger.warning("ConditionalChain[#{state.chain_id}]: No sell proceeds for use_profit, using initial_quantity")
+      Logger.warning(
+        "ConditionalChain[#{state.chain_id}]: No sell proceeds for use_profit, using initial_quantity"
+      )
+
       state.initial_quantity
     end
   end
@@ -630,7 +738,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
     }
 
     [entry | state.state_history]
-    |> Enum.take(50)  # Keep last 50 entries
+    # Keep last 50 entries
+    |> Enum.take(50)
   end
 
   # Add event to execution_events (persisted to DB)
@@ -680,22 +789,29 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       }
 
       # Add completed_at if chain is done
-      attrs = if state.current_state in [:completed, :error] do
-        Map.put(attrs, :completed_at, DateTime.utc_now())
-      else
-        attrs
-      end
+      attrs =
+        if state.current_state in [:completed, :error] do
+          Map.put(attrs, :completed_at, DateTime.utc_now())
+        else
+          attrs
+        end
 
       case state[:db_chain_state_id] do
         nil ->
           # Create new chain state record
           case SharedData.ChainStates.create_chain_state(attrs) do
             {:ok, chain_state} ->
-              Logger.debug("ConditionalChain[#{state.chain_id}]: State persisted to DB (id: #{chain_state.id})")
+              Logger.debug(
+                "ConditionalChain[#{state.chain_id}]: State persisted to DB (id: #{chain_state.id})"
+              )
+
               %{state | db_chain_state_id: chain_state.id}
 
             {:error, changeset} ->
-              Logger.warning("ConditionalChain[#{state.chain_id}]: Failed to persist state: #{inspect(changeset.errors)}")
+              Logger.warning(
+                "ConditionalChain[#{state.chain_id}]: Failed to persist state: #{inspect(changeset.errors)}"
+              )
+
               state
           end
 
@@ -703,7 +819,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
           # Update existing record
           case SharedData.ChainStates.get_chain_state(db_id) do
             nil ->
-              Logger.warning("ConditionalChain[#{state.chain_id}]: DB record not found, creating new")
+              Logger.warning(
+                "ConditionalChain[#{state.chain_id}]: DB record not found, creating new"
+              )
+
               case SharedData.ChainStates.create_chain_state(attrs) do
                 {:ok, chain_state} -> %{state | db_chain_state_id: chain_state.id}
                 {:error, _} -> state
@@ -716,7 +835,10 @@ defmodule TradingEngine.Strategies.ConditionalChain do
                   state
 
                 {:error, changeset} ->
-                  Logger.warning("ConditionalChain[#{state.chain_id}]: Failed to update state: #{inspect(changeset.errors)}")
+                  Logger.warning(
+                    "ConditionalChain[#{state.chain_id}]: Failed to update state: #{inspect(changeset.errors)}"
+                  )
+
                   state
               end
           end

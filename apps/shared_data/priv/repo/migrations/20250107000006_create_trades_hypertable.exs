@@ -12,7 +12,10 @@ defmodule SharedData.Repo.Migrations.CreateTradesHypertable do
       add :commission_asset, :string
       add :pnl, :decimal, precision: 20, scale: 8
       add :timestamp, :utc_datetime_usec, null: false
-      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id), null: false
+
+      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id),
+        null: false
+
       add :order_id, references(:orders, on_delete: :nilify_all, type: :binary_id)
 
       timestamps()

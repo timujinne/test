@@ -89,7 +89,10 @@ defmodule TradingEngine.Conditions.ConditionEvaluator do
   """
   @spec has_conditions?(map() | nil) :: boolean()
   def has_conditions?(nil), do: false
-  def has_conditions?(%{"conditions" => conditions}) when is_list(conditions), do: length(conditions) > 0
+
+  def has_conditions?(%{"conditions" => conditions}) when is_list(conditions),
+    do: length(conditions) > 0
+
   def has_conditions?(_), do: false
 
   @doc """

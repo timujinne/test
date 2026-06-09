@@ -33,7 +33,7 @@ defmodule SharedData.Helpers.DecimalHelper do
   """
   def safe_div(numerator, denominator) do
     denom = to_decimal(denominator)
-    
+
     if zero?(denom) do
       Decimal.new(0)
     else

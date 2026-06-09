@@ -55,11 +55,11 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           <div class="flex items-center gap-2">
             <span class="badge badge-warning badge-sm">Conditional Branch</span>
             <span class="text-sm font-semibold text-base-content/60">
-              Step <%= @index + 1 %>
+              Step {@index + 1}
             </span>
             <%= if @status != "pending" do %>
               <span class={"badge badge-sm " <> status_badge_class(@status)}>
-                <%= status_label(@status) %>
+                {status_label(@status)}
               </span>
             <% end %>
           </div>
@@ -104,7 +104,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
                 </label>
               <% else %>
                 <div class="text-sm font-mono text-success">
-                  +<%= Map.get(@condition, :threshold_up, "1.0") %>%
+                  +{Map.get(@condition, :threshold_up, "1.0")}%
                 </div>
               <% end %>
             </div>
@@ -131,7 +131,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
                 </label>
               <% else %>
                 <div class="text-sm font-mono text-error">
-                  <%= Map.get(@condition, :threshold_down, "-1.0") %>%
+                  {Map.get(@condition, :threshold_down, "-1.0")}%
                 </div>
               <% end %>
             </div>
@@ -144,8 +144,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           <div class="card bg-success/10 border border-success/30">
             <div class="card-body p-3">
               <h4 class="text-xs font-semibold text-success flex items-center gap-1 mb-2">
-                <span class={["hero-arrow-up", "h-4 w-4"]} />
-                If Price Rises
+                <span class={["hero-arrow-up", "h-4 w-4"]} /> If Price Rises
               </h4>
 
               <.branch_path_form
@@ -162,8 +161,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           <div class="card bg-error/10 border border-error/30">
             <div class="card-body p-3">
               <h4 class="text-xs font-semibold text-error flex items-center gap-1 mb-2">
-                <span class={["hero-arrow-down", "h-4 w-4"]} />
-                If Price Falls
+                <span class={["hero-arrow-down", "h-4 w-4"]} /> If Price Falls
               </h4>
 
               <.branch_path_form
@@ -181,11 +179,11 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
         <%= if !@editable do %>
           <div class="mt-3 pt-3 border-t border-base-300">
             <div class="text-xs text-base-content/60 text-center">
-              Waiting for price change: <%= Map.get(@condition, :threshold_up, "1.0") %>% up or <%= Map.get(
+              Waiting for price change: {Map.get(@condition, :threshold_up, "1.0")}% up or {Map.get(
                 @condition,
                 :threshold_down,
                 "-1.0"
-              ) %>% down
+              )}% down
             </div>
           </div>
         <% end %>
@@ -223,7 +221,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           </select>
         <% else %>
           <div class={"badge " <> side_badge_class(Map.get(@path, :side))}>
-            <%= Map.get(@path, :side, "-") %>
+            {Map.get(@path, :side, "-")}
           </div>
         <% end %>
       </div>
@@ -247,7 +245,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           />
         <% else %>
           <div class="text-sm font-mono">
-            <%= Map.get(@path, :quantity, "-") %>
+            {Map.get(@path, :quantity, "-")}
           </div>
         <% end %>
       </div>
@@ -271,7 +269,7 @@ defmodule DashboardWeb.Components.Trading.BranchEditor do
           />
         <% else %>
           <div class="text-sm font-mono">
-            <%= Map.get(@path, :price, "market") %>
+            {Map.get(@path, :price, "market")}
           </div>
         <% end %>
       </div>

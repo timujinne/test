@@ -260,8 +260,7 @@ defmodule DashboardWeb.OrdersLive do
             class="btn btn-success"
             phx-click="open_new_order_modal"
           >
-            <span class={["hero-plus", "w-5 h-5"]} />
-            New Order
+            <span class={["hero-plus", "w-5 h-5"]} /> New Order
           </button>
           <button
             class="btn btn-primary"
@@ -282,19 +281,19 @@ defmodule DashboardWeb.OrdersLive do
       <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
           <div class="stat-title">Total Orders</div>
-          <div class="stat-value text-primary"><%= length(@orders) %></div>
+          <div class="stat-value text-primary">{length(@orders)}</div>
         </div>
         <div class="stat">
           <div class="stat-title">Symbols</div>
-          <div class="stat-value text-secondary"><%= length(@available_symbols) %></div>
+          <div class="stat-value text-secondary">{length(@available_symbols)}</div>
         </div>
         <div class="stat">
           <div class="stat-title">Buy Orders</div>
-          <div class="stat-value text-success"><%= count_by_side(@orders, "BUY") %></div>
+          <div class="stat-value text-success">{count_by_side(@orders, "BUY")}</div>
         </div>
         <div class="stat">
           <div class="stat-title">Sell Orders</div>
-          <div class="stat-value text-error"><%= count_by_side(@orders, "SELL") %></div>
+          <div class="stat-value text-error">{count_by_side(@orders, "SELL")}</div>
         </div>
       </div>
 
@@ -302,7 +301,7 @@ defmodule DashboardWeb.OrdersLive do
       <%= if @error do %>
         <div class="alert alert-error">
           <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
-          <span><%= @error %></span>
+          <span>{@error}</span>
         </div>
       <% end %>
 
@@ -320,11 +319,11 @@ defmodule DashboardWeb.OrdersLive do
                 name="symbol"
               >
                 <option value="all" selected={@selected_symbol == "all"}>
-                  All Symbols (<%= length(@orders) %>)
+                  All Symbols ({length(@orders)})
                 </option>
                 <%= for symbol <- @available_symbols do %>
                   <option value={symbol} selected={@selected_symbol == symbol}>
-                    <%= symbol %> (<%= Map.get(@grouped_orders, symbol, []) |> length() %>)
+                    {symbol} ({Map.get(@grouped_orders, symbol, []) |> length()})
                   </option>
                 <% end %>
               </select>
@@ -333,7 +332,10 @@ defmodule DashboardWeb.OrdersLive do
             <%!-- Quick filter buttons --%>
             <div class="flex gap-1 items-center">
               <button
-                class={["btn btn-sm", if(@selected_symbol == "all", do: "btn-primary", else: "btn-ghost")]}
+                class={[
+                  "btn btn-sm",
+                  if(@selected_symbol == "all", do: "btn-primary", else: "btn-ghost")
+                ]}
                 phx-click="filter_symbol"
                 phx-value-symbol="all"
               >
@@ -341,11 +343,14 @@ defmodule DashboardWeb.OrdersLive do
               </button>
               <%= for symbol <- @available_symbols do %>
                 <button
-                  class={["btn btn-sm", if(@selected_symbol == symbol, do: "btn-primary", else: "btn-ghost")]}
+                  class={[
+                    "btn btn-sm",
+                    if(@selected_symbol == symbol, do: "btn-primary", else: "btn-ghost")
+                  ]}
                   phx-click="filter_symbol"
                   phx-value-symbol={symbol}
                 >
-                  <%= symbol %>
+                  {symbol}
                 </button>
               <% end %>
             </div>
@@ -358,8 +363,7 @@ defmodule DashboardWeb.OrdersLive do
                 phx-value-symbol={@selected_symbol}
                 data-confirm={"Are you sure you want to cancel all #{Map.get(@grouped_orders, @selected_symbol, []) |> length()} orders for #{@selected_symbol}?"}
               >
-                <span class={["hero-trash", "w-5 h-5"]} />
-                Cancel All <%= @selected_symbol %>
+                <span class={["hero-trash", "w-5 h-5"]} /> Cancel All {@selected_symbol}
               </button>
             <% end %>
           </div>
@@ -369,8 +373,13 @@ defmodule DashboardWeb.OrdersLive do
       <%!-- Current filter indicator --%>
       <%= if @selected_symbol != "all" do %>
         <div class="alert alert-info mb-4">
-          <span>Showing orders for: <strong><%= @selected_symbol %></strong> (<%= length(filtered_orders(@orders, @grouped_orders, @selected_symbol)) %> of <%= length(@orders) %> orders)</span>
-          <button class="btn btn-sm btn-ghost" phx-click="filter_symbol" phx-value-symbol="all">Clear filter</button>
+          <span>
+            Showing orders for: <strong>{@selected_symbol}</strong>
+            ({length(filtered_orders(@orders, @grouped_orders, @selected_symbol))} of {length(@orders)} orders)
+          </span>
+          <button class="btn btn-sm btn-ghost" phx-click="filter_symbol" phx-value-symbol="all">
+            Clear filter
+          </button>
         </div>
       <% end %>
 
@@ -410,35 +419,38 @@ defmodule DashboardWeb.OrdersLive do
                     <%= for order <- filtered_orders(@orders, @grouped_orders, @selected_symbol) do %>
                       <tr class={if MapSet.member?(@cancelling, order["orderId"]), do: "opacity-50"}>
                         <td class="text-xs text-base-content/70">
-                          <%= format_timestamp(order["time"]) %>
+                          {format_timestamp(order["time"])}
                         </td>
                         <td>
-                          <span class="font-medium"><%= order["symbol"] %></span>
+                          <span class="font-medium">{order["symbol"]}</span>
                         </td>
                         <td>
                           <span class={[
                             "badge badge-sm",
                             if(order["side"] == "BUY", do: "badge-success", else: "badge-error")
                           ]}>
-                            <%= order["side"] %>
+                            {order["side"]}
                           </span>
                         </td>
                         <td class="text-base-content/70 text-sm">
-                          <%= order["type"] %>
+                          {order["type"]}
                         </td>
                         <td class="text-right font-mono">
-                          <%= format_number_trim(order["price"]) %>
+                          {format_number_trim(order["price"])}
                         </td>
                         <td class="text-right font-mono">
-                          <%= format_number_trim(order["origQty"]) %>
+                          {format_number_trim(order["origQty"])}
                         </td>
                         <td class="text-right font-mono">
-                          <span class={if Decimal.compare(Decimal.new(order["executedQty"]), 0) == :gt, do: "text-warning"}>
-                            <%= format_number_trim(order["executedQty"]) %>
+                          <span class={
+                            if Decimal.compare(Decimal.new(order["executedQty"]), 0) == :gt,
+                              do: "text-warning"
+                          }>
+                            {format_number_trim(order["executedQty"])}
                           </span>
                         </td>
                         <td class="text-right font-mono text-sm">
-                          <%= calculate_total_trim(order["price"], order["origQty"]) %>
+                          {calculate_total_trim(order["price"], order["origQty"])}
                         </td>
                         <td>
                           <button
@@ -476,17 +488,17 @@ defmodule DashboardWeb.OrdersLive do
                 <% symbol_orders = Map.get(@grouped_orders, symbol, []) %>
                 <div class="bg-base-200 rounded-lg p-4">
                   <div class="flex justify-between items-center">
-                    <span class="font-bold"><%= symbol %></span>
-                    <span class="badge"><%= length(symbol_orders) %></span>
+                    <span class="font-bold">{symbol}</span>
+                    <span class="badge">{length(symbol_orders)}</span>
                   </div>
                   <div class="mt-2 text-sm text-base-content/70">
                     <div class="flex justify-between">
                       <span>Buy:</span>
-                      <span class="text-success"><%= count_by_side(symbol_orders, "BUY") %></span>
+                      <span class="text-success">{count_by_side(symbol_orders, "BUY")}</span>
                     </div>
                     <div class="flex justify-between">
                       <span>Sell:</span>
-                      <span class="text-error"><%= count_by_side(symbol_orders, "SELL") %></span>
+                      <span class="text-error">{count_by_side(symbol_orders, "SELL")}</span>
                     </div>
                   </div>
                   <button
@@ -507,198 +519,198 @@ defmodule DashboardWeb.OrdersLive do
       <%!-- New Order Modal --%>
       <dialog class={["modal", @show_new_order_modal && "modal-open"]}>
         <div class="modal-box max-w-lg">
-            <button
-              class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              phx-click="close_new_order_modal"
-            >
-              ✕
-            </button>
-            <h3 class="font-bold text-lg mb-4">Create New Order</h3>
+          <button
+            class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+            phx-click="close_new_order_modal"
+          >
+            ✕
+          </button>
+          <h3 class="font-bold text-lg mb-4">Create New Order</h3>
 
-            <form phx-change="update_order_form" phx-submit="create_order" class="space-y-4">
-              <%!-- Symbol Search --%>
-              <div class="form-control relative">
-                <label class="label">
-                  <span class="label-text font-medium">Symbol *</span>
-                </label>
-                <input
-                  type="text"
-                  name="order[symbol]"
-                  value={@symbol_search}
-                  placeholder="Search symbol (e.g., BTCUSDT)"
-                  class="input w-full"
-                  phx-keyup="search_symbol"
-                  phx-debounce="200"
-                  autocomplete="off"
-                />
-                <%= if length(@filtered_symbols) > 0 do %>
-                  <ul class="menu bg-base-200 rounded-box absolute top-full left-0 right-0 z-50 max-h-48 overflow-y-auto shadow-lg mt-1">
-                    <%= for symbol <- @filtered_symbols do %>
-                      <li>
-                        <button
-                          type="button"
-                          class="text-left"
-                          phx-click="select_symbol"
-                          phx-value-symbol={symbol}
-                        >
-                          <%= symbol %>
-                        </button>
-                      </li>
-                    <% end %>
-                  </ul>
-                <% end %>
-              </div>
-
-              <%!-- Side Selection --%>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text font-medium">Side *</span>
-                </label>
-                <div class="join w-full">
-                  <input
-                    type="radio"
-                    name="order[side]"
-                    value="BUY"
-                    class="join-item btn flex-1"
-                    aria-label="BUY"
-                    checked={@new_order_form["side"] == "BUY"}
-                  />
-                  <input
-                    type="radio"
-                    name="order[side]"
-                    value="SELL"
-                    class="join-item btn flex-1"
-                    aria-label="SELL"
-                    checked={@new_order_form["side"] == "SELL"}
-                  />
-                </div>
-              </div>
-
-              <%!-- Order Type --%>
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text font-medium">Order Type *</span>
-                </label>
-                <select name="order[type]" class="select w-full">
-                  <option value="LIMIT" selected={@new_order_form["type"] == "LIMIT"}>
-                    Limit
-                  </option>
-                  <option value="MARKET" selected={@new_order_form["type"] == "MARKET"}>
-                    Market
-                  </option>
-                  <option
-                    value="STOP_LOSS_LIMIT"
-                    selected={@new_order_form["type"] == "STOP_LOSS_LIMIT"}
-                  >
-                    Stop Loss Limit
-                  </option>
-                  <option
-                    value="TAKE_PROFIT_LIMIT"
-                    selected={@new_order_form["type"] == "TAKE_PROFIT_LIMIT"}
-                  >
-                    Take Profit Limit
-                  </option>
-                </select>
-              </div>
-
-              <%!-- Price (for Limit orders) --%>
-              <%= if @new_order_form["type"] != "MARKET" do %>
-                <div class="form-control">
-                  <label class="label">
-                    <span class="label-text font-medium">Price *</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="order[price]"
-                    value={@new_order_form["price"]}
-                    placeholder="0.00"
-                    class="input w-full font-mono"
-                    inputmode="decimal"
-                  />
-                </div>
+          <form phx-change="update_order_form" phx-submit="create_order" class="space-y-4">
+            <%!-- Symbol Search --%>
+            <div class="form-control relative">
+              <label class="label">
+                <span class="label-text font-medium">Symbol *</span>
+              </label>
+              <input
+                type="text"
+                name="order[symbol]"
+                value={@symbol_search}
+                placeholder="Search symbol (e.g., BTCUSDT)"
+                class="input w-full"
+                phx-keyup="search_symbol"
+                phx-debounce="200"
+                autocomplete="off"
+              />
+              <%= if length(@filtered_symbols) > 0 do %>
+                <ul class="menu bg-base-200 rounded-box absolute top-full left-0 right-0 z-50 max-h-48 overflow-y-auto shadow-lg mt-1">
+                  <%= for symbol <- @filtered_symbols do %>
+                    <li>
+                      <button
+                        type="button"
+                        class="text-left"
+                        phx-click="select_symbol"
+                        phx-value-symbol={symbol}
+                      >
+                        {symbol}
+                      </button>
+                    </li>
+                  <% end %>
+                </ul>
               <% end %>
+            </div>
 
-              <%!-- Quantity --%>
+            <%!-- Side Selection --%>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-medium">Side *</span>
+              </label>
+              <div class="join w-full">
+                <input
+                  type="radio"
+                  name="order[side]"
+                  value="BUY"
+                  class="join-item btn flex-1"
+                  aria-label="BUY"
+                  checked={@new_order_form["side"] == "BUY"}
+                />
+                <input
+                  type="radio"
+                  name="order[side]"
+                  value="SELL"
+                  class="join-item btn flex-1"
+                  aria-label="SELL"
+                  checked={@new_order_form["side"] == "SELL"}
+                />
+              </div>
+            </div>
+
+            <%!-- Order Type --%>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-medium">Order Type *</span>
+              </label>
+              <select name="order[type]" class="select w-full">
+                <option value="LIMIT" selected={@new_order_form["type"] == "LIMIT"}>
+                  Limit
+                </option>
+                <option value="MARKET" selected={@new_order_form["type"] == "MARKET"}>
+                  Market
+                </option>
+                <option
+                  value="STOP_LOSS_LIMIT"
+                  selected={@new_order_form["type"] == "STOP_LOSS_LIMIT"}
+                >
+                  Stop Loss Limit
+                </option>
+                <option
+                  value="TAKE_PROFIT_LIMIT"
+                  selected={@new_order_form["type"] == "TAKE_PROFIT_LIMIT"}
+                >
+                  Take Profit Limit
+                </option>
+              </select>
+            </div>
+
+            <%!-- Price (for Limit orders) --%>
+            <%= if @new_order_form["type"] != "MARKET" do %>
               <div class="form-control">
                 <label class="label">
-                  <span class="label-text font-medium">Quantity *</span>
+                  <span class="label-text font-medium">Price *</span>
                 </label>
                 <input
                   type="text"
-                  name="order[quantity]"
-                  value={@new_order_form["quantity"]}
+                  name="order[price]"
+                  value={@new_order_form["price"]}
                   placeholder="0.00"
                   class="input w-full font-mono"
                   inputmode="decimal"
                 />
               </div>
+            <% end %>
 
-              <%!-- Time in Force (for Limit orders) --%>
-              <%= if @new_order_form["type"] != "MARKET" do %>
-                <div class="form-control">
-                  <label class="label">
-                    <span class="label-text font-medium">Time in Force</span>
-                  </label>
-                  <select name="order[time_in_force]" class="select w-full">
-                    <option value="GTC" selected={@new_order_form["time_in_force"] == "GTC"}>
-                      GTC (Good Till Cancelled)
-                    </option>
-                    <option value="IOC" selected={@new_order_form["time_in_force"] == "IOC"}>
-                      IOC (Immediate or Cancel)
-                    </option>
-                    <option value="FOK" selected={@new_order_form["time_in_force"] == "FOK"}>
-                      FOK (Fill or Kill)
-                    </option>
-                  </select>
-                </div>
-              <% end %>
+            <%!-- Quantity --%>
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-medium">Quantity *</span>
+              </label>
+              <input
+                type="text"
+                name="order[quantity]"
+                value={@new_order_form["quantity"]}
+                placeholder="0.00"
+                class="input w-full font-mono"
+                inputmode="decimal"
+              />
+            </div>
 
-              <%!-- Order Summary --%>
-              <%= if @new_order_form["symbol"] != "" and @new_order_form["quantity"] != "" do %>
-                <div class="alert alert-info">
-                  <div>
-                    <span class="font-medium">Order Summary:</span>
-                    <span class={[
-                      "badge ml-2",
-                      if(@new_order_form["side"] == "BUY", do: "badge-success", else: "badge-error")
-                    ]}>
-                      <%= @new_order_form["side"] %>
-                    </span>
-                    <span class="ml-2">
-                      <%= @new_order_form["quantity"] %> <%= @new_order_form["symbol"] %>
-                    </span>
-                    <%= if @new_order_form["type"] != "MARKET" and @new_order_form["price"] != "" do %>
-                      <span class="ml-1">@ <%= @new_order_form["price"] %></span>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-
-              <%!-- Actions --%>
-              <div class="modal-action">
-                <button
-                  type="button"
-                  class="btn btn-ghost"
-                  phx-click="close_new_order_modal"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  class={[
-                    "btn",
-                    if(@new_order_form["side"] == "BUY", do: "btn-success", else: "btn-error")
-                  ]}
-                  disabled={@creating_order}
-                >
-                  <%= if @creating_order do %>
-                    <span class="loading loading-spinner loading-sm"></span>
-                  <% end %>
-                  Place <%= @new_order_form["side"] %> Order
-                </button>
+            <%!-- Time in Force (for Limit orders) --%>
+            <%= if @new_order_form["type"] != "MARKET" do %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-medium">Time in Force</span>
+                </label>
+                <select name="order[time_in_force]" class="select w-full">
+                  <option value="GTC" selected={@new_order_form["time_in_force"] == "GTC"}>
+                    GTC (Good Till Cancelled)
+                  </option>
+                  <option value="IOC" selected={@new_order_form["time_in_force"] == "IOC"}>
+                    IOC (Immediate or Cancel)
+                  </option>
+                  <option value="FOK" selected={@new_order_form["time_in_force"] == "FOK"}>
+                    FOK (Fill or Kill)
+                  </option>
+                </select>
               </div>
-            </form>
-          </div>
+            <% end %>
+
+            <%!-- Order Summary --%>
+            <%= if @new_order_form["symbol"] != "" and @new_order_form["quantity"] != "" do %>
+              <div class="alert alert-info">
+                <div>
+                  <span class="font-medium">Order Summary:</span>
+                  <span class={[
+                    "badge ml-2",
+                    if(@new_order_form["side"] == "BUY", do: "badge-success", else: "badge-error")
+                  ]}>
+                    {@new_order_form["side"]}
+                  </span>
+                  <span class="ml-2">
+                    {@new_order_form["quantity"]} {@new_order_form["symbol"]}
+                  </span>
+                  <%= if @new_order_form["type"] != "MARKET" and @new_order_form["price"] != "" do %>
+                    <span class="ml-1">@ {@new_order_form["price"]}</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <%!-- Actions --%>
+            <div class="modal-action">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                phx-click="close_new_order_modal"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class={[
+                  "btn",
+                  if(@new_order_form["side"] == "BUY", do: "btn-success", else: "btn-error")
+                ]}
+                disabled={@creating_order}
+              >
+                <%= if @creating_order do %>
+                  <span class="loading loading-spinner loading-sm"></span>
+                <% end %>
+                Place {@new_order_form["side"]} Order
+              </button>
+            </div>
+          </form>
+        </div>
         <form method="dialog" class="modal-backdrop">
           <button phx-click="close_new_order_modal">close</button>
         </form>

@@ -37,7 +37,8 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
 
     assigns =
       assigns
-      |> assign(:asks_display, Enum.reverse(asks_sorted))  # Reverse so highest ask at top
+      # Reverse so highest ask at top
+      |> assign(:asks_display, Enum.reverse(asks_sorted))
       |> assign(:bids_display, bids_sorted)
       |> assign(:max_volume, max_volume)
       |> assign(:spread, spread)
@@ -70,10 +71,10 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
               <% {spread_value, spread_percent} = @spread %>
               <div class="text-center">
                 <span class="font-mono text-sm font-bold text-base-content">
-                  <%= format_price(spread_value, @precision) %>
+                  {format_price(spread_value, @precision)}
                 </span>
                 <span class="text-xs text-base-content/60 ml-2">
-                  (<%= :erlang.float_to_binary(spread_percent, decimals: 3) %>%)
+                  ({:erlang.float_to_binary(spread_percent, decimals: 3)}%)
                 </span>
               </div>
             <% else %>
@@ -113,7 +114,7 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
 
   defp order_row(%{row: {price, qty}} = assigns) do
     total = price * qty
-    volume_percent = if assigns.max_volume > 0, do: (qty / assigns.max_volume) * 100, else: 0
+    volume_percent = if assigns.max_volume > 0, do: qty / assigns.max_volume * 100, else: 0
     color_class = if assigns.side == :ask, do: "text-error", else: "text-success"
     bg_class = if assigns.side == :ask, do: "bg-error/10", else: "bg-success/10"
 
@@ -134,13 +135,13 @@ defmodule DashboardWeb.Components.Trading.OrderBook do
       <%!-- Data --%>
       <div class="relative grid grid-cols-3 gap-1 text-xs w-full">
         <div class={["text-left font-mono font-medium", @color_class]}>
-          <%= format_price(elem(@row, 0), @precision) %>
+          {format_price(elem(@row, 0), @precision)}
         </div>
         <div class="text-right font-mono text-base-content/80">
-          <%= format_qty(elem(@row, 1)) %>
+          {format_qty(elem(@row, 1))}
         </div>
         <div class="text-right font-mono text-base-content/60">
-          <%= format_total(@total) %>
+          {format_total(@total)}
         </div>
       </div>
     </div>

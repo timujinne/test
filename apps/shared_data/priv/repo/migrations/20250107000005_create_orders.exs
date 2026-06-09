@@ -14,7 +14,9 @@ defmodule SharedData.Repo.Migrations.CreateOrders do
       add :filled_qty, :decimal, precision: 20, scale: 8, default: 0
       add :status, :string
       add :time_in_force, :string
-      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id), null: false
+
+      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id),
+        null: false
 
       timestamps()
     end

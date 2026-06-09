@@ -79,6 +79,7 @@ defmodule SharedData.Schemas.ChainState do
   """
   def add_to_history(chain_state, event_type, event_data) do
     timestamp = DateTime.utc_now() |> DateTime.to_iso8601()
+
     event = %{
       "type" => to_string(event_type),
       "data" => event_data,

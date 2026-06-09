@@ -132,13 +132,14 @@ defmodule DataCollector.TickerStream do
     symbol = String.upcase(symbol)
 
     # Ensure we don't go below 0
-    count = case :ets.lookup(@subscribers_table, symbol) do
-      [{^symbol, current}] when current > 0 ->
-        :ets.update_counter(@subscribers_table, symbol, -1)
+    count =
+      case :ets.lookup(@subscribers_table, symbol) do
+        [{^symbol, current}] when current > 0 ->
+          :ets.update_counter(@subscribers_table, symbol, -1)
 
-      _ ->
-        0
-    end
+        _ ->
+          0
+      end
 
     Logger.info("TickerStream (#{symbol}): Subscriber removed, count: #{count}")
 
@@ -229,9 +230,7 @@ defmodule DataCollector.TickerStream do
         new_state = %{state | decode_errors: state.decode_errors + 1}
 
         if new_state.decode_errors > 10 do
-          Logger.error(
-            "TickerStream (#{state.symbol}): Too many decode errors, reconnecting..."
-          )
+          Logger.error("TickerStream (#{state.symbol}): Too many decode errors, reconnecting...")
 
           {:close, :too_many_errors, new_state}
         else
@@ -296,12 +295,18 @@ defmodule DataCollector.TickerStream do
     ticker = %{
       "e" => "24hrTicker",
       "s" => symbol,
-      "c" => price,       # Close/current price
-      "o" => data["o"],   # Open price
-      "h" => data["h"],   # High
-      "l" => data["l"],   # Low
-      "v" => data["v"],   # Volume
-      "q" => data["q"]    # Quote volume
+      # Close/current price
+      "c" => price,
+      # Open price
+      "o" => data["o"],
+      # High
+      "h" => data["h"],
+      # Low
+      "l" => data["l"],
+      # Volume
+      "v" => data["v"],
+      # Quote volume
+      "q" => data["q"]
     }
 
     Phoenix.PubSub.broadcast(

@@ -40,9 +40,23 @@ defmodule SharedData.Schemas.Order do
       :account_id
     ])
     |> validate_required([:symbol, :type, :side, :quantity, :account_id])
-    |> validate_inclusion(:type, ["LIMIT", "MARKET", "STOP_LOSS", "STOP_LOSS_LIMIT", "TAKE_PROFIT", "TAKE_PROFIT_LIMIT"])
+    |> validate_inclusion(:type, [
+      "LIMIT",
+      "MARKET",
+      "STOP_LOSS",
+      "STOP_LOSS_LIMIT",
+      "TAKE_PROFIT",
+      "TAKE_PROFIT_LIMIT"
+    ])
     |> validate_inclusion(:side, ["BUY", "SELL"])
-    |> validate_inclusion(:status, ["NEW", "PARTIALLY_FILLED", "FILLED", "CANCELED", "REJECTED", "EXPIRED"])
+    |> validate_inclusion(:status, [
+      "NEW",
+      "PARTIALLY_FILLED",
+      "FILLED",
+      "CANCELED",
+      "REJECTED",
+      "EXPIRED"
+    ])
     |> unique_constraint(:order_id)
     |> foreign_key_constraint(:account_id)
   end

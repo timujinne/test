@@ -115,7 +115,9 @@ defmodule TradingEngine.SharedPositionTracker do
           {account_id, symbol, add_unrealized_pnl(pos, state.market_prices)}
         end)
       end)
-      |> Enum.filter(fn {_, _, pos} -> Decimal.compare(pos.net_quantity, Decimal.new(0)) != :eq end)
+      |> Enum.filter(fn {_, _, pos} ->
+        Decimal.compare(pos.net_quantity, Decimal.new(0)) != :eq
+      end)
 
     {:reply, all_positions, state}
   end

@@ -8,7 +8,9 @@ defmodule SharedData.Repo.Migrations.CreateAccounts do
       add :label, :string, null: false
       add :is_active, :boolean, default: true
       add :user_id, references(:users, on_delete: :delete_all, type: :binary_id), null: false
-      add :api_credential_id, references(:api_credentials, on_delete: :restrict, type: :binary_id), null: false
+
+      add :api_credential_id,
+          references(:api_credentials, on_delete: :restrict, type: :binary_id), null: false
 
       timestamps()
     end

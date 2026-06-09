@@ -17,7 +17,8 @@ defmodule SharedData.Repo.Migrations.CreateChainStates do
       add :started_at, :utc_datetime
       add :completed_at, :utc_datetime
 
-      add :setting_id, references(:settings, on_delete: :delete_all, type: :binary_id), null: false
+      add :setting_id, references(:settings, on_delete: :delete_all, type: :binary_id),
+        null: false
 
       timestamps()
     end

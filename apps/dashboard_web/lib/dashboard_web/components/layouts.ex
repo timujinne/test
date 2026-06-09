@@ -38,9 +38,9 @@ defmodule DashboardWeb.Layouts do
       <main class="flex-1 bg-base-200">
         <div class="container mx-auto px-4 py-8 max-w-6xl">
           <%= if @inner_block && @inner_block != [] do %>
-            <%= render_slot(@inner_block) %>
+            {render_slot(@inner_block)}
           <% else %>
-            <%= @inner_content %>
+            {@inner_content}
           <% end %>
         </div>
       </main>
@@ -77,7 +77,7 @@ defmodule DashboardWeb.Layouts do
       ]}
     >
       <.trading_nav_icon name={@icon} />
-      <span><%= @label %></span>
+      <span>{@label}</span>
     </.link>
     """
   end

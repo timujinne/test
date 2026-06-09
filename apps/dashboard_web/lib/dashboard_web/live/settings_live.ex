@@ -208,7 +208,6 @@ defmodule DashboardWeb.SettingsLive do
     end
   end
 
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -219,278 +218,297 @@ defmodule DashboardWeb.SettingsLive do
           Manage your trading accounts and API credentials
         </p>
       </div>
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body pb-0 flex-row justify-between items-center">
-            <h2 class="card-title">Trading Accounts</h2>
-            <button
-              :if={!@show_account_form}
-              phx-click="show_account_form"
-              class="btn btn-primary"
-            >
-              Add Account
-            </button>
-          </div>
-          <div class="p-6">
-            <%!-- Security Notice --%>
-            <div class="alert alert-warning mb-6">
-              <span class={["hero-exclamation-triangle", "stroke-current shrink-0 h-6 w-6"]} />
-              <div>
-                <div class="font-bold">Security Notice</div>
-                <div class="text-sm">Your API keys are encrypted in the database. Never share your API keys with anyone.</div>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body pb-0 flex-row justify-between items-center">
+          <h2 class="card-title">Trading Accounts</h2>
+          <button
+            :if={!@show_account_form}
+            phx-click="show_account_form"
+            class="btn btn-primary"
+          >
+            Add Account
+          </button>
+        </div>
+        <div class="p-6">
+          <%!-- Security Notice --%>
+          <div class="alert alert-warning mb-6">
+            <span class={["hero-exclamation-triangle", "stroke-current shrink-0 h-6 w-6"]} />
+            <div>
+              <div class="font-bold">Security Notice</div>
+              <div class="text-sm">
+                Your API keys are encrypted in the database. Never share your API keys with anyone.
               </div>
             </div>
+          </div>
 
-            <%!-- Add/Edit Account Form --%>
-            <%= if @show_account_form do %>
-              <div class="card bg-base-200 mb-6">
-                <div class="card-body">
-                  <h3 class="card-title">
-                    <%= if @editing_account, do: "Edit", else: "Add" %> Trading Account
-                  </h3>
-                  <.form
-                    for={@account_form}
-                    phx-change="validate_account"
-                    phx-submit="save_account"
-                  >
-                    <div class="space-y-4">
-                      <div class="form-control">
+          <%!-- Add/Edit Account Form --%>
+          <%= if @show_account_form do %>
+            <div class="card bg-base-200 mb-6">
+              <div class="card-body">
+                <h3 class="card-title">
+                  {if @editing_account, do: "Edit", else: "Add"} Trading Account
+                </h3>
+                <.form
+                  for={@account_form}
+                  phx-change="validate_account"
+                  phx-submit="save_account"
+                >
+                  <div class="space-y-4">
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Account Name</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="account[label]"
+                        value={@account_form[:label].value}
+                        placeholder="e.g., Main Trading, Testnet Account"
+                        class="input w-full"
+                      />
+                      <%= if @account_form[:label].errors != [] do %>
                         <label class="label">
-                          <span class="label-text">Account Name</span>
+                          <span class="label-text-alt text-error">
+                            {translate_error(@account_form[:label].errors)}
+                          </span>
                         </label>
-                        <input
-                          type="text"
-                          name="account[label]"
-                          value={@account_form[:label].value}
-                          placeholder="e.g., Main Trading, Testnet Account"
-                          class="input w-full"
-                        />
-                        <%= if @account_form[:label].errors != [] do %>
-                          <label class="label">
-                            <span class="label-text-alt text-error">
-                              <%= translate_error(@account_form[:label].errors) %>
-                            </span>
-                          </label>
-                        <% end %>
-                      </div>
+                      <% end %>
+                    </div>
 
-                      <div class="divider">API Credentials</div>
+                    <div class="divider">API Credentials</div>
 
-                      <div class="form-control">
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">API Key</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="account[api_key]"
+                        value={@account_form[:api_key].value}
+                        placeholder={
+                          if @editing_account,
+                            do: "Leave empty to keep current key",
+                            else: "Enter your Binance API key"
+                        }
+                        class="input w-full font-mono"
+                      />
+                      <%= if @account_form[:api_key].errors != [] do %>
                         <label class="label">
-                          <span class="label-text">API Key</span>
+                          <span class="label-text-alt text-error">
+                            {translate_error(@account_form[:api_key].errors)}
+                          </span>
                         </label>
-                        <input
-                          type="text"
-                          name="account[api_key]"
-                          value={@account_form[:api_key].value}
-                          placeholder={if @editing_account, do: "Leave empty to keep current key", else: "Enter your Binance API key"}
-                          class="input w-full font-mono"
-                        />
-                        <%= if @account_form[:api_key].errors != [] do %>
-                          <label class="label">
-                            <span class="label-text-alt text-error">
-                              <%= translate_error(@account_form[:api_key].errors) %>
-                            </span>
-                          </label>
-                        <% end %>
-                        <%= if @editing_account && @editing_account.api_credential do %>
-                          <label class="label">
-                            <span class="label-text-alt text-base-content/70">
-                              Current: <%= CredentialHelper.mask_key(@editing_account.api_credential.api_key) %>
-                            </span>
-                          </label>
-                        <% end %>
-                      </div>
-
-                      <div class="form-control">
+                      <% end %>
+                      <%= if @editing_account && @editing_account.api_credential do %>
                         <label class="label">
-                          <span class="label-text">Secret Key</span>
+                          <span class="label-text-alt text-base-content/70">
+                            Current: {CredentialHelper.mask_key(
+                              @editing_account.api_credential.api_key
+                            )}
+                          </span>
                         </label>
-                        <input
-                          type="password"
-                          name="account[secret_key]"
-                          value={@account_form[:secret_key].value}
-                          placeholder={if @editing_account, do: "Leave empty to keep current key", else: "Enter your Binance secret key"}
-                          class="input w-full font-mono"
-                        />
-                        <%= if @account_form[:secret_key].errors != [] do %>
-                          <label class="label">
-                            <span class="label-text-alt text-error">
-                              <%= translate_error(@account_form[:secret_key].errors) %>
-                            </span>
-                          </label>
-                        <% end %>
-                        <%= if @editing_account && @editing_account.api_credential do %>
-                          <label class="label">
-                            <span class="label-text-alt text-base-content/70">
-                              Current: <%= CredentialHelper.mask_key(@editing_account.api_credential.secret_key) %>
-                            </span>
-                          </label>
-                        <% end %>
-                      </div>
+                      <% end %>
+                    </div>
 
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Secret Key</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="account[secret_key]"
+                        value={@account_form[:secret_key].value}
+                        placeholder={
+                          if @editing_account,
+                            do: "Leave empty to keep current key",
+                            else: "Enter your Binance secret key"
+                        }
+                        class="input w-full font-mono"
+                      />
+                      <%= if @account_form[:secret_key].errors != [] do %>
+                        <label class="label">
+                          <span class="label-text-alt text-error">
+                            {translate_error(@account_form[:secret_key].errors)}
+                          </span>
+                        </label>
+                      <% end %>
+                      <%= if @editing_account && @editing_account.api_credential do %>
+                        <label class="label">
+                          <span class="label-text-alt text-base-content/70">
+                            Current: {CredentialHelper.mask_key(
+                              @editing_account.api_credential.secret_key
+                            )}
+                          </span>
+                        </label>
+                      <% end %>
+                    </div>
+
+                    <div class="form-control">
+                      <label class="label cursor-pointer justify-start gap-2">
+                        <input
+                          type="checkbox"
+                          name="account[is_testnet]"
+                          checked={@account_form[:is_testnet].value}
+                          class="checkbox checkbox-primary"
+                        />
+                        <span class="label-text">Testnet Credentials</span>
+                      </label>
+                      <label class="label">
+                        <span class="label-text-alt text-base-content/70">
+                          Check this if these are Binance Testnet credentials
+                        </span>
+                      </label>
+                    </div>
+
+                    <div class="divider">Optional</div>
+
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Binance Account ID (auto-detected)</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="account[binance_account_id]"
+                        value={@account_form[:binance_account_id].value}
+                        placeholder="Will be auto-detected from API"
+                        class="input w-full"
+                      />
+                    </div>
+
+                    <%= if @editing_account do %>
                       <div class="form-control">
                         <label class="label cursor-pointer justify-start gap-2">
                           <input
                             type="checkbox"
-                            name="account[is_testnet]"
-                            checked={@account_form[:is_testnet].value}
+                            name="account[is_active]"
+                            checked={@account_form[:is_active].value}
                             class="checkbox checkbox-primary"
                           />
-                          <span class="label-text">Testnet Credentials</span>
-                        </label>
-                        <label class="label">
-                          <span class="label-text-alt text-base-content/70">
-                            Check this if these are Binance Testnet credentials
-                          </span>
+                          <span class="label-text">Active</span>
                         </label>
                       </div>
+                    <% end %>
 
-                      <div class="divider">Optional</div>
-
-                      <div class="form-control">
-                        <label class="label">
-                          <span class="label-text">Binance Account ID (auto-detected)</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="account[binance_account_id]"
-                          value={@account_form[:binance_account_id].value}
-                          placeholder="Will be auto-detected from API"
-                          class="input w-full"
-                        />
-                      </div>
-
-                      <%= if @editing_account do %>
-                        <div class="form-control">
-                          <label class="label cursor-pointer justify-start gap-2">
-                            <input
-                              type="checkbox"
-                              name="account[is_active]"
-                              checked={@account_form[:is_active].value}
-                              class="checkbox checkbox-primary"
-                            />
-                            <span class="label-text">Active</span>
-                          </label>
-                        </div>
-                      <% end %>
-
-                      <div class="flex gap-2 mt-6">
-                        <button type="submit" class="btn btn-primary">
-                          <%= if @editing_account, do: "Update Account", else: "Create Account" %>
-                        </button>
-                        <button
-                          type="button"
-                          phx-click="hide_account_form"
-                          class="btn btn-ghost"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                    <div class="flex gap-2 mt-6">
+                      <button type="submit" class="btn btn-primary">
+                        {if @editing_account, do: "Update Account", else: "Create Account"}
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="hide_account_form"
+                        class="btn btn-ghost"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                  </.form>
-                </div>
+                  </div>
+                </.form>
               </div>
-            <% end %>
+            </div>
+          <% end %>
 
-            <%!-- Test Result --%>
-            <%= if @test_result do %>
-              <div class={["alert mb-6", if(@test_result.success, do: "alert-success", else: "alert-error")]}>
-                <div>
-                  <div class="font-bold"><%= @test_result.message %></div>
-                  <%= if @test_result.success do %>
-                    <div class="text-sm">
-                      Account Type: <%= @test_result.account_type %> |
-                      Can Trade: <%= if @test_result.can_trade, do: "Yes", else: "No" %>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-
-            <%!-- Accounts List --%>
-            <%= if Enum.empty?(@accounts) and !@show_account_form do %>
-              <div class="text-center text-base-content/70 py-8">
-                No accounts configured. Add your first trading account to start.
-              </div>
-            <% else %>
-              <div class="space-y-4">
-                <%= for account <- @accounts do %>
-                  <div class="card bg-base-100 border border-base-300">
-                    <div class="card-body">
-                      <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                          <div class="flex items-center gap-2">
-                            <h3 class="text-lg font-medium text-base-content">
-                              <%= account.label %>
-                            </h3>
-                            <span class={[
-                              "badge",
-                              if(account.is_active, do: "badge-success", else: "badge-ghost")
-                            ]}>
-                              <%= if account.is_active, do: "Active", else: "Inactive" %>
-                            </span>
-                            <%= if account.api_credential && account.api_credential.is_testnet do %>
-                              <span class="badge badge-warning">Testnet</span>
-                            <% end %>
-                          </div>
-                          <div class="mt-2 space-y-1">
-                            <%= if account.api_credential do %>
-                              <p class="text-sm text-base-content/70 font-mono">
-                                <span class="font-sans font-medium">API Key:</span>
-                                <%= CredentialHelper.mask_key(account.api_credential.api_key) %>
-                              </p>
-                            <% end %>
-                            <%= if account.binance_account_id do %>
-                              <p class="text-sm text-base-content/70">
-                                <span class="font-medium">Binance ID:</span> <%= account.binance_account_id %>
-                              </p>
-                            <% end %>
-                            <p class="text-xs text-base-content/50">
-                              Updated <%= format_timestamp(account.updated_at) %>
-                            </p>
-                          </div>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                          <button
-                            phx-click="test_account"
-                            phx-value-id={account.id}
-                            class="btn btn-sm btn-info"
-                          >
-                            Test Connection
-                          </button>
-                          <button
-                            phx-click="toggle_account_active"
-                            phx-value-id={account.id}
-                            class={["btn btn-sm", if(account.is_active, do: "btn-warning", else: "btn-success")]}
-                          >
-                            <%= if account.is_active, do: "Deactivate", else: "Activate" %>
-                          </button>
-                          <button
-                            phx-click="edit_account"
-                            phx-value-id={account.id}
-                            class="btn btn-sm btn-ghost"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            phx-click="delete_account"
-                            phx-value-id={account.id}
-                            data-confirm="Are you sure you want to delete this account and API credentials?"
-                            class="btn btn-sm btn-ghost text-error"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+          <%!-- Test Result --%>
+          <%= if @test_result do %>
+            <div class={[
+              "alert mb-6",
+              if(@test_result.success, do: "alert-success", else: "alert-error")
+            ]}>
+              <div>
+                <div class="font-bold">{@test_result.message}</div>
+                <%= if @test_result.success do %>
+                  <div class="text-sm">
+                    Account Type: {@test_result.account_type} |
+                    Can Trade: {if @test_result.can_trade, do: "Yes", else: "No"}
                   </div>
                 <% end %>
               </div>
-            <% end %>
-          </div>
-        </div>
+            </div>
+          <% end %>
 
+          <%!-- Accounts List --%>
+          <%= if Enum.empty?(@accounts) and !@show_account_form do %>
+            <div class="text-center text-base-content/70 py-8">
+              No accounts configured. Add your first trading account to start.
+            </div>
+          <% else %>
+            <div class="space-y-4">
+              <%= for account <- @accounts do %>
+                <div class="card bg-base-100 border border-base-300">
+                  <div class="card-body">
+                    <div class="flex justify-between items-start">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <h3 class="text-lg font-medium text-base-content">
+                            {account.label}
+                          </h3>
+                          <span class={[
+                            "badge",
+                            if(account.is_active, do: "badge-success", else: "badge-ghost")
+                          ]}>
+                            {if account.is_active, do: "Active", else: "Inactive"}
+                          </span>
+                          <%= if account.api_credential && account.api_credential.is_testnet do %>
+                            <span class="badge badge-warning">Testnet</span>
+                          <% end %>
+                        </div>
+                        <div class="mt-2 space-y-1">
+                          <%= if account.api_credential do %>
+                            <p class="text-sm text-base-content/70 font-mono">
+                              <span class="font-sans font-medium">API Key:</span>
+                              {CredentialHelper.mask_key(account.api_credential.api_key)}
+                            </p>
+                          <% end %>
+                          <%= if account.binance_account_id do %>
+                            <p class="text-sm text-base-content/70">
+                              <span class="font-medium">Binance ID:</span> {account.binance_account_id}
+                            </p>
+                          <% end %>
+                          <p class="text-xs text-base-content/50">
+                            Updated {format_timestamp(account.updated_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <button
+                          phx-click="test_account"
+                          phx-value-id={account.id}
+                          class="btn btn-sm btn-info"
+                        >
+                          Test Connection
+                        </button>
+                        <button
+                          phx-click="toggle_account_active"
+                          phx-value-id={account.id}
+                          class={[
+                            "btn btn-sm",
+                            if(account.is_active, do: "btn-warning", else: "btn-success")
+                          ]}
+                        >
+                          {if account.is_active, do: "Deactivate", else: "Activate"}
+                        </button>
+                        <button
+                          phx-click="edit_account"
+                          phx-value-id={account.id}
+                          class="btn btn-sm btn-ghost"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          phx-click="delete_account"
+                          phx-value-id={account.id}
+                          data-confirm="Are you sure you want to delete this account and API credentials?"
+                          class="btn btn-sm btn-ghost text-error"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
     </div>
     """
   end

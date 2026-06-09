@@ -140,6 +140,7 @@ defmodule DashboardWeb.ChainsLive do
         {:ok, field_atom} ->
           chain_form = Map.put(socket.assigns.chain_form, field_atom, value)
           {:noreply, assign(socket, chain_form: chain_form)}
+
         :error ->
           {:noreply, socket}
       end
@@ -151,9 +152,10 @@ defmodule DashboardWeb.ChainsLive do
   @impl true
   def handle_event("add_step", %{"type" => type}, socket) do
     # Default symbol from form or first available symbol
-    default_symbol = socket.assigns.chain_form[:symbol] ||
-                     List.first(socket.assigns.available_symbols) ||
-                     "BTCUSDT"
+    default_symbol =
+      socket.assigns.chain_form[:symbol] ||
+        List.first(socket.assigns.available_symbols) ||
+        "BTCUSDT"
 
     new_step =
       case type do
@@ -343,8 +345,7 @@ defmodule DashboardWeb.ChainsLive do
           phx-click="show_builder"
           disabled={@show_builder}
         >
-          <span class={["hero-plus", "h-5 w-5"]} />
-          New Chain
+          <span class={["hero-plus", "h-5 w-5"]} /> New Chain
         </button>
       </div>
 
@@ -366,7 +367,7 @@ defmodule DashboardWeb.ChainsLive do
         <div class="mb-8">
           <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
             <span class="badge badge-success badge-lg">
-              <%= length(@active_chains) %>
+              {length(@active_chains)}
             </span>
             Active Chains
           </h2>
@@ -392,7 +393,9 @@ defmodule DashboardWeb.ChainsLive do
         <%= if @saved_chains == [] do %>
           <div class="alert alert-info">
             <span class={["hero-information-circle", "stroke-current shrink-0 w-6 h-6"]} />
-            <span>No saved chains yet. Click "New Chain" to create your first conditional chain.</span>
+            <span>
+              No saved chains yet. Click "New Chain" to create your first conditional chain.
+            </span>
           </div>
         <% else %>
           <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -422,16 +425,18 @@ defmodule DashboardWeb.ChainsLive do
     <div class="card bg-base-100 shadow-lg border border-base-300 hover:border-primary transition-colors">
       <div class="card-body p-4">
         <div class="flex items-start justify-between mb-2">
-          <h3 class="card-title text-lg"><%= Map.get(@chain, :name, "Unnamed") %></h3>
+          <h3 class="card-title text-lg">{Map.get(@chain, :name, "Unnamed")}</h3>
           <div class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
               <span class={["hero-ellipsis-vertical", "h-5 w-5"]} />
             </label>
-            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+            <ul
+              tabindex="0"
+              class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+            >
               <li>
                 <a phx-click={@on_edit} phx-value-id={Map.get(@chain, :id)}>
-                  <span class={["hero-pencil-square", "h-4 w-4"]} />
-                  Edit
+                  <span class={["hero-pencil-square", "h-4 w-4"]} /> Edit
                 </a>
               </li>
               <li>
@@ -441,8 +446,7 @@ defmodule DashboardWeb.ChainsLive do
                   data-confirm="Are you sure you want to delete this chain?"
                   class="text-error"
                 >
-                  <span class={["hero-trash", "h-4 w-4"]} />
-                  Delete
+                  <span class={["hero-trash", "h-4 w-4"]} /> Delete
                 </a>
               </li>
             </ul>
@@ -453,17 +457,17 @@ defmodule DashboardWeb.ChainsLive do
           <div class="flex items-center gap-2 flex-wrap">
             <%= for symbol <- (Map.get(@chain, :symbols) || [Map.get(@chain, :symbol, "-")]) do %>
               <span class="badge badge-info badge-sm">
-                <%= symbol %>
+                {symbol}
               </span>
             <% end %>
             <span class="text-xs text-base-content/60">
-              <%= Map.get(@chain, :steps, []) |> length() %> steps
+              {Map.get(@chain, :steps, []) |> length()} steps
             </span>
           </div>
 
           <%= if Map.get(@chain, :initial_quantity) do %>
             <div class="text-sm text-base-content/70">
-              Initial: <span class="font-mono"><%= Map.get(@chain, :initial_quantity) %></span>
+              Initial: <span class="font-mono">{Map.get(@chain, :initial_quantity)}</span>
             </div>
           <% end %>
         </div>
@@ -475,8 +479,7 @@ defmodule DashboardWeb.ChainsLive do
             phx-click={@on_start}
             phx-value-id={Map.get(@chain, :id)}
           >
-            <span class={["hero-play-circle", "h-4 w-4"]} />
-            Start
+            <span class={["hero-play-circle", "h-4 w-4"]} /> Start
           </button>
         </div>
       </div>
@@ -508,6 +511,7 @@ defmodule DashboardWeb.ChainsLive do
   defp normalize_steps_keys(steps) when is_list(steps) do
     Enum.map(steps, &normalize_step_keys/1)
   end
+
   defp normalize_steps_keys(_), do: []
 
   defp normalize_step_keys(step) when is_map(step) do
@@ -515,9 +519,11 @@ defmodule DashboardWeb.ChainsLive do
     |> Enum.map(fn {k, v} -> {to_atom_key(k), normalize_step_value(v)} end)
     |> Map.new()
   end
+
   defp normalize_step_keys(other), do: other
 
   defp to_atom_key(key) when is_atom(key), do: key
+
   defp to_atom_key(key) when is_binary(key) do
     # Safe atom conversion - only allow known step field keys
     case safe_step_field_atom(key) do
@@ -562,6 +568,7 @@ defmodule DashboardWeb.ChainsLive do
             condition = Map.get(step, :condition, %{})
             updated_condition = Map.put(condition, field_atom, value)
             Map.put(step, :condition, updated_condition)
+
           :error ->
             step
         end
@@ -569,22 +576,26 @@ defmodule DashboardWeb.ChainsLive do
       # Branch path fields (if_up_*, if_down_*)
       String.starts_with?(field, "if_up_") ->
         stripped = String.replace_prefix(field, "if_up_", "")
+
         case safe_step_field_atom(stripped) do
           {:ok, field_atom} ->
             path = Map.get(step, :if_up, %{})
             updated_path = Map.put(path, field_atom, value)
             Map.put(step, :if_up, updated_path)
+
           :error ->
             step
         end
 
       String.starts_with?(field, "if_down_") ->
         stripped = String.replace_prefix(field, "if_down_", "")
+
         case safe_step_field_atom(stripped) do
           {:ok, field_atom} ->
             path = Map.get(step, :if_down, %{})
             updated_path = Map.put(path, field_atom, value)
             Map.put(step, :if_down, updated_path)
+
           :error ->
             step
         end
@@ -672,7 +683,20 @@ defmodule DashboardWeb.ChainsLive do
   defp normalize_steps(_), do: []
 
   defp get_available_symbols do
-    ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "DOGEUSDT", "XRPUSDT", "SOLUSDT", "DOTUSDT", "MATICUSDT", "LTCUSDT", "MDTUSDT", "AXLUSDT"]
+    [
+      "BTCUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "ADAUSDT",
+      "DOGEUSDT",
+      "XRPUSDT",
+      "SOLUSDT",
+      "DOTUSDT",
+      "MATICUSDT",
+      "LTCUSDT",
+      "MDTUSDT",
+      "AXLUSDT"
+    ]
   end
 
   defp subscribe_to_active_chain_prices(socket) do
@@ -690,6 +714,7 @@ defmodule DashboardWeb.ChainsLive do
 
   defp check_process_alive(chain) do
     setting_id = Map.get(chain, :setting_id)
+
     if setting_id do
       case Registry.lookup(TradingEngine.TraderRegistry, setting_id) do
         [{_pid, _}] -> true
@@ -714,12 +739,16 @@ defmodule DashboardWeb.ChainsLive do
 
       config = %{
         "name" => chain_form.name,
-        "symbol" => chain_form.symbol,  # Legacy: primary symbol
-        "symbols" => symbols,            # Multi-symbol: all symbols used
+        # Legacy: primary symbol
+        "symbol" => chain_form.symbol,
+        # Multi-symbol: all symbols used
+        "symbols" => symbols,
         "initial_quantity" => chain_form.initial_quantity,
         "branch_threshold_percent" => "1.0",
-        "steps" => steps_config,         # New format with per-step symbols
-        "chain" => steps_config          # Legacy compatibility
+        # New format with per-step symbols
+        "steps" => steps_config,
+        # Legacy compatibility
+        "chain" => steps_config
       }
 
       case mode do
@@ -746,6 +775,7 @@ defmodule DashboardWeb.ChainsLive do
   # Extract all unique symbols from steps
   defp extract_symbols_from_steps(nil), do: []
   defp extract_symbols_from_steps(steps) when not is_list(steps), do: []
+
   defp extract_symbols_from_steps(steps) do
     steps
     |> Enum.flat_map(fn step ->
@@ -756,6 +786,7 @@ defmodule DashboardWeb.ChainsLive do
             get_in(step, [:if_down, :symbol]) || get_in(step, ["if_down", "symbol"]),
             get_step_field(step, :symbol, nil)
           ]
+
         _ ->
           [get_step_field(step, :symbol, nil)]
       end
@@ -778,7 +809,8 @@ defmodule DashboardWeb.ChainsLive do
         "step" ->
           %{
             "type" => if(index == 0, do: "initial", else: "step"),
-            "symbol" => get_step_field(step, :symbol, ""),  # Per-step symbol
+            # Per-step symbol
+            "symbol" => get_step_field(step, :symbol, ""),
             "side" => get_step_field(step, :side, "BUY"),
             "quantity" => get_step_field(step, :quantity, "0"),
             "price" => get_step_field(step, :price, "0")
@@ -790,7 +822,8 @@ defmodule DashboardWeb.ChainsLive do
 
           %{
             "type" => "branch",
-            "symbol" => get_step_field(step, :symbol, ""),  # Per-step symbol
+            # Per-step symbol
+            "symbol" => get_step_field(step, :symbol, ""),
             "price_rises" => %{
               "symbol" => get_step_field(if_up, :symbol, ""),
               "side" => get_step_field(if_up, :side, "SELL"),

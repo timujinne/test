@@ -12,7 +12,14 @@ defmodule TradingEngine.StrategyManager do
   require Logger
 
   alias SharedData.{Settings, Config}
-  alias TradingEngine.{AccountSupervisor, StrategyLoader, PendingStrategiesManager, StopConditionsMonitor}
+
+  alias TradingEngine.{
+    AccountSupervisor,
+    StrategyLoader,
+    PendingStrategiesManager,
+    StopConditionsMonitor
+  }
+
   alias TradingEngine.Conditions.ConditionEvaluator
 
   @topic "strategy_updates"
@@ -350,12 +357,13 @@ defmodule TradingEngine.StrategyManager do
     Phoenix.PubSub.broadcast(
       BinanceSystem.PubSub,
       "strategies:all",
-      {:strategy_started, setting.id, %{
-        strategy_name: setting.strategy_name,
-        account_id: setting.account_id,
-        config: setting.config,
-        started_at: DateTime.utc_now()
-      }}
+      {:strategy_started, setting.id,
+       %{
+         strategy_name: setting.strategy_name,
+         account_id: setting.account_id,
+         config: setting.config,
+         started_at: DateTime.utc_now()
+       }}
     )
 
     %{

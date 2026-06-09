@@ -10,7 +10,7 @@ defmodule SharedData.Schemas.User do
     field :password_hash, :string
     field :name, :string
     field :role, :string, default: "user"
-    
+
     field :password, :string, virtual: true
     field :password_confirmation, :string, virtual: true
 
@@ -32,7 +32,9 @@ defmodule SharedData.Schemas.User do
     |> put_password_hash()
   end
 
-  defp put_password_hash(%Ecto.Changeset{valid?: true, changes: %{password: password}} = changeset) do
+  defp put_password_hash(
+         %Ecto.Changeset{valid?: true, changes: %{password: password}} = changeset
+       ) do
     change(changeset, password_hash: Argon2.hash_pwd_salt(password))
   end
 

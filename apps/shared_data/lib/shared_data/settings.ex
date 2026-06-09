@@ -14,7 +14,7 @@ defmodule SharedData.Settings do
     query =
       Setting
       |> join(:inner, [s], a in Account, on: s.account_id == a.id)
-      |> order_by([s, a], [desc: s.is_active, asc: s.strategy_name])
+      |> order_by([s, a], desc: s.is_active, asc: s.strategy_name)
       |> preload(:account)
 
     query =
@@ -33,7 +33,7 @@ defmodule SharedData.Settings do
   def list_settings_by_account(account_id) do
     Setting
     |> where([s], s.account_id == ^account_id)
-    |> order_by([s], [desc: s.is_active, asc: s.strategy_name])
+    |> order_by([s], desc: s.is_active, asc: s.strategy_name)
     |> preload(:account)
     |> Repo.all()
   end

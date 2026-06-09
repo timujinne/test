@@ -19,19 +19,22 @@ defmodule TradingEngine.Strategies.DCA do
   @impl true
   def requirements(config) do
     # Calculate interval from config
-    interval_ms = cond do
-      config["interval_hours"] -> trunc(config["interval_hours"] * 3_600_000)
-      config["interval_minutes"] -> config["interval_minutes"] * 60_000
-      config["interval_ms"] -> config["interval_ms"]
-      true -> 3_600_000
-    end
+    interval_ms =
+      cond do
+        config["interval_hours"] -> trunc(config["interval_hours"] * 3_600_000)
+        config["interval_minutes"] -> config["interval_minutes"] * 60_000
+        config["interval_ms"] -> config["interval_ms"]
+        true -> 3_600_000
+      end
 
     # Check if there are price-based stop conditions that require tick subscription
     has_price_conditions = has_price_based_stop_conditions?(config)
 
     %{
-      ticks: has_price_conditions,  # Only subscribe to ticks if needed for stop conditions
-      timers: [interval_ms],         # Timer for periodic DCA buys
+      # Only subscribe to ticks if needed for stop conditions
+      ticks: has_price_conditions,
+      # Timer for periodic DCA buys
+      timers: [interval_ms],
       executions: true
     }
   end
@@ -56,30 +59,37 @@ defmodule TradingEngine.Strategies.DCA do
   @impl true
   def init(config) do
     # Support different config field names from UI
-    amount = config["amount_per_buy"] || config["investment_amount"] || config["trade_amount"] || 10
+    amount =
+      config["amount_per_buy"] || config["investment_amount"] || config["trade_amount"] || 10
 
     # Support various interval formats
-    interval_ms = cond do
-      config["interval_hours"] -> trunc(config["interval_hours"] * 3_600_000)
-      config["interval_minutes"] -> config["interval_minutes"] * 60_000
-      config["interval_ms"] -> config["interval_ms"]
-      true -> 3_600_000  # default 1 hour
-    end
+    interval_ms =
+      cond do
+        config["interval_hours"] -> trunc(config["interval_hours"] * 3_600_000)
+        config["interval_minutes"] -> config["interval_minutes"] * 60_000
+        config["interval_ms"] -> config["interval_ms"]
+        # default 1 hour
+        true -> 3_600_000
+      end
 
     max_buys = config["max_buys"] || 999
 
     # Check for recovery state - count existing DCA orders from DB
     recovery = config["_recovery"]
-    existing_buy_count = if recovery && recovery.type == :orphaned_orders do
-      # Count BUY orders as previous DCA purchases
-      buy_orders = Enum.count(recovery.orders, fn o -> o["side"] == "BUY" end)
-      if buy_orders > 0 do
-        Logger.warning("DCA: Found #{buy_orders} existing BUY orders - adjusting buy_count")
+
+    existing_buy_count =
+      if recovery && recovery.type == :orphaned_orders do
+        # Count BUY orders as previous DCA purchases
+        buy_orders = Enum.count(recovery.orders, fn o -> o["side"] == "BUY" end)
+
+        if buy_orders > 0 do
+          Logger.warning("DCA: Found #{buy_orders} existing BUY orders - adjusting buy_count")
+        end
+
+        buy_orders
+      else
+        0
       end
-      buy_orders
-    else
-      0
-    end
 
     state = %{
       symbol: config["symbol"],
@@ -88,13 +98,18 @@ defmodule TradingEngine.Strategies.DCA do
       max_buys: trunc(max_buys),
       total_invested: Decimal.new(0),
       total_quantity: Decimal.new(0),
-      buy_count: existing_buy_count,  # Start from recovered count
-      last_price: nil,  # Cached from ticks or API
+      # Start from recovered count
+      buy_count: existing_buy_count,
+      # Cached from ticks or API
+      last_price: nil,
       stop_conditions: config["stop_conditions"] || []
     }
 
     interval_sec = div(interval_ms, 1000)
-    Logger.info("DCA: Initialized for #{state.symbol}, amount=#{state.investment_amount} USDT, interval=#{interval_sec}s, max_buys=#{state.max_buys}, starting buy_count=#{state.buy_count}")
+
+    Logger.info(
+      "DCA: Initialized for #{state.symbol}, amount=#{state.investment_amount} USDT, interval=#{interval_sec}s, max_buys=#{state.max_buys}, starting buy_count=#{state.buy_count}"
+    )
 
     {:ok, state}
   end
@@ -120,16 +135,22 @@ defmodule TradingEngine.Strategies.DCA do
       case get_current_price(state.symbol) do
         {:ok, current_price} ->
           {_price_prec, qty_prec} = get_symbol_precision(state.symbol)
-          quantity = Decimal.div(state.investment_amount, current_price) |> Decimal.round(qty_prec)
 
-          Logger.info("DCA: Timer fired - Buying #{quantity} #{state.symbol} for #{state.investment_amount} USDT at #{current_price} (buy ##{state.buy_count + 1})")
+          quantity =
+            Decimal.div(state.investment_amount, current_price) |> Decimal.round(qty_prec)
 
-          action = {:place_order, %{
-            symbol: state.symbol,
-            side: "BUY",
-            type: "MARKET",
-            quantity: quantity
-          }}
+          Logger.info(
+            "DCA: Timer fired - Buying #{quantity} #{state.symbol} for #{state.investment_amount} USDT at #{current_price} (buy ##{state.buy_count + 1})"
+          )
+
+          action =
+            {:place_order,
+             %{
+               symbol: state.symbol,
+               side: "BUY",
+               type: "MARKET",
+               quantity: quantity
+             }}
 
           {action, state}
 
@@ -167,20 +188,24 @@ defmodule TradingEngine.Strategies.DCA do
     qty = Decimal.new(execution["l"])
     cost = Decimal.mult(price, qty)
 
-    new_state = %{state |
-      total_invested: Decimal.add(state.total_invested, cost),
-      total_quantity: Decimal.add(state.total_quantity, qty),
-      buy_count: state.buy_count + 1,
-      last_price: price
+    new_state = %{
+      state
+      | total_invested: Decimal.add(state.total_invested, cost),
+        total_quantity: Decimal.add(state.total_quantity, qty),
+        buy_count: state.buy_count + 1,
+        last_price: price
     }
 
-    avg_price = if Decimal.gt?(new_state.total_quantity, Decimal.new(0)) do
-      Decimal.div(new_state.total_invested, new_state.total_quantity) |> Decimal.round(4)
-    else
-      Decimal.new(0)
-    end
+    avg_price =
+      if Decimal.gt?(new_state.total_quantity, Decimal.new(0)) do
+        Decimal.div(new_state.total_invested, new_state.total_quantity) |> Decimal.round(4)
+      else
+        Decimal.new(0)
+      end
 
-    Logger.info("DCA: Bought #{qty} at #{price}. Total: #{new_state.total_quantity}, Avg price: #{avg_price}, Buy count: #{new_state.buy_count}/#{new_state.max_buys}")
+    Logger.info(
+      "DCA: Bought #{qty} at #{price}. Total: #{new_state.total_quantity}, Avg price: #{avg_price}, Buy count: #{new_state.buy_count}/#{new_state.max_buys}"
+    )
 
     {:noop, new_state}
   end
@@ -207,23 +232,30 @@ defmodule TradingEngine.Strategies.DCA do
   end
 
   defp check_stop_conditions(current_price, state) do
-    avg_price = if Decimal.gt?(state.total_quantity, Decimal.new(0)) do
-      Decimal.div(state.total_invested, state.total_quantity)
-    else
-      nil
-    end
+    avg_price =
+      if Decimal.gt?(state.total_quantity, Decimal.new(0)) do
+        Decimal.div(state.total_invested, state.total_quantity)
+      else
+        nil
+      end
 
     # Check each stop condition
-    result = Enum.find_value(state.stop_conditions, :continue, fn condition ->
-      check_single_condition(condition, current_price, avg_price)
-    end)
+    result =
+      Enum.find_value(state.stop_conditions, :continue, fn condition ->
+        check_single_condition(condition, current_price, avg_price)
+      end)
 
     result
   end
 
-  defp check_single_condition(%{"type" => "stop_loss", "percentage" => pct}, current_price, avg_price)
+  defp check_single_condition(
+         %{"type" => "stop_loss", "percentage" => pct},
+         current_price,
+         avg_price
+       )
        when not is_nil(avg_price) do
     threshold = Decimal.mult(avg_price, Decimal.sub(1, Decimal.div(Decimal.new(pct), 100)))
+
     if Decimal.lt?(current_price, threshold) do
       {:stop, "Stop loss triggered at #{current_price} (threshold: #{threshold})"}
     else
@@ -231,9 +263,14 @@ defmodule TradingEngine.Strategies.DCA do
     end
   end
 
-  defp check_single_condition(%{"type" => "take_profit", "percentage" => pct}, current_price, avg_price)
+  defp check_single_condition(
+         %{"type" => "take_profit", "percentage" => pct},
+         current_price,
+         avg_price
+       )
        when not is_nil(avg_price) do
     threshold = Decimal.mult(avg_price, Decimal.add(1, Decimal.div(Decimal.new(pct), 100)))
+
     if Decimal.gt?(current_price, threshold) do
       {:stop, "Take profit triggered at #{current_price} (threshold: #{threshold})"}
     else

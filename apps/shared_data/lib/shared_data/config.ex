@@ -22,26 +22,38 @@ defmodule SharedData.Config do
   """
 
   # GenServer call timeouts (in milliseconds)
-  @timeout_fast 1_000       # 1 second - for simple reads
-  @timeout_normal 5_000     # 5 seconds - default operations
-  @timeout_api 30_000       # 30 seconds - external API calls
-  @timeout_long 60_000      # 60 seconds - complex operations
+  # 1 second - for simple reads
+  @timeout_fast 1_000
+  # 5 seconds - default operations
+  @timeout_normal 5_000
+  # 30 seconds - external API calls
+  @timeout_api 30_000
+  # 60 seconds - complex operations
+  @timeout_long 60_000
 
   # Rate limiting
-  @rate_limit_binance_weight 1200     # Binance API weight per minute
-  @rate_limit_binance_orders 100      # Binance order limit per 10 seconds
-  @rate_limit_window_ms 60_000        # 1 minute window
+  # Binance API weight per minute
+  @rate_limit_binance_weight 1200
+  # Binance order limit per 10 seconds
+  @rate_limit_binance_orders 100
+  # 1 minute window
+  @rate_limit_window_ms 60_000
 
   # WebSocket reconnection
-  @ws_initial_backoff 1_000           # 1 second
-  @ws_max_backoff 300_000             # 5 minutes
+  # 1 second
+  @ws_initial_backoff 1_000
+  # 5 minutes
+  @ws_max_backoff 300_000
   @ws_backoff_multiplier 2
   @ws_max_reconnect_attempts 10
 
   # Circuit breaker
-  @circuit_breaker_threshold 10        # failures before opening
-  @circuit_breaker_window_ms 10_000   # 10 seconds
-  @circuit_breaker_reset_ms 60_000    # 1 minute
+  # failures before opening
+  @circuit_breaker_threshold 10
+  # 10 seconds
+  @circuit_breaker_window_ms 10_000
+  # 1 minute
+  @circuit_breaker_reset_ms 60_000
 
   # Risk management
   @max_daily_loss_usd 1000

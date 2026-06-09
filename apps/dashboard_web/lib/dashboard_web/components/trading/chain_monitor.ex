@@ -67,24 +67,22 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <h3 class="card-title text-lg">
-              <%= @name %>
+              {@name}
             </h3>
             <span class="badge badge-info">
-              <%= @symbol %>
+              {@symbol}
             </span>
             <span class={"badge " <> chain_status_badge_class(@status)}>
-              <%= chain_status_label(@status) %>
+              {chain_status_label(@status)}
             </span>
             <%!-- Process Health Indicator --%>
             <%= if @process_alive do %>
               <span class="badge badge-success badge-sm gap-1" title="Process running">
-                <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                Live
+                <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span> Live
               </span>
             <% else %>
               <span class="badge badge-error badge-sm gap-1" title="Process not running">
-                <span class="w-2 h-2 rounded-full bg-error"></span>
-                Dead
+                <span class="w-2 h-2 rounded-full bg-error"></span> Dead
               </span>
             <% end %>
           </div>
@@ -99,8 +97,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                 phx-value-id={Map.get(@chain, :id)}
                 title="Stop chain"
               >
-                <span class={["hero-stop-circle", "h-4 w-4"]} />
-                Stop
+                <span class={["hero-stop-circle", "h-4 w-4"]} /> Stop
               </button>
             <% end %>
 
@@ -112,8 +109,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                 phx-value-id={Map.get(@chain, :id)}
                 title="Cancel chain"
               >
-                <span class={["hero-x-mark", "h-4 w-4"]} />
-                Cancel
+                <span class={["hero-x-mark", "h-4 w-4"]} /> Cancel
               </button>
             <% end %>
           </div>
@@ -123,10 +119,10 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
         <div class="mb-4">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-base-content/60">
-              Step <%= @current_step + 1 %> of <%= length(@steps) %>
+              Step {@current_step + 1} of {length(@steps)}
             </span>
             <span class="text-xs font-semibold">
-              <%= calculate_progress_percent(@current_step, @steps) %>%
+              {calculate_progress_percent(@current_step, @steps)}%
             </span>
           </div>
           <progress
@@ -145,7 +141,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
               <div class="card-body p-3">
                 <div class="text-xs text-base-content/60 mb-1">Current Price</div>
                 <div class="text-lg font-mono font-bold">
-                  <%= format_price(@current_price) %>
+                  {format_price(@current_price)}
                 </div>
               </div>
             </div>
@@ -157,11 +153,11 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                 <div class="text-xs text-base-content/60 mb-1">Total P&L</div>
                 <div class="flex items-baseline gap-2">
                   <div class={"text-lg font-mono font-bold " <> pnl_text_class(Map.get(@pnl, :total, 0))}>
-                    <%= format_pnl(Map.get(@pnl, :total, 0)) %>
+                    {format_pnl(Map.get(@pnl, :total, 0))}
                   </div>
                   <%= if Map.get(@pnl, :percent) do %>
                     <div class={"text-sm font-mono " <> pnl_text_class(Map.get(@pnl, :percent, 0))}>
-                      (<%= format_percent(Map.get(@pnl, :percent)) %>%)
+                      ({format_percent(Map.get(@pnl, :percent))}%)
                     </div>
                   <% end %>
                 </div>
@@ -170,12 +166,14 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
                   <div class="text-xs text-base-content/60 mt-1 space-y-0.5">
                     <%= if Map.get(@pnl, :realized) do %>
                       <div>
-                        Realized: <span class="font-mono"><%= format_pnl(Map.get(@pnl, :realized)) %></span>
+                        Realized:
+                        <span class="font-mono">{format_pnl(Map.get(@pnl, :realized))}</span>
                       </div>
                     <% end %>
                     <%= if Map.get(@pnl, :unrealized) do %>
                       <div>
-                        Unrealized: <span class="font-mono"><%= format_pnl(Map.get(@pnl, :unrealized)) %></span>
+                        Unrealized:
+                        <span class="font-mono">{format_pnl(Map.get(@pnl, :unrealized))}</span>
                       </div>
                     <% end %>
                   </div>
@@ -188,7 +186,7 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
         <%!-- Chain Info --%>
         <%= if @started_at do %>
           <div class="text-xs text-base-content/60 mb-3">
-            Started: <%= format_datetime(@started_at) %>
+            Started: {format_datetime(@started_at)}
           </div>
         <% end %>
 
@@ -197,28 +195,36 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
           <div class="collapse collapse-arrow bg-base-200 mb-4">
             <input type="checkbox" />
             <div class="collapse-title text-sm font-medium">
-              Execution Timeline (<%= length(Map.get(@execution_history, "events", [])) %> events)
+              Execution Timeline ({length(Map.get(@execution_history, "events", []))} events)
             </div>
             <div class="collapse-content">
               <ul class="timeline timeline-vertical timeline-compact">
                 <%= for {event, idx} <- Enum.with_index(Enum.reverse(Map.get(@execution_history, "events", []))) do %>
                   <li>
-                    <%= if idx > 0 do %><hr /><% end %>
+                    <%= if idx > 0 do %>
+                      <hr />
+                    <% end %>
                     <div class="timeline-start text-xs text-base-content/60">
-                      <%= format_event_time(event["timestamp"]) %>
+                      {format_event_time(event["timestamp"])}
                     </div>
                     <div class="timeline-middle">
-                      <span class={["hero-check-circle-solid", "h-4 w-4", event_icon_class(event["type"])]} />
+                      <span class={[
+                        "hero-check-circle-solid",
+                        "h-4 w-4",
+                        event_icon_class(event["type"])
+                      ]} />
                     </div>
                     <div class="timeline-end timeline-box text-xs">
-                      <span class="font-semibold"><%= event_type_label(event["type"]) %></span>
+                      <span class="font-semibold">{event_type_label(event["type"])}</span>
                       <%= if event["data"] do %>
                         <div class="text-base-content/60 mt-1">
-                          <%= format_event_data(event["data"]) %>
+                          {format_event_data(event["data"])}
                         </div>
                       <% end %>
                     </div>
-                    <%= if idx < length(Map.get(@execution_history, "events", [])) - 1 do %><hr /><% end %>
+                    <%= if idx < length(Map.get(@execution_history, "events", [])) - 1 do %>
+                      <hr />
+                    <% end %>
                   </li>
                 <% end %>
               </ul>
@@ -265,20 +271,20 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
               <div class="stat p-3">
                 <div class="stat-title text-xs">Total Steps</div>
-                <div class="stat-value text-2xl"><%= length(@steps) %></div>
+                <div class="stat-value text-2xl">{length(@steps)}</div>
               </div>
 
               <div class="stat p-3">
                 <div class="stat-title text-xs">Completed</div>
                 <div class="stat-value text-2xl text-success">
-                  <%= count_completed_steps(@steps) %>
+                  {count_completed_steps(@steps)}
                 </div>
               </div>
 
               <div class="stat p-3">
                 <div class="stat-title text-xs">Remaining</div>
                 <div class="stat-value text-2xl text-info">
-                  <%= length(@steps) - count_completed_steps(@steps) %>
+                  {length(@steps) - count_completed_steps(@steps)}
                 </div>
               </div>
             </div>
@@ -388,12 +394,14 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
 
   # Timeline helper functions
   defp format_event_time(nil), do: "-"
+
   defp format_event_time(timestamp) when is_binary(timestamp) do
     case DateTime.from_iso8601(timestamp) do
       {:ok, dt, _} -> Calendar.strftime(dt, "%H:%M:%S")
       _ -> timestamp
     end
   end
+
   defp format_event_time(_), do: "-"
 
   defp event_type_label("order_placed"), do: "Order Placed"
@@ -414,12 +422,14 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
   defp event_icon_class(_), do: "text-base-content/60"
 
   defp format_event_data(nil), do: ""
+
   defp format_event_data(data) when is_map(data) do
     data
     |> Enum.filter(fn {k, v} -> v != nil and k not in ["timestamp", "step_index"] end)
     |> Enum.map(fn {k, v} -> "#{format_key(k)}: #{v}" end)
     |> Enum.join(" | ")
   end
+
   defp format_event_data(_), do: ""
 
   defp format_key(key) when is_binary(key) do
@@ -429,5 +439,6 @@ defmodule DashboardWeb.Components.Trading.ChainMonitor do
     |> Enum.map(&String.capitalize/1)
     |> Enum.join(" ")
   end
+
   defp format_key(key), do: to_string(key)
 end

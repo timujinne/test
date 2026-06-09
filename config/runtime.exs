@@ -34,9 +34,7 @@ if config_env() == :prod do
     ciphers: [
       default: {
         Cloak.Ciphers.AES.GCM,
-        tag: "AES.GCM.V1",
-        key: Base.decode64!(System.fetch_env!("CLOAK_KEY")),
-        iv_length: 12
+        tag: "AES.GCM.V1", key: Base.decode64!(System.fetch_env!("CLOAK_KEY")), iv_length: 12
       }
     ]
 

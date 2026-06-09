@@ -53,7 +53,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
         <%!-- Header --%>
         <div class="flex items-center justify-between mb-4">
           <h2 class="card-title">
-            <%= if @mode == "create", do: "Create New Chain", else: "Edit Chain" %>
+            {if @mode == "create", do: "Create New Chain", else: "Edit Chain"}
           </h2>
           <%= if @on_cancel do %>
             <button
@@ -100,7 +100,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
                 <option value="" selected={@symbol == ""}>Select symbol...</option>
                 <%= for symbol <- @symbols do %>
                   <option value={symbol} selected={@symbol == symbol}>
-                    <%= symbol %>
+                    {symbol}
                   </option>
                 <% end %>
               </select>
@@ -139,7 +139,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-semibold">Chain Steps</h3>
             <div class="badge badge-outline">
-              <%= length(@steps) %> steps
+              {length(@steps)} steps
             </div>
           </div>
 
@@ -147,7 +147,9 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
           <%= if @steps == [] do %>
             <div class="alert alert-info">
               <span class={["hero-information-circle", "shrink-0 w-6 h-6"]} />
-              <span>No steps added yet. Click "Add Step" or "Add Branch" to start building your chain.</span>
+              <span>
+                No steps added yet. Click "Add Step" or "Add Branch" to start building your chain.
+              </span>
             </div>
           <% else %>
             <div class="space-y-4">
@@ -193,8 +195,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             phx-click="add_step"
             phx-value-type="step"
           >
-            <span class={["hero-plus", "h-5 w-5"]} />
-            Add Step
+            <span class={["hero-plus", "h-5 w-5"]} /> Add Step
           </button>
 
           <button
@@ -203,8 +204,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             phx-click="add_step"
             phx-value-type="branch"
           >
-            <span class={["hero-arrows-right-left", "h-5 w-5"]} />
-            Add Branch
+            <span class={["hero-arrows-right-left", "h-5 w-5"]} /> Add Branch
           </button>
         </div>
 
@@ -227,7 +227,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
               disabled={!is_valid_chain?(@chain)}
             >
               <span class={["hero-check", "h-5 w-5"]} />
-              <%= if @mode == "create", do: "Create Chain", else: "Save Changes" %>
+              {if @mode == "create", do: "Create Chain", else: "Save Changes"}
             </button>
           <% end %>
         </div>
@@ -238,7 +238,7 @@ defmodule DashboardWeb.Components.Trading.ChainBuilder do
             <span class={["hero-exclamation-triangle", "shrink-0 h-6 w-6"]} />
             <div>
               <div class="font-bold">Chain is incomplete</div>
-              <div class="text-sm"><%= validation_message(@chain) %></div>
+              <div class="text-sm">{validation_message(@chain)}</div>
             </div>
           </div>
         <% end %>

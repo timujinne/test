@@ -39,10 +39,14 @@ defmodule SharedData.Types do
   @type datetime :: DateTime.t()
 
   # Order parameters
-  @type order_side :: String.t()  # "BUY" | "SELL"
-  @type order_type :: String.t()  # "MARKET" | "LIMIT" | "STOP_LOSS" etc.
-  @type order_status :: String.t()  # "NEW" | "FILLED" | "CANCELED" etc.
-  @type time_in_force :: String.t()  # "GTC" | "IOC" | "FOK"
+  # "BUY" | "SELL"
+  @type order_side :: String.t()
+  # "MARKET" | "LIMIT" | "STOP_LOSS" etc.
+  @type order_type :: String.t()
+  # "NEW" | "FILLED" | "CANCELED" etc.
+  @type order_status :: String.t()
+  # "GTC" | "IOC" | "FOK"
+  @type time_in_force :: String.t()
 
   @type order_params :: %{
           required(:symbol) => symbol(),

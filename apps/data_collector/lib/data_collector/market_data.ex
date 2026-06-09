@@ -48,12 +48,12 @@ defmodule DataCollector.MarketData do
   @impl true
   def init(_opts) do
     Logger.info("Starting #{__MODULE__}")
-    
+
     table = :ets.new(@table_name, [:set, :named_table, :public, read_concurrency: true])
-    
+
     # Subscribe to market data events
     Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:*")
-    
+
     {:ok, %{table: table}}
   end
 

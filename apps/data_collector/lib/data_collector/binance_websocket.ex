@@ -30,7 +30,9 @@ defmodule DataCollector.BinanceWebSocket do
       decode_errors: 0
     }
 
-    WebSockex.start_link(url, __MODULE__, Map.merge(initial_state, Enum.into(opts, %{})), name: __MODULE__)
+    WebSockex.start_link(url, __MODULE__, Map.merge(initial_state, Enum.into(opts, %{})),
+      name: __MODULE__
+    )
   end
 
   @impl true
@@ -114,7 +116,7 @@ defmodule DataCollector.BinanceWebSocket do
 
   defp handle_message(%{"e" => "executionReport"} = data, _state) do
     Logger.debug("Execution report: #{inspect(data)}")
-    
+
     Phoenix.PubSub.broadcast(
       BinanceSystem.PubSub,
       "order_updates",
@@ -124,7 +126,7 @@ defmodule DataCollector.BinanceWebSocket do
 
   defp handle_message(%{"e" => "outboundAccountPosition"} = data, _state) do
     Logger.debug("Account position update: #{inspect(data)}")
-    
+
     Phoenix.PubSub.broadcast(
       BinanceSystem.PubSub,
       "balance_updates",
@@ -134,7 +136,7 @@ defmodule DataCollector.BinanceWebSocket do
 
   defp handle_message(%{"e" => "24hrTicker"} = data, _state) do
     symbol = data["s"]
-    
+
     Phoenix.PubSub.broadcast(
       BinanceSystem.PubSub,
       "market:#{symbol}",
@@ -144,7 +146,7 @@ defmodule DataCollector.BinanceWebSocket do
 
   defp handle_message(%{"e" => "trade"} = data, _state) do
     symbol = data["s"]
-    
+
     Phoenix.PubSub.broadcast(
       BinanceSystem.PubSub,
       "market:#{symbol}",

@@ -9,24 +9,27 @@ defmodule TradingEngine.PositionTracker do
       entry_price = position.entry_price
       quantity = position.quantity
 
-      pnl = Decimal.mult(
-        quantity,
-        Decimal.sub(current_price, entry_price)
-      )
+      pnl =
+        Decimal.mult(
+          quantity,
+          Decimal.sub(current_price, entry_price)
+        )
 
       Decimal.add(acc, pnl)
     end)
   end
 
   def average_entry_price(positions) do
-    total_cost = Enum.reduce(positions, Decimal.new(0), fn p, acc ->
-      cost = Decimal.mult(p.entry_price, p.quantity)
-      Decimal.add(acc, cost)
-    end)
+    total_cost =
+      Enum.reduce(positions, Decimal.new(0), fn p, acc ->
+        cost = Decimal.mult(p.entry_price, p.quantity)
+        Decimal.add(acc, cost)
+      end)
 
-    total_quantity = Enum.reduce(positions, Decimal.new(0), fn p, acc ->
-      Decimal.add(acc, p.quantity)
-    end)
+    total_quantity =
+      Enum.reduce(positions, Decimal.new(0), fn p, acc ->
+        Decimal.add(acc, p.quantity)
+      end)
 
     if Decimal.compare(total_quantity, 0) == :gt do
       Decimal.div(total_cost, total_quantity)
@@ -42,7 +45,10 @@ defmodule TradingEngine.PositionTracker do
 
     case side do
       "BUY" ->
-        [%{entry_price: price, quantity: qty, timestamp: System.system_time(:millisecond)} | positions]
+        [
+          %{entry_price: price, quantity: qty, timestamp: System.system_time(:millisecond)}
+          | positions
+        ]
 
       "SELL" ->
         # Remove quantity from positions (FIFO)

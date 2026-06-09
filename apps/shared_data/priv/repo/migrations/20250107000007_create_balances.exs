@@ -8,7 +8,9 @@ defmodule SharedData.Repo.Migrations.CreateBalances do
       add :free, :decimal, precision: 20, scale: 8, null: false
       add :locked, :decimal, precision: 20, scale: 8, null: false
       add :total, :decimal, precision: 20, scale: 8
-      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id), null: false
+
+      add :account_id, references(:accounts, on_delete: :delete_all, type: :binary_id),
+        null: false
 
       timestamps()
     end

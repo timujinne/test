@@ -59,7 +59,7 @@ defmodule DataCollector.CircuitBreaker do
       iex> CircuitBreaker.call(:binance_api, fn -> {:error, :timeout} end)
       {:error, :timeout}
   """
-  @spec call(atom(), (() -> Types.result(any()))) :: Types.result(any())
+  @spec call(atom(), (-> Types.result(any()))) :: Types.result(any())
   def call(circuit_name, fun) when is_atom(circuit_name) and is_function(fun, 0) do
     case get_state(circuit_name) do
       :closed ->
@@ -104,13 +104,14 @@ defmodule DataCollector.CircuitBreaker do
     Logger.info("Starting #{__MODULE__}")
 
     # Create ETS table for circuit state
-    table = :ets.new(@table_name, [
-      :set,
-      :named_table,
-      :public,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
+    table =
+      :ets.new(@table_name, [
+        :set,
+        :named_table,
+        :public,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
 
     {:ok, %{table: table}}
   end
@@ -158,7 +159,7 @@ defmodule DataCollector.CircuitBreaker do
       [{^circuit_name, current_state, failures, last_failure_time, _opened_at}] ->
         # Check if we're within the failure window
         within_window =
-          last_failure_time && (now - last_failure_time) < window_ms
+          last_failure_time && now - last_failure_time < window_ms
 
         new_failures =
           if within_window do
@@ -225,11 +226,14 @@ defmodule DataCollector.CircuitBreaker do
 
   # Determines if an error should count towards opening the circuit
   defp should_record_failure?("HTTP " <> status) when status >= "500", do: true
-  defp should_record_failure?("HTTP 429" <> _), do: true  # Rate limit
-  defp should_record_failure?(%HTTPoison.Error{}), do: true  # Network errors
+  # Rate limit
+  defp should_record_failure?("HTTP 429" <> _), do: true
+  # Network errors
+  defp should_record_failure?(%HTTPoison.Error{}), do: true
   defp should_record_failure?(:timeout), do: true
   defp should_record_failure?({:exception, _}), do: true
-  defp should_record_failure?(_), do: false  # Don't count client errors
+  # Don't count client errors
+  defp should_record_failure?(_), do: false
 
   defp record_success(circuit_name) do
     GenServer.cast(__MODULE__, {:record_success, circuit_name})

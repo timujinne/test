@@ -49,18 +49,18 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
           <div class="flex items-center gap-2">
             <%!-- Step Type Badge --%>
             <span class={"badge badge-sm " <> step_type_badge_class(@step_type)}>
-              <%= step_type_label(@step_type) %>
+              {step_type_label(@step_type)}
             </span>
 
             <%!-- Step Number --%>
             <span class="text-sm font-semibold text-base-content/60">
-              Step <%= @index + 1 %>
+              Step {@index + 1}
             </span>
 
             <%!-- Status Badge --%>
             <%= if @status != "pending" do %>
               <span class={"badge badge-sm " <> status_badge_class(@status)}>
-                <%= status_label(@status) %>
+                {status_label(@status)}
               </span>
             <% end %>
           </div>
@@ -100,7 +100,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 />
               <% else %>
                 <div class="text-sm font-mono font-semibold">
-                  <%= Map.get(@step, :symbol, "-") %>
+                  {Map.get(@step, :symbol, "-")}
                 </div>
               <% end %>
             </div>
@@ -123,7 +123,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 />
               <% else %>
                 <div class="text-sm font-mono">
-                  <%= Map.get(@step, :quantity, "-") %>
+                  {Map.get(@step, :quantity, "-")}
                 </div>
               <% end %>
             </div>
@@ -150,7 +150,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                   >
                     <%= for symbol <- @available_symbols do %>
                       <option value={symbol} selected={Map.get(@step, :symbol) == symbol}>
-                        <%= symbol %>
+                        {symbol}
                       </option>
                     <% end %>
                   </select>
@@ -169,7 +169,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 <% end %>
               <% else %>
                 <div class="text-sm font-mono font-semibold">
-                  <%= Map.get(@step, :symbol, "-") %>
+                  {Map.get(@step, :symbol, "-")}
                 </div>
               <% end %>
             </div>
@@ -193,7 +193,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 </select>
               <% else %>
                 <div class={"badge " <> side_badge_class(Map.get(@step, :side))}>
-                  <%= Map.get(@step, :side, "-") %>
+                  {Map.get(@step, :side, "-")}
                 </div>
               <% end %>
             </div>
@@ -217,7 +217,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 />
               <% else %>
                 <div class="text-sm font-mono">
-                  <%= Map.get(@step, :quantity, "-") %>
+                  {Map.get(@step, :quantity, "-")}
                 </div>
               <% end %>
             </div>
@@ -241,7 +241,7 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
                 />
               <% else %>
                 <div class="text-sm font-mono">
-                  <%= Map.get(@step, :price, "-") %>
+                  {Map.get(@step, :price, "-")}
                 </div>
               <% end %>
             </div>
@@ -255,13 +255,13 @@ defmodule DashboardWeb.Components.Trading.ChainStep do
               <%= if Map.get(@step, :executed_price) do %>
                 <div>
                   <span class="text-base-content/60">Executed:</span>
-                  <span class="font-mono ml-1"><%= Map.get(@step, :executed_price) %></span>
+                  <span class="font-mono ml-1">{Map.get(@step, :executed_price)}</span>
                 </div>
               <% end %>
               <%= if Map.get(@step, :executed_at) do %>
                 <div>
                   <span class="text-base-content/60">Time:</span>
-                  <span class="font-mono ml-1"><%= format_time(Map.get(@step, :executed_at)) %></span>
+                  <span class="font-mono ml-1">{format_time(Map.get(@step, :executed_at))}</span>
                 </div>
               <% end %>
             </div>

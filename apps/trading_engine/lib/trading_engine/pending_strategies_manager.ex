@@ -136,7 +136,8 @@ defmodule TradingEngine.PendingStrategiesManager do
 
     # Evaluate conditions for each
     {started, still_pending} =
-      Enum.reduce(to_check, {[], []}, fn {id, {setting, condition_state}}, {started_acc, pending_acc} ->
+      Enum.reduce(to_check, {[], []}, fn {id, {setting, condition_state}},
+                                         {started_acc, pending_acc} ->
         {met?, new_cond_state} =
           ConditionEvaluator.evaluate(
             setting.config["start_conditions"],

@@ -84,7 +84,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
               <span class="label-text text-xs">Price</span>
               <%= if @current_price do %>
                 <span class="label-text-alt text-xs">
-                  ≈ <%= format_price(@current_price) %>
+                  ≈ {format_price(@current_price)}
                 </span>
               <% end %>
             </label>
@@ -97,7 +97,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
                 class="grow font-mono"
                 phx-change="update_price"
               />
-              <span class="text-xs text-base-content/60"><%= @quote_asset %></span>
+              <span class="text-xs text-base-content/60">{@quote_asset}</span>
             </label>
           </div>
         <% end %>
@@ -107,7 +107,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           <label class="label py-1">
             <span class="label-text text-xs">Amount</span>
             <span class="label-text-alt text-xs">
-              Available: <%= @available_balance %> <%= if @side == "BUY", do: @quote_asset, else: @base_asset %>
+              Available: {@available_balance} {if @side == "BUY", do: @quote_asset, else: @base_asset}
             </span>
           </label>
           <label class="input input-sm flex items-center gap-2">
@@ -119,7 +119,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
               class="grow font-mono"
               phx-change="update_quantity"
             />
-            <span class="text-xs text-base-content/60"><%= @base_asset %></span>
+            <span class="text-xs text-base-content/60">{@base_asset}</span>
           </label>
         </div>
 
@@ -164,7 +164,7 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           <div class="flex justify-between items-center">
             <span class="text-xs text-base-content/60">Total</span>
             <span class="font-mono text-sm font-semibold">
-              <%= @total %> <%= @quote_asset %>
+              {@total} {@quote_asset}
             </span>
           </div>
         </div>
@@ -176,25 +176,25 @@ defmodule DashboardWeb.Components.Trading.OrderForm do
           phx-click="place_order"
           disabled={!is_valid_order?(@form, @type)}
         >
-          <%= @side %> <%= @base_asset %>
+          {@side} {@base_asset}
         </button>
 
         <%!-- Order Summary --%>
         <div class="mt-3 text-xs text-base-content/60 space-y-1">
           <div class="flex justify-between">
             <span>Order Type:</span>
-            <span class="font-mono"><%= @type %></span>
+            <span class="font-mono">{@type}</span>
           </div>
           <%= if @type == "LIMIT" and @price != "" do %>
             <div class="flex justify-between">
               <span>Price:</span>
-              <span class="font-mono"><%= @price %> <%= @quote_asset %></span>
+              <span class="font-mono">{@price} {@quote_asset}</span>
             </div>
           <% end %>
           <%= if @quantity != "" do %>
             <div class="flex justify-between">
               <span>Amount:</span>
-              <span class="font-mono"><%= @quantity %> <%= @base_asset %></span>
+              <span class="font-mono">{@quantity} {@base_asset}</span>
             </div>
           <% end %>
         </div>

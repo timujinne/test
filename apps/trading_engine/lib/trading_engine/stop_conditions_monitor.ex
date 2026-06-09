@@ -130,9 +130,10 @@ defmodule TradingEngine.StopConditionsMonitor do
         {:noreply, state}
 
       entry ->
-        updated_entry = %{entry |
-          pnl: pnl_data[:pnl] || entry.pnl,
-          pnl_percent: pnl_data[:pnl_percent] || entry.pnl_percent
+        updated_entry = %{
+          entry
+          | pnl: pnl_data[:pnl] || entry.pnl,
+            pnl_percent: pnl_data[:pnl_percent] || entry.pnl_percent
         }
 
         new_monitored = Map.put(state.monitored, setting_id, updated_entry)
@@ -181,10 +182,11 @@ defmodule TradingEngine.StopConditionsMonitor do
               entry.condition_state
             )
 
-          updated_entry = %{entry |
-            pnl: pnl,
-            pnl_percent: pnl_percent,
-            condition_state: new_cond_state
+          updated_entry = %{
+            entry
+            | pnl: pnl,
+              pnl_percent: pnl_percent,
+              condition_state: new_cond_state
           }
 
           if met? do
@@ -288,7 +290,7 @@ defmodule TradingEngine.StopConditionsMonitor do
     position_size = entry.position_size || Decimal.new(0)
 
     if Decimal.compare(position_size, Decimal.new(0)) == :eq or
-       Decimal.compare(entry_price, Decimal.new(0)) == :eq do
+         Decimal.compare(entry_price, Decimal.new(0)) == :eq do
       {Decimal.new(0), Decimal.new(0)}
     else
       price_diff = Decimal.sub(current_price, entry_price)

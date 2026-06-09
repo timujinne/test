@@ -91,7 +91,7 @@ defmodule DashboardWeb.HistoryLive do
             >
               <%= for symbol <- @available_symbols do %>
                 <option value={symbol} selected={@filter_symbol == symbol}>
-                  <%= symbol %>
+                  {symbol}
                 </option>
               <% end %>
               <option value="ALL" selected={@filter_symbol == "ALL"}>
@@ -100,7 +100,7 @@ defmodule DashboardWeb.HistoryLive do
             </select>
           </form>
           <span class="text-sm text-base-content/50">
-            Showing: <span class="font-medium text-base-content"><%= @filter_symbol %></span>
+            Showing: <span class="font-medium text-base-content">{@filter_symbol}</span>
           </span>
         </div>
         <%= if @loading do %>
@@ -112,7 +112,7 @@ defmodule DashboardWeb.HistoryLive do
         <%= if @error do %>
           <div class="alert alert-error mt-4">
             <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
-            <span><%= @error %></span>
+            <span>{@error}</span>
           </div>
         <% end %>
       </div>
@@ -130,7 +130,7 @@ defmodule DashboardWeb.HistoryLive do
                 <%= if @filter_symbol == "ALL" do %>
                   No orders found in your history
                 <% else %>
-                  No orders found for <%= @filter_symbol %>
+                  No orders found for {@filter_symbol}
                 <% end %>
               </p>
             </div>
@@ -153,14 +153,14 @@ defmodule DashboardWeb.HistoryLive do
                 <%= for order <- @orders do %>
                   <tr>
                     <td class="text-base-content">
-                      <%= format_timestamp(order["time"]) %>
+                      {format_timestamp(order["time"])}
                     </td>
                     <td class="text-base-content/70 font-mono text-xs">
-                      <%= order["orderId"] %>
+                      {order["orderId"]}
                     </td>
                     <td>
                       <span class="font-medium text-base-content">
-                        <%= order["symbol"] %>
+                        {order["symbol"]}
                       </span>
                     </td>
                     <td>
@@ -168,20 +168,20 @@ defmodule DashboardWeb.HistoryLive do
                         "badge",
                         if(order["side"] == "BUY", do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= order["side"] %>
+                        {order["side"]}
                       </span>
                     </td>
                     <td class="text-base-content/70">
-                      <%= order["type"] %>
+                      {order["type"]}
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_order_price_trim(order) %>
+                      {format_order_price_trim(order)}
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_number_trim(order["origQty"]) %>
+                      {format_number_trim(order["origQty"])}
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_number_trim(order["executedQty"]) %>
+                      {format_number_trim(order["executedQty"])}
                     </td>
                     <td>
                       <span class={[
@@ -196,7 +196,7 @@ defmodule DashboardWeb.HistoryLive do
                           _ -> "badge-ghost"
                         end
                       ]}>
-                        <%= order["status"] %>
+                        {order["status"]}
                       </span>
                     </td>
                   </tr>
@@ -232,17 +232,17 @@ defmodule DashboardWeb.HistoryLive do
                 <%= for trade <- @trades do %>
                   <tr>
                     <td class="text-base-content">
-                      <%= format_timestamp(trade["time"]) %>
+                      {format_timestamp(trade["time"])}
                     </td>
                     <td class="text-base-content/70 font-mono text-xs">
-                      <%= trade["id"] %>
+                      {trade["id"]}
                     </td>
                     <td class="text-base-content/70 font-mono text-xs">
-                      <%= trade["orderId"] %>
+                      {trade["orderId"]}
                     </td>
                     <td>
                       <span class="font-medium text-base-content">
-                        <%= trade["symbol"] %>
+                        {trade["symbol"]}
                       </span>
                     </td>
                     <td>
@@ -250,7 +250,7 @@ defmodule DashboardWeb.HistoryLive do
                         "badge",
                         if(trade["isBuyer"], do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= if trade["isBuyer"], do: "BUY", else: "SELL" %>
+                        {if trade["isBuyer"], do: "BUY", else: "SELL"}
                       </span>
                     </td>
                     <td>
@@ -261,16 +261,16 @@ defmodule DashboardWeb.HistoryLive do
                       <% end %>
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_number_trim(trade["price"]) %>
+                      {format_number_trim(trade["price"])}
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_number_trim(trade["qty"]) %>
+                      {format_number_trim(trade["qty"])}
                     </td>
                     <td class="text-right text-base-content font-mono">
-                      <%= format_number_trim(trade["quoteQty"]) %>
+                      {format_number_trim(trade["quoteQty"])}
                     </td>
                     <td class="text-right text-base-content/70 font-mono">
-                      <%= format_number_trim(trade["commission"]) %> <%= trade["commissionAsset"] %>
+                      {format_number_trim(trade["commission"])} {trade["commissionAsset"]}
                     </td>
                   </tr>
                 <% end %>
@@ -445,18 +445,20 @@ defmodule DashboardWeb.HistoryLive do
     import Ecto.Query
 
     # Get symbols from orders
-    order_symbols = SharedData.Repo.all(
-      from o in "orders",
-      distinct: o.symbol,
-      select: o.symbol
-    ) || []
+    order_symbols =
+      SharedData.Repo.all(
+        from o in "orders",
+          distinct: o.symbol,
+          select: o.symbol
+      ) || []
 
     # Get symbols from trades
-    trade_symbols = SharedData.Repo.all(
-      from t in "trades",
-      distinct: t.symbol,
-      select: t.symbol
-    ) || []
+    trade_symbols =
+      SharedData.Repo.all(
+        from t in "trades",
+          distinct: t.symbol,
+          select: t.symbol
+      ) || []
 
     # Combine and sort
     (order_symbols ++ trade_symbols)

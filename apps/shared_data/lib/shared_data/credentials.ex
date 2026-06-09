@@ -19,7 +19,7 @@ defmodule SharedData.Credentials do
   def list_credentials(user_id) do
     query =
       ApiCredential
-      |> order_by([c], [desc: c.is_active, asc: c.label])
+      |> order_by([c], desc: c.is_active, asc: c.label)
 
     query =
       if is_nil(user_id) do

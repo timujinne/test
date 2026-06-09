@@ -2,7 +2,7 @@ defmodule SharedData.Trading do
   @moduledoc """
   Context для управления торговыми операциями: ордера, сделки, балансы, настройки.
   """
-  
+
   import Ecto.Query, warn: false
   alias SharedData.Repo
   alias SharedData.Schemas.{Order, Trade, Balance, Setting}
@@ -144,7 +144,8 @@ defmodule SharedData.Trading do
   def get_trade_statistics(account_id, from_date, to_date) do
     query =
       from t in Trade,
-        where: t.account_id == ^account_id and t.timestamp >= ^from_date and t.timestamp <= ^to_date,
+        where:
+          t.account_id == ^account_id and t.timestamp >= ^from_date and t.timestamp <= ^to_date,
         select: %{
           total_trades: count(t.id),
           total_volume: sum(t.quantity),

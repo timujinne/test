@@ -2,7 +2,7 @@ defmodule SharedData.Accounts do
   @moduledoc """
   Context для управления пользователями и API credentials.
   """
-  
+
   import Ecto.Query, warn: false
   alias SharedData.Repo
   alias SharedData.Schemas.{User, ApiCredential, Account}
@@ -142,7 +142,7 @@ defmodule SharedData.Accounts do
   def list_user_accounts(user_id) do
     query =
       Account
-      |> order_by([a], [desc: a.is_active, asc: a.label])
+      |> order_by([a], desc: a.is_active, asc: a.label)
       |> preload([:api_credential, :balances, :settings])
 
     query =

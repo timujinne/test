@@ -112,7 +112,8 @@ defmodule SharedData.Helpers.CredentialHelper do
   """
   def valid_credentials?(nil), do: false
 
-  def valid_credentials?({api_key, secret_key}) when is_binary(api_key) and is_binary(secret_key) do
+  def valid_credentials?({api_key, secret_key})
+      when is_binary(api_key) and is_binary(secret_key) do
     String.length(api_key) > 0 && String.length(secret_key) > 0
   end
 

@@ -39,9 +39,12 @@ defmodule TradingEngine.Conditions.Condition do
   Helper to parse a numeric value from config, handling both string and number inputs.
   """
   def parse_number(value) when is_number(value), do: value
+
   def parse_number(value) when is_binary(value) do
     case Float.parse(value) do
-      {num, _} -> num
+      {num, _} ->
+        num
+
       :error ->
         case Integer.parse(value) do
           {num, _} -> num
@@ -49,6 +52,7 @@ defmodule TradingEngine.Conditions.Condition do
         end
     end
   end
+
   def parse_number(_), do: nil
 
   @doc """

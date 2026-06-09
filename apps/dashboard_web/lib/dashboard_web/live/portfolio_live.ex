@@ -94,7 +94,7 @@ defmodule DashboardWeb.PortfolioLive do
         </div>
         <div class="text-sm text-base-content/60">
           <%= if @last_updated do %>
-            Last updated: <%= Calendar.strftime(@last_updated, "%H:%M:%S") %>
+            Last updated: {Calendar.strftime(@last_updated, "%H:%M:%S")}
           <% end %>
         </div>
       </div>
@@ -102,7 +102,7 @@ defmodule DashboardWeb.PortfolioLive do
       <%= if @error do %>
         <div class="alert alert-error shadow-lg">
           <span class={["hero-x-circle", "shrink-0 h-6 w-6"]} />
-          <span><%= @error %></span>
+          <span>{@error}</span>
         </div>
       <% end %>
 
@@ -116,15 +116,15 @@ defmodule DashboardWeb.PortfolioLive do
           <div class="stat">
             <div class="stat-title">Total Value</div>
             <div class="stat-value text-base-content">
-              <%= DecimalHelper.format_currency(@total_value, "USDT", 2) %>
+              {DecimalHelper.format_currency(@total_value, "USDT", 2)}
             </div>
-            <div class="stat-desc">Across <%= length(@balances) %> assets</div>
+            <div class="stat-desc">Across {length(@balances)} assets</div>
           </div>
 
           <div class="stat">
             <div class="stat-title">Largest Holding</div>
             <div class="stat-value text-base-content">
-              <%= get_largest_holding(@balances) %>
+              {get_largest_holding(@balances)}
             </div>
             <div class="stat-desc">By value in USDT</div>
           </div>
@@ -132,7 +132,7 @@ defmodule DashboardWeb.PortfolioLive do
           <div class="stat">
             <div class="stat-title">Assets</div>
             <div class="stat-value text-base-content">
-              <%= length(@balances) %>
+              {length(@balances)}
             </div>
             <div class="stat-desc">With non-zero balance</div>
           </div>
@@ -155,10 +155,10 @@ defmodule DashboardWeb.PortfolioLive do
                     <div>
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-base-content">
-                          <%= balance.asset %>
+                          {balance.asset}
                         </span>
                         <span class="text-sm text-base-content/70">
-                          <%= calculate_allocation_percentage(balance, @total_value) %>%
+                          {calculate_allocation_percentage(balance, @total_value)}%
                         </span>
                       </div>
                       <progress
@@ -185,18 +185,18 @@ defmodule DashboardWeb.PortfolioLive do
                   <%= for balance <- Enum.take(@balances, 5) do %>
                     <div class="flex justify-between items-center">
                       <div>
-                        <div class="font-semibold text-base-content"><%= balance.asset %></div>
+                        <div class="font-semibold text-base-content">{balance.asset}</div>
                         <div class="text-sm text-base-content/60">
-                          <%= DecimalHelper.format(balance.total, 8) %> <%= balance.asset %>
+                          {DecimalHelper.format(balance.total, 8)} {balance.asset}
                         </div>
                       </div>
                       <div class="text-right">
                         <div class="font-medium text-base-content">
-                          <%= format_balance_value(balance) %>
+                          {format_balance_value(balance)}
                         </div>
                         <%= if balance.price do %>
                           <div class="text-sm text-base-content/60">
-                            @ <%= DecimalHelper.format_currency(balance.price, "USDT", 2) %>
+                            @ {DecimalHelper.format_currency(balance.price, "USDT", 2)}
                           </div>
                         <% end %>
                       </div>
@@ -236,27 +236,27 @@ defmodule DashboardWeb.PortfolioLive do
                       <td>
                         <div class="flex items-center">
                           <div class="text-sm font-medium text-base-content">
-                            <%= balance.asset %>
+                            {balance.asset}
                           </div>
                         </div>
                       </td>
                       <td class="text-right text-base-content">
-                        <%= DecimalHelper.format(balance.free, 8) %>
+                        {DecimalHelper.format(balance.free, 8)}
                       </td>
                       <td class="text-right text-base-content">
-                        <%= DecimalHelper.format(balance.locked, 8) %>
+                        {DecimalHelper.format(balance.locked, 8)}
                       </td>
                       <td class="text-right font-medium text-base-content">
-                        <%= DecimalHelper.format(balance.total, 8) %>
+                        {DecimalHelper.format(balance.total, 8)}
                       </td>
                       <td class="text-right text-base-content/70">
-                        <%= format_price(balance) %>
+                        {format_price(balance)}
                       </td>
                       <td class="text-right text-base-content font-medium">
-                        <%= format_balance_value(balance) %>
+                        {format_balance_value(balance)}
                       </td>
                       <td class="text-right text-base-content/70">
-                        <%= calculate_allocation_percentage(balance, @total_value) %>%
+                        {calculate_allocation_percentage(balance, @total_value)}%
                       </td>
                     </tr>
                   <% end %>
