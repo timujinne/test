@@ -99,6 +99,8 @@ Thumbs.db
 
 # Mix local
 mix.lock.local
+# NOTE: mix.lock IS committed (this is a deployable umbrella app, not a library)
+# so that builds are reproducible and dependency versions are reviewable.
 
 # Generated certificates
 priv/cert/selfsigned*
@@ -106,6 +108,6 @@ priv/cert/selfsigned*
 # Application specific
 /priv/backup/
 /priv/exports/
+/priv/media/
 /.worktrees/
-mix.lock
 *.patch

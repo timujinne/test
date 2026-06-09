@@ -17,14 +17,17 @@ defmodule BinanceSystem.MixProject do
     [
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      # Code quality tooling (referenced by `make check` / `make ci`)
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       # Heroicons for icon support
       {:heroicons,
-        github: "tailwindlabs/heroicons",
-        tag: "v2.2.0",
-        sparse: "optimized",
-        app: false,
-        compile: false,
-        depth: 1}
+       github: "tailwindlabs/heroicons",
+       tag: "v2.2.0",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1}
     ]
   end
 

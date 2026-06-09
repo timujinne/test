@@ -11,7 +11,8 @@ config :dashboard_web, DashboardWeb.Endpoint,
     layout: false
   ],
   pubsub_server: BinanceSystem.PubSub,
-  live_view: [signing_salt: "Ry5tN9wK4mQ2"]  # LiveView signing salt
+  # LiveView signing salt
+  live_view: [signing_salt: "Ry5tN9wK4mQ2"]
 
 config :dashboard_web,
   generators: [context_app: :shared_data]
@@ -31,16 +32,10 @@ config :phoenix_kit,
   from_email: "noreply@trading.local",
   from_name: "Trading Dashboard"
 
-# Configure rate limiting with Hammer
-config :hammer,
-  backend:
-    {Hammer.Backend.ETS,
-     [
-       # Cleanup expired rate limit buckets every 60 seconds
-       expiry_ms: 60_000,
-       # Cleanup interval (1 minute)
-       cleanup_interval_ms: 60_000
-     ]}
+# NOTE: Hammer 7.x removed the pluggable-backend architecture
+# (`config :hammer, backend: {Hammer.Backend.ETS, ...}` is dead config and is
+# silently ignored). PhoenixKit uses the new `use Hammer, backend: :ets` API and
+# tunes cleanup via its backend start_link, so no app-level :hammer config is needed.
 
 # Configure rate limits for authentication endpoints
 config :phoenix_kit, PhoenixKit.Users.RateLimiter,
@@ -76,7 +71,8 @@ config :dashboard_web, Oban,
     sitemap: 5,
     sqs_polling: 1,
     sync: 5,
-    shop_imports: 2
+    shop_imports: 2,
+    newsletters_delivery: 10
   ],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 30},

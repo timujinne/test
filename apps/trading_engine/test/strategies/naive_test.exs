@@ -12,7 +12,9 @@ defmodule TradingEngine.Strategies.NaiveTest do
       assert state.symbol == "BTCUSDT"
       assert Decimal.equal?(state.buy_down_interval, Decimal.new("0.01"))
       assert Decimal.equal?(state.sell_up_interval, Decimal.new("0.01"))
-      assert Decimal.equal?(state.quantity, Decimal.new("0.001"))
+      # Naive uses a fixed-NOTIONAL model: trade_amount_usdt (default 10 USDT),
+      # quantity is derived at order time as trade_amount_usdt / price.
+      assert Decimal.equal?(state.trade_amount_usdt, Decimal.new("10"))
       assert state.last_price == nil
       assert state.position == nil
     end
@@ -22,14 +24,14 @@ defmodule TradingEngine.Strategies.NaiveTest do
         "symbol" => "ETHUSDT",
         "buy_down_interval" => "0.02",
         "sell_up_interval" => "0.03",
-        "quantity" => "0.01"
+        "trade_amount" => "100"
       }
 
       assert {:ok, state} = Naive.init(config)
       assert state.symbol == "ETHUSDT"
       assert Decimal.equal?(state.buy_down_interval, Decimal.new("0.02"))
       assert Decimal.equal?(state.sell_up_interval, Decimal.new("0.03"))
-      assert Decimal.equal?(state.quantity, Decimal.new("0.01"))
+      assert Decimal.equal?(state.trade_amount_usdt, Decimal.new("100"))
     end
   end
 
@@ -48,18 +50,23 @@ defmodule TradingEngine.Strategies.NaiveTest do
       {:ok, state} = Naive.init(%{"symbol" => "BTCUSDT"})
       state = %{state | last_price: Decimal.new("50000.00")}
 
-      market_data = %{"c" => "50500.00"}  # Price increased by 1%
+      # Price increased by 1%
+      market_data = %{"c" => "50500.00"}
 
       assert {:noop, new_state} = Naive.on_tick(market_data, state)
       assert Decimal.equal?(new_state.last_price, Decimal.new("50500.00"))
     end
 
     test "buys when price drops by more than buy_down_interval" do
-      {:ok, state} = Naive.init(%{
-        "symbol" => "BTCUSDT",
-        "buy_down_interval" => "0.01",  # 1%
-        "quantity" => "0.001"
-      })
+      {:ok, state} =
+        Naive.init(%{
+          "symbol" => "BTCUSDT",
+          # 1%
+          "buy_down_interval" => "0.01",
+          # 50 USDT notional per trade
+          "trade_amount" => "50"
+        })
+
       state = %{state | last_price: Decimal.new("50000.00")}
 
       # Price drops by 1.5% (below threshold)
@@ -69,20 +76,25 @@ defmodule TradingEngine.Strategies.NaiveTest do
       assert order.symbol == "BTCUSDT"
       assert order.side == "BUY"
       assert order.type == "MARKET"
-      assert Decimal.equal?(order.quantity, Decimal.new("0.001"))
+      # quantity derived from notional: 50 USDT / 49250 price, rounded to BTC qty precision (5)
+      expected_qty = Decimal.div(Decimal.new("50"), Decimal.new("49250.00")) |> Decimal.round(5)
+      assert Decimal.equal?(order.quantity, expected_qty)
+      assert Decimal.compare(order.quantity, Decimal.new("0")) == :gt
       assert Decimal.equal?(new_state.last_price, Decimal.new("49250.00"))
     end
 
     test "does not buy when already has position" do
-      {:ok, state} = Naive.init(%{
-        "symbol" => "BTCUSDT",
-        "buy_down_interval" => "0.01",
-        "sell_up_interval" => "0.01"
-      })
+      {:ok, state} =
+        Naive.init(%{
+          "symbol" => "BTCUSDT",
+          "buy_down_interval" => "0.01",
+          "sell_up_interval" => "0.01"
+        })
+
       state = %{
-        state |
-        last_price: Decimal.new("50000.00"),
-        position: %{entry_price: Decimal.new("48000.00"), quantity: Decimal.new("0.001")}
+        state
+        | last_price: Decimal.new("50000.00"),
+          position: %{entry_price: Decimal.new("48000.00"), quantity: Decimal.new("0.001")}
       }
 
       # Price at 48400 - neither triggers sell (only +0.83% from entry) nor buy
@@ -103,16 +115,19 @@ defmodule TradingEngine.Strategies.NaiveTest do
     end
 
     test "sells when price rises above sell_up_interval from entry" do
-      {:ok, state} = Naive.init(%{
-        "symbol" => "BTCUSDT",
-        "sell_up_interval" => "0.01",  # 1%
-        "quantity" => "0.001"
-      })
+      {:ok, state} =
+        Naive.init(%{
+          "symbol" => "BTCUSDT",
+          # 1%
+          "sell_up_interval" => "0.01",
+          "quantity" => "0.001"
+        })
 
       entry_price = Decimal.new("50000.00")
+
       state = %{
-        state |
-        position: %{entry_price: entry_price, quantity: Decimal.new("0.001")}
+        state
+        | position: %{entry_price: entry_price, quantity: Decimal.new("0.001")}
       }
 
       # Price increases by 1.5% from entry (above threshold)
@@ -126,15 +141,18 @@ defmodule TradingEngine.Strategies.NaiveTest do
     end
 
     test "does not sell when price increase is below threshold" do
-      {:ok, state} = Naive.init(%{
-        "symbol" => "BTCUSDT",
-        "sell_up_interval" => "0.01"  # 1%
-      })
+      {:ok, state} =
+        Naive.init(%{
+          "symbol" => "BTCUSDT",
+          # 1%
+          "sell_up_interval" => "0.01"
+        })
 
       entry_price = Decimal.new("50000.00")
+
       state = %{
-        state |
-        position: %{entry_price: entry_price, quantity: Decimal.new("0.001")}
+        state
+        | position: %{entry_price: entry_price, quantity: Decimal.new("0.001")}
       }
 
       # Price increases by only 0.5% (below threshold)
@@ -152,8 +170,10 @@ defmodule TradingEngine.Strategies.NaiveTest do
       execution = %{
         "x" => "TRADE",
         "S" => "BUY",
-        "L" => "50000.00",  # Last executed price
-        "l" => "0.001"       # Last executed quantity
+        # Last executed price
+        "L" => "50000.00",
+        # Last executed quantity
+        "l" => "0.001"
       }
 
       assert {:noop, new_state} = Naive.on_execution(execution, state)
@@ -164,9 +184,10 @@ defmodule TradingEngine.Strategies.NaiveTest do
 
     test "clears position on SELL execution" do
       {:ok, state} = Naive.init(%{"symbol" => "BTCUSDT"})
+
       state = %{
-        state |
-        position: %{entry_price: Decimal.new("50000.00"), quantity: Decimal.new("0.001")}
+        state
+        | position: %{entry_price: Decimal.new("50000.00"), quantity: Decimal.new("0.001")}
       }
 
       execution = %{
@@ -196,12 +217,13 @@ defmodule TradingEngine.Strategies.NaiveTest do
   describe "complete trading cycle" do
     test "executes full buy-sell cycle" do
       # Initialize strategy
-      {:ok, state} = Naive.init(%{
-        "symbol" => "BTCUSDT",
-        "buy_down_interval" => "0.01",
-        "sell_up_interval" => "0.01",
-        "quantity" => "0.001"
-      })
+      {:ok, state} =
+        Naive.init(%{
+          "symbol" => "BTCUSDT",
+          "buy_down_interval" => "0.01",
+          "sell_up_interval" => "0.01",
+          "quantity" => "0.001"
+        })
 
       # Step 1: First price tick (establishes baseline)
       market_data_1 = %{"c" => "50000.00"}
@@ -221,6 +243,7 @@ defmodule TradingEngine.Strategies.NaiveTest do
         "L" => "49000.00",
         "l" => "0.001"
       }
+
       {:noop, state} = Naive.on_execution(buy_execution, state)
       assert state.position != nil
       assert Decimal.equal?(state.position.entry_price, Decimal.new("49000.00"))
@@ -237,6 +260,7 @@ defmodule TradingEngine.Strategies.NaiveTest do
         "L" => "49980.00",
         "l" => "0.001"
       }
+
       {:noop, state} = Naive.on_execution(sell_execution, state)
       assert state.position == nil
     end

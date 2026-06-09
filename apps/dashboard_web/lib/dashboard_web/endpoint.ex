@@ -7,9 +7,12 @@ defmodule DashboardWeb.Endpoint do
   @session_options [
     store: :cookie,
     key: "_dashboard_web_key",
-    signing_salt: "Kx8mP2vQ7nL3",  # Static salt, combined with SECRET_KEY_BASE
-    same_site: "Strict",           # Prevents CSRF via cross-site requests
-    max_age: 86_400 * 7            # 7 days
+    # Static salt, combined with SECRET_KEY_BASE
+    signing_salt: "Kx8mP2vQ7nL3",
+    # Prevents CSRF via cross-site requests
+    same_site: "Strict",
+    # 7 days
+    max_age: 86_400 * 7
   ]
 
   socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
@@ -20,9 +23,12 @@ defmodule DashboardWeb.Endpoint do
     gzip: false,
     only: DashboardWeb.static_paths()
 
-  # Tidewave MCP Server for AI-assisted development (dev only)
+  # Tidewave MCP Server for AI-assisted development (dev only).
+  # NOTE: do NOT set allow_remote_access: true — it disables Tidewave's
+  # built-in loopback-only guard and exposes code/DB execution to any
+  # reachable client. Keep it loopback-only.
   if Code.ensure_loaded?(Tidewave) do
-    plug Tidewave, allow_remote_access: true
+    plug Tidewave
   end
 
   if code_reloading? do

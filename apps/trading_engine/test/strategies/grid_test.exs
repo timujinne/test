@@ -2,6 +2,13 @@ defmodule TradingEngine.Strategies.GridTest do
   use ExUnit.Case, async: true
   alias TradingEngine.Strategies.Grid
 
+  # Grid uses a fixed-NOTIONAL model: `amount_per_grid` is the USDT amount spent
+  # per grid level, and the coin quantity is derived as amount/price rounded to
+  # the symbol's quantity precision. BTCUSDT qty precision is 5.
+  defp expected_qty(amount, price, qty_precision \\ 5) do
+    Decimal.div(Decimal.new(amount), price) |> Decimal.round(qty_precision)
+  end
+
   describe "init/1" do
     test "initializes with default configuration" do
       config = %{"symbol" => "BTCUSDT"}
@@ -10,35 +17,43 @@ defmodule TradingEngine.Strategies.GridTest do
       assert state.symbol == "BTCUSDT"
       assert state.grid_levels == 5
       assert Decimal.equal?(state.grid_spacing, Decimal.new("0.005"))
-      assert Decimal.equal?(state.quantity_per_grid, Decimal.new("0.001"))
+      assert Decimal.equal?(state.amount_per_grid, Decimal.new("50"))
       assert state.base_price == nil
       assert state.active_orders == []
     end
 
-    test "initializes with custom configuration" do
+    test "initializes with custom configuration (amount_per_grid)" do
       config = %{
         "symbol" => "ETHUSDT",
         "grid_levels" => 10,
         "grid_spacing" => "0.01",
-        "quantity_per_grid" => "0.05"
+        "amount_per_grid" => "100"
       }
 
       assert {:ok, state} = Grid.init(config)
       assert state.symbol == "ETHUSDT"
       assert state.grid_levels == 10
       assert Decimal.equal?(state.grid_spacing, Decimal.new("0.01"))
-      assert Decimal.equal?(state.quantity_per_grid, Decimal.new("0.05"))
+      assert Decimal.equal?(state.amount_per_grid, Decimal.new("100"))
+    end
+
+    test "accepts legacy quantity_per_grid key as the per-grid amount" do
+      config = %{"symbol" => "BTCUSDT", "quantity_per_grid" => "75"}
+
+      assert {:ok, state} = Grid.init(config)
+      assert Decimal.equal?(state.amount_per_grid, Decimal.new("75"))
     end
   end
 
   describe "on_tick/2 - grid initialization" do
     test "initializes grid on first price tick" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_levels" => 3,
-        "grid_spacing" => "0.01",
-        "quantity_per_grid" => "0.001"
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 3,
+          "grid_spacing" => "0.01",
+          "amount_per_grid" => "50"
+        })
 
       market_data = %{"c" => "50000.00"}
 
@@ -63,11 +78,12 @@ defmodule TradingEngine.Strategies.GridTest do
     end
 
     test "creates correct buy orders below base price" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_levels" => 3,
-        "grid_spacing" => "0.01"  # 1%
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 3,
+          "grid_spacing" => "0.01"
+        })
 
       market_data = %{"c" => "50000.00"}
       {{:place_order, orders}, _state} = Grid.on_tick(market_data, state)
@@ -88,11 +104,12 @@ defmodule TradingEngine.Strategies.GridTest do
     end
 
     test "creates correct sell orders above base price" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_levels" => 3,
-        "grid_spacing" => "0.01"
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 3,
+          "grid_spacing" => "0.01"
+        })
 
       market_data = %{"c" => "50000.00"}
       {{:place_order, orders}, _state} = Grid.on_tick(market_data, state)
@@ -112,6 +129,23 @@ defmodule TradingEngine.Strategies.GridTest do
       assert Decimal.equal?(order1.price, expected_price1)
     end
 
+    test "derives positive quantity from amount_per_grid / price" do
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 2,
+          "grid_spacing" => "0.01",
+          "amount_per_grid" => "50"
+        })
+
+      {{:place_order, orders}, _state} = Grid.on_tick(%{"c" => "50000.00"}, state)
+
+      Enum.each(orders, fn o ->
+        assert Decimal.equal?(o.quantity, expected_qty("50", o.price))
+        assert Decimal.compare(o.quantity, Decimal.new("0")) == :gt
+      end)
+    end
+
     test "all orders are LIMIT orders with GTC" do
       {:ok, state} = Grid.init(%{"symbol" => "BTCUSDT", "grid_levels" => 2})
 
@@ -119,24 +153,26 @@ defmodule TradingEngine.Strategies.GridTest do
       {{:place_order, orders}, _state} = Grid.on_tick(market_data, state)
 
       assert Enum.all?(orders, fn o ->
-        o.type == "LIMIT" and o.timeInForce == "GTC"
-      end)
+               o.type == "LIMIT" and o.timeInForce == "GTC"
+             end)
     end
   end
 
   describe "on_execution/2 - order rebalancing" do
     test "places sell order after buy execution" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_spacing" => "0.01",
-        "quantity_per_grid" => "0.001"
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_spacing" => "0.01",
+          "amount_per_grid" => "50"
+        })
 
       execution = %{
         "x" => "TRADE",
         "i" => "12345",
         "S" => "BUY",
-        "L" => "49500.00"  # Executed at this price
+        # Executed at this price
+        "L" => "49500.00"
       }
 
       assert {{:place_order, order}, _new_state} = Grid.on_execution(execution, state)
@@ -146,15 +182,16 @@ defmodule TradingEngine.Strategies.GridTest do
       assert order.type == "LIMIT"
       expected_price = Decimal.mult(Decimal.new("49500.00"), Decimal.new("1.01"))
       assert Decimal.equal?(order.price, expected_price)
-      assert Decimal.equal?(order.quantity, Decimal.new("0.001"))
+      assert Decimal.equal?(order.quantity, expected_qty("50", order.price))
     end
 
     test "places buy order after sell execution" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_spacing" => "0.01",
-        "quantity_per_grid" => "0.001"
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_spacing" => "0.01",
+          "amount_per_grid" => "50"
+        })
 
       execution = %{
         "x" => "TRADE",
@@ -170,7 +207,7 @@ defmodule TradingEngine.Strategies.GridTest do
       assert order.type == "LIMIT"
       expected_price = Decimal.mult(Decimal.new("50500.00"), Decimal.new("0.99"))
       assert Decimal.equal?(order.price, expected_price)
-      assert Decimal.equal?(order.quantity, Decimal.new("0.001"))
+      assert Decimal.equal?(order.quantity, expected_qty("50", order.price))
     end
 
     test "removes filled order from active orders" do
@@ -178,11 +215,11 @@ defmodule TradingEngine.Strategies.GridTest do
 
       # Add some active orders
       state = %{
-        state |
-        active_orders: [
-          %{order_id: "12345", side: "BUY"},
-          %{order_id: "12346", side: "SELL"}
-        ]
+        state
+        | active_orders: [
+            %{order_id: "12345", side: "BUY"},
+            %{order_id: "12346", side: "SELL"}
+          ]
       }
 
       execution = %{
@@ -215,11 +252,12 @@ defmodule TradingEngine.Strategies.GridTest do
 
   describe "grid calculation accuracy" do
     test "calculates grid levels with correct spacing" do
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_levels" => 5,
-        "grid_spacing" => "0.005"  # 0.5%
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 5,
+          "grid_spacing" => "0.005"
+        })
 
       base_price = Decimal.new("50000.00")
       market_data = %{"c" => "50000.00"}
@@ -234,10 +272,12 @@ defmodule TradingEngine.Strategies.GridTest do
 
       Enum.with_index(sorted_buys, 1)
       |> Enum.each(fn {order, level} ->
-        expected = Decimal.mult(
-          base_price,
-          Decimal.sub(Decimal.new("1"), Decimal.mult(Decimal.new("0.005"), level))
-        )
+        expected =
+          Decimal.mult(
+            base_price,
+            Decimal.sub(Decimal.new("1"), Decimal.mult(Decimal.new("0.005"), level))
+          )
+
         assert Decimal.equal?(order.price, expected)
       end)
 
@@ -246,10 +286,12 @@ defmodule TradingEngine.Strategies.GridTest do
 
       Enum.with_index(sorted_sells, 1)
       |> Enum.each(fn {order, level} ->
-        expected = Decimal.mult(
-          base_price,
-          Decimal.add(Decimal.new("1"), Decimal.mult(Decimal.new("0.005"), level))
-        )
+        expected =
+          Decimal.mult(
+            base_price,
+            Decimal.add(Decimal.new("1"), Decimal.mult(Decimal.new("0.005"), level))
+          )
+
         assert Decimal.equal?(order.price, expected)
       end)
     end
@@ -258,17 +300,19 @@ defmodule TradingEngine.Strategies.GridTest do
   describe "complete grid trading cycle" do
     test "executes full rebalancing cycle" do
       # Initialize grid
-      {:ok, state} = Grid.init(%{
-        "symbol" => "BTCUSDT",
-        "grid_levels" => 2,
-        "grid_spacing" => "0.01",
-        "quantity_per_grid" => "0.001"
-      })
+      {:ok, state} =
+        Grid.init(%{
+          "symbol" => "BTCUSDT",
+          "grid_levels" => 2,
+          "grid_spacing" => "0.01",
+          "amount_per_grid" => "50"
+        })
 
       # Step 1: Initialize grid
       market_data = %{"c" => "50000.00"}
       {{:place_order, initial_orders}, state} = Grid.on_tick(market_data, state)
-      assert length(initial_orders) == 4  # 2 buy + 2 sell
+      # 2 buy + 2 sell
+      assert length(initial_orders) == 4
 
       # Step 2: Buy order fills at 49500
       buy_execution = %{
@@ -277,9 +321,14 @@ defmodule TradingEngine.Strategies.GridTest do
         "S" => "BUY",
         "L" => "49500.00"
       }
+
       {{:place_order, sell_order}, state} = Grid.on_execution(buy_execution, state)
       assert sell_order.side == "SELL"
-      assert Decimal.equal?(sell_order.price, Decimal.mult(Decimal.new("49500.00"), Decimal.new("1.01")))
+
+      assert Decimal.equal?(
+               sell_order.price,
+               Decimal.mult(Decimal.new("49500.00"), Decimal.new("1.01"))
+             )
 
       # Step 3: Sell order fills at 50000
       sell_execution = %{
@@ -288,9 +337,14 @@ defmodule TradingEngine.Strategies.GridTest do
         "S" => "SELL",
         "L" => "50000.00"
       }
+
       {{:place_order, buy_order}, _state} = Grid.on_execution(sell_execution, state)
       assert buy_order.side == "BUY"
-      assert Decimal.equal?(buy_order.price, Decimal.mult(Decimal.new("50000.00"), Decimal.new("0.99")))
+
+      assert Decimal.equal?(
+               buy_order.price,
+               Decimal.mult(Decimal.new("50000.00"), Decimal.new("0.99"))
+             )
     end
   end
 end

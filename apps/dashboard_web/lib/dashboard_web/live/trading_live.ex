@@ -14,7 +14,8 @@ defmodule DashboardWeb.TradingLive do
 
   @default_symbol "BTCUSDT"
   @default_interval "1h"
-  @depth_throttle_ms 500  # Throttle order book updates to every 500ms
+  # Throttle order book updates to every 500ms
+  @depth_throttle_ms 500
 
   @impl true
   def mount(_params, _session, socket) do
@@ -29,7 +30,11 @@ defmodule DashboardWeb.TradingLive do
 
       # Subscribe to depth and kline streams
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "depth:#{@default_symbol}")
-      Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "kline:#{@default_symbol}:#{@default_interval}")
+
+      Phoenix.PubSub.subscribe(
+        BinanceSystem.PubSub,
+        "kline:#{@default_symbol}:#{@default_interval}"
+      )
 
       # Load balances and prices
       send(self(), :load_balances)
@@ -173,18 +178,20 @@ defmodule DashboardWeb.TradingLive do
     socket =
       case DataCollector.BinanceClient.get_klines(symbol, interval, limit: 100) do
         {:ok, klines} ->
-          candles = Enum.map(klines, fn kline ->
-            # Binance klines: [open_time, open, high, low, close, volume, close_time, ...]
-            [open_time, open, high, low, close, volume | _rest] = kline
-            %{
-              time: open_time,
-              open: parse_float(open),
-              high: parse_float(high),
-              low: parse_float(low),
-              close: parse_float(close),
-              volume: parse_float(volume)
-            }
-          end)
+          candles =
+            Enum.map(klines, fn kline ->
+              # Binance klines: [open_time, open, high, low, close, volume, close_time, ...]
+              [open_time, open, high, low, close, volume | _rest] = kline
+
+              %{
+                time: open_time,
+                open: parse_float(open),
+                high: parse_float(high),
+                low: parse_float(low),
+                close: parse_float(close),
+                volume: parse_float(volume)
+              }
+            end)
 
           push_event(socket, "price_chart_init", %{candles: candles})
 
@@ -204,8 +211,8 @@ defmodule DashboardWeb.TradingLive do
           symbols_data
           |> Enum.filter(fn s ->
             s["status"] == "TRADING" and
-            s["quoteAsset"] == "USDT" and
-            s["isSpotTradingAllowed"] == true
+              s["quoteAsset"] == "USDT" and
+              s["isSpotTradingAllowed"] == true
           end)
           |> Enum.map(fn s -> s["symbol"] end)
           |> Enum.sort()
@@ -227,20 +234,26 @@ defmodule DashboardWeb.TradingLive do
       case DataCollector.BinanceClient.get_depth(symbol, 50) do
         {:ok, %{"bids" => bids, "asks" => asks}} ->
           # Convert string prices/quantities to floats for OrderBook component
-          parsed_bids = Enum.map(bids, fn [price, qty] ->
-            {parse_float(price), parse_float(qty)}
-          end)
-          parsed_asks = Enum.map(asks, fn [price, qty] ->
-            {parse_float(price), parse_float(qty)}
-          end)
+          parsed_bids =
+            Enum.map(bids, fn [price, qty] ->
+              {parse_float(price), parse_float(qty)}
+            end)
+
+          parsed_asks =
+            Enum.map(asks, fn [price, qty] ->
+              {parse_float(price), parse_float(qty)}
+            end)
 
           # Prepare data for depth chart (as lists for JSON)
-          chart_bids = Enum.map(bids, fn [price, qty] ->
-            [parse_float(price), parse_float(qty)]
-          end)
-          chart_asks = Enum.map(asks, fn [price, qty] ->
-            [parse_float(price), parse_float(qty)]
-          end)
+          chart_bids =
+            Enum.map(bids, fn [price, qty] ->
+              [parse_float(price), parse_float(qty)]
+            end)
+
+          chart_asks =
+            Enum.map(asks, fn [price, qty] ->
+              [parse_float(price), parse_float(qty)]
+            end)
 
           order_book = %{bids: parsed_bids, asks: parsed_asks}
 
@@ -305,7 +318,9 @@ defmodule DashboardWeb.TradingLive do
         bids: depth_data.bids,
         asks: depth_data.asks
       }
-      {:noreply, socket |> assign(order_book: order_book, last_depth_update: now, pending_depth: nil)}
+
+      {:noreply,
+       socket |> assign(order_book: order_book, last_depth_update: now, pending_depth: nil)}
     else
       # Store pending update
       socket = assign(socket, pending_depth: depth_data)
@@ -328,11 +343,14 @@ defmodule DashboardWeb.TradingLive do
 
       depth_data ->
         now = System.monotonic_time(:millisecond)
+
         order_book = %{
           bids: depth_data.bids,
           asks: depth_data.asks
         }
-        {:noreply, socket |> assign(order_book: order_book, pending_depth: nil, last_depth_update: now)}
+
+        {:noreply,
+         socket |> assign(order_book: order_book, pending_depth: nil, last_depth_update: now)}
     end
   end
 
@@ -367,12 +385,13 @@ defmodule DashboardWeb.TradingLive do
   @impl true
   def handle_info({:stream_subscriber_changed, symbol, count}, socket) do
     # Update the specific stream's subscriber count
-    active_streams = socket.assigns.active_streams
-    |> Enum.reject(fn {s, _} -> s == symbol end)
-    |> then(fn streams ->
-      if count > 0, do: [{symbol, count} | streams], else: streams
-    end)
-    |> Enum.sort_by(fn {s, _} -> s end)
+    active_streams =
+      socket.assigns.active_streams
+      |> Enum.reject(fn {s, _} -> s == symbol end)
+      |> then(fn streams ->
+        if count > 0, do: [{symbol, count} | streams], else: streams
+      end)
+      |> Enum.sort_by(fn {s, _} -> s end)
 
     {:noreply, assign(socket, active_streams: active_streams)}
   end
@@ -468,7 +487,6 @@ defmodule DashboardWeb.TradingLive do
     # Валидация параметров
     with {:ok, validated_params} <- validate_order_params(params),
          {api_key, secret_key} <- get_testnet_credentials() || {:error, :no_credentials} do
-
       # Построить параметры ордера в зависимости от типа
       order_params = build_order_params(validated_params)
 
@@ -497,7 +515,12 @@ defmodule DashboardWeb.TradingLive do
       end
     else
       {:error, :no_credentials} ->
-        {:noreply, put_flash(socket, :error, "Testnet credentials not configured. Check BINANCE_API_KEY and BINANCE_SECRET_KEY env vars.")}
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Testnet credentials not configured. Check BINANCE_API_KEY and BINANCE_SECRET_KEY env vars."
+         )}
 
       {:error, validation_error} ->
         {:noreply, put_flash(socket, :error, validation_error)}
@@ -506,7 +529,7 @@ defmodule DashboardWeb.TradingLive do
 
   @impl true
   def handle_event("cancel_order", %{"id" => order_id}, socket) do
-    case cancel_order(order_id) do
+    case cancel_order(order_id, socket.assigns.account_id) do
       {:ok, _} ->
         socket =
           socket
@@ -551,13 +574,14 @@ defmodule DashboardWeb.TradingLive do
         {:error, "Invalid price format"}
 
       true ->
-        {:ok, %{
-          symbol: symbol,
-          side: side,
-          type: type,
-          quantity: quantity,
-          price: price
-        }}
+        {:ok,
+         %{
+           symbol: symbol,
+           side: side,
+           type: type,
+           quantity: quantity,
+           price: price
+         }}
     end
   end
 
@@ -618,8 +642,8 @@ defmodule DashboardWeb.TradingLive do
 
   defp parse_binance_error(reason), do: inspect(reason)
 
-  defp cancel_order(order_id) do
-    with {:ok, order} <- get_order_with_credentials(order_id),
+  defp cancel_order(order_id, account_id) do
+    with {:ok, order} <- get_order_with_credentials(order_id, account_id),
          {:ok, _result} <- execute_cancel(order) do
       # Update order status in database
       order
@@ -628,10 +652,12 @@ defmodule DashboardWeb.TradingLive do
     end
   end
 
-  defp get_order_with_credentials(order_id) do
+  # Scope the lookup to the caller's account so a client-supplied order id cannot
+  # cancel an order belonging to another account.
+  defp get_order_with_credentials(order_id, account_id) do
     query =
       from o in Order,
-        where: o.id == ^order_id,
+        where: o.id == ^order_id and o.account_id == ^account_id,
         preload: [account: :api_credential]
 
     case Repo.one(query) do
@@ -693,7 +719,7 @@ defmodule DashboardWeb.TradingLive do
                           phx-value-symbol={sym}
                           class="text-left"
                         >
-                          <span class="font-mono font-medium"><%= String.replace(sym, "USDT", "") %></span>
+                          <span class="font-mono font-medium">{String.replace(sym, "USDT", "")}</span>
                           <span class="text-xs text-base-content/50">/USDT</span>
                         </button>
                       </li>
@@ -704,7 +730,7 @@ defmodule DashboardWeb.TradingLive do
 
               <%!-- Current Symbol Badge --%>
               <div class="badge badge-primary badge-lg font-mono">
-                <%= @symbol %>
+                {@symbol}
               </div>
             </div>
           </div>
@@ -720,7 +746,7 @@ defmodule DashboardWeb.TradingLive do
                   if(@symbol == sym, do: "btn-primary", else: "btn-ghost")
                 ]}
               >
-                <%= String.replace(sym, "USDT", "") %>
+                {String.replace(sym, "USDT", "")}
               </button>
             <% end %>
           </div>
@@ -728,9 +754,9 @@ defmodule DashboardWeb.TradingLive do
 
         <%= if @current_price do %>
           <div class="text-right">
-            <div class="text-sm text-base-content/70"><%= @symbol %></div>
+            <div class="text-sm text-base-content/70">{@symbol}</div>
             <div class="text-2xl font-bold text-base-content">
-              $<%= DecimalHelper.format(@current_price, 2) %>
+              ${DecimalHelper.format(@current_price, 2)}
             </div>
           </div>
         <% end %>
@@ -743,14 +769,14 @@ defmodule DashboardWeb.TradingLive do
             <div class="flex justify-between items-center">
               <h2 class="card-title">Active Streams</h2>
               <span class="badge badge-success badge-sm">
-                <%= length(@active_streams) %> active
+                {length(@active_streams)} active
               </span>
             </div>
             <div class="flex flex-wrap gap-2">
               <%= for {symbol, count} <- @active_streams do %>
                 <div class="badge badge-outline gap-2">
-                  <span class="font-mono text-sm"><%= symbol %></span>
-                  <span class="badge badge-primary badge-xs"><%= count %></span>
+                  <span class="font-mono text-sm">{symbol}</span>
+                  <span class="badge badge-primary badge-xs">{count}</span>
                 </div>
               <% end %>
             </div>
@@ -772,9 +798,9 @@ defmodule DashboardWeb.TradingLive do
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <%= for {symbol, price} <- @prices do %>
           <div class="card bg-base-100 shadow-xl p-4">
-            <div class="text-sm text-base-content/70"><%= symbol %></div>
+            <div class="text-sm text-base-content/70">{symbol}</div>
             <div class="text-xl font-bold text-base-content">
-              <%= if price, do: "$#{price}", else: "Loading..." %>
+              {if price, do: "$#{price}", else: "Loading..."}
             </div>
           </div>
         <% end %>
@@ -804,13 +830,13 @@ defmodule DashboardWeb.TradingLive do
                 <%= for balance <- @balances do %>
                   <tr>
                     <td class="whitespace-nowrap text-sm font-medium text-base-content">
-                      <%= balance["asset"] %>
+                      {balance["asset"]}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= balance["free"] %>
+                      {balance["free"]}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content/70 text-right">
-                      <%= balance["locked"] %>
+                      {balance["locked"]}
                     </td>
                   </tr>
                 <% end %>
@@ -889,9 +915,9 @@ defmodule DashboardWeb.TradingLive do
                 Order Created Successfully!
               </div>
               <div class="text-xs mt-2">
-                Order ID: <%= @order_result["orderId"] %> |
-                Status: <%= @order_result["status"] %> |
-                Symbol: <%= @order_result["symbol"] %>
+                Order ID: {@order_result["orderId"]} |
+                Status: {@order_result["status"]} |
+                Symbol: {@order_result["symbol"]}
               </div>
             </div>
           <% end %>
@@ -928,31 +954,31 @@ defmodule DashboardWeb.TradingLive do
                 <%= for order <- @open_orders do %>
                   <tr>
                     <td class="whitespace-nowrap text-sm font-medium text-base-content">
-                      <%= order.symbol %>
+                      {order.symbol}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content/70">
-                      <%= order.type %>
+                      {order.type}
                     </td>
                     <td class="whitespace-nowrap text-sm">
                       <span class={[
                         "badge",
                         if(order.side == "BUY", do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= order.side %>
+                        {order.side}
                       </span>
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= order.price %>
+                      {order.price}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= order.quantity %>
+                      {order.quantity}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= order.filled_quantity %>
+                      {order.filled_quantity}
                     </td>
                     <td class="whitespace-nowrap text-sm">
                       <span class="badge badge-info">
-                        <%= order.status %>
+                        {order.status}
                       </span>
                     </td>
                   </tr>
@@ -996,31 +1022,31 @@ defmodule DashboardWeb.TradingLive do
                 <%= for order <- @active_orders do %>
                   <tr>
                     <td class="whitespace-nowrap text-sm font-medium text-base-content">
-                      <%= order.symbol %>
+                      {order.symbol}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content/70">
-                      <%= order.type %>
+                      {order.type}
                     </td>
                     <td class="whitespace-nowrap text-sm">
                       <span class={[
                         "badge",
                         if(order.side == "BUY", do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= order.side %>
+                        {order.side}
                       </span>
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= if order.price, do: DecimalHelper.format(order.price, 2), else: "MARKET" %>
+                      {if order.price, do: DecimalHelper.format(order.price, 2), else: "MARKET"}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= DecimalHelper.format(order.quantity, 6) %>
+                      {DecimalHelper.format(order.quantity, 6)}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= DecimalHelper.format(order.filled_qty, 6) %>
+                      {DecimalHelper.format(order.filled_qty, 6)}
                     </td>
                     <td class="whitespace-nowrap text-sm">
                       <span class="badge badge-info">
-                        <%= order.status %>
+                        {order.status}
                       </span>
                     </td>
                     <td class="whitespace-nowrap text-right text-sm font-medium">
@@ -1067,24 +1093,24 @@ defmodule DashboardWeb.TradingLive do
                 <%= for trade <- @recent_trades do %>
                   <tr>
                     <td class="whitespace-nowrap text-sm text-base-content/70">
-                      <%= Calendar.strftime(trade.timestamp, "%H:%M:%S") %>
+                      {Calendar.strftime(trade.timestamp, "%H:%M:%S")}
                     </td>
                     <td class="whitespace-nowrap text-sm font-medium text-base-content">
-                      <%= trade.symbol %>
+                      {trade.symbol}
                     </td>
                     <td class="whitespace-nowrap text-sm">
                       <span class={[
                         "badge",
                         if(trade.side == "BUY", do: "badge-success", else: "badge-error")
                       ]}>
-                        <%= trade.side %>
+                        {trade.side}
                       </span>
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= DecimalHelper.format(trade.price, 2) %>
+                      {DecimalHelper.format(trade.price, 2)}
                     </td>
                     <td class="whitespace-nowrap text-sm text-base-content text-right">
-                      <%= DecimalHelper.format(trade.quantity, 6) %>
+                      {DecimalHelper.format(trade.quantity, 6)}
                     </td>
                     <td class="whitespace-nowrap text-sm text-right">
                       <%= if trade.pnl do %>
@@ -1095,7 +1121,7 @@ defmodule DashboardWeb.TradingLive do
                             else: "text-error"
                           )
                         ]}>
-                          <%= DecimalHelper.format_currency(trade.pnl, "USDT", 2) %>
+                          {DecimalHelper.format_currency(trade.pnl, "USDT", 2)}
                         </span>
                       <% else %>
                         <span class="text-base-content/50">-</span>

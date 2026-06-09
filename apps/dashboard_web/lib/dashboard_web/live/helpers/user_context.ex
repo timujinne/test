@@ -9,18 +9,20 @@ defmodule DashboardWeb.Live.UserContext do
   @doc """
   Extracts user context from socket assigns and adds user_id to socket.
   Returns socket with :user_id and :account_id assigns.
-  
+
   PhoenixKit's `phoenix_kit_ensure_authenticated` on_mount guarantees
   that phoenix_kit_current_user is present in authenticated routes.
   """
   def assign_user_context(socket) do
-    # PhoenixKit uses integer user.id, SharedData uses UUID (binary_id)
-    # These systems are not yet integrated - use nil for user_id
-    # TODO: Create proper user linking between PhoenixKit and SharedData
+    # Single shared trading desk: all authenticated PhoenixKit users operate the
+    # shared (unowned) account. We record the authenticated PhoenixKit user id
+    # for audit/ownership checks instead of hardcoding nil (which fail-opened the
+    # ownership guard). The desk account itself is the unowned account.
+    user_id = get_user_id(socket)
     account_id = get_default_account_id(nil)
 
     socket
-    |> assign(:user_id, nil)
+    |> assign(:user_id, user_id)
     |> assign(:account_id, account_id)
   end
 
@@ -57,21 +59,21 @@ defmodule DashboardWeb.Live.UserContext do
 
   @doc """
   Validates that the user has access to the given account.
-  Returns true if user owns the account or if in dev mode without auth.
+
+  Single shared desk policy: unowned (shared) accounts are accessible to any
+  authenticated user; owned accounts only to their owner. There is no longer a
+  blanket fail-open when `user_id` is nil.
   """
+  def user_owns_account?(_socket, nil), do: false
+
   def user_owns_account?(socket, account_id) do
     user_id = socket.assigns[:user_id]
 
-    cond do
-      is_nil(user_id) -> true  # Dev mode fallback
-      is_nil(account_id) -> true
-      true ->
-        try do
-          account = SharedData.Accounts.get_account!(account_id)
-          account.user_id == user_id or is_nil(account.user_id)
-        rescue
-          Ecto.NoResultsError -> false
-        end
+    try do
+      account = SharedData.Accounts.get_account!(account_id)
+      is_nil(account.user_id) or account.user_id == user_id
+    rescue
+      Ecto.NoResultsError -> false
     end
   end
 end

@@ -1,7 +1,7 @@
 defmodule TradingEngine.Trader do
   @moduledoc """
   GenServer that manages trading for a single account.
-  
+
   One Trader process per account, supervised by AccountSupervisor.
   Handles strategy execution, order management, and position tracking.
   """
@@ -47,7 +47,9 @@ defmodule TradingEngine.Trader do
     symbols = Strategy.get_required_symbols(strategy, strategy_config)
     symbol = strategy_config["symbol"] || List.first(symbols) || "BTCUSDT"
 
-    Logger.info("Starting Trader for setting #{setting_id}, account #{account_id}, symbols: #{inspect(symbols)}")
+    Logger.info(
+      "Starting Trader for setting #{setting_id}, account #{account_id}, symbols: #{inspect(symbols)}"
+    )
 
     # Add setting_id to strategy config for state persistence
     strategy_config = Map.put(strategy_config, "setting_id", setting_id)
@@ -55,35 +57,44 @@ defmodule TradingEngine.Trader do
     # Check for existing chain state and open orders (for recovery)
     # Pass all symbols for multi-symbol chain support
     recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbols)
-    strategy_config = if recovery_info do
-      Logger.info("Found recovery state for setting #{setting_id}: #{inspect(recovery_info)}")
-      Map.put(strategy_config, "_recovery", recovery_info)
-    else
-      strategy_config
-    end
+
+    strategy_config =
+      if recovery_info do
+        Logger.info("Found recovery state for setting #{setting_id}: #{inspect(recovery_info)}")
+        Map.put(strategy_config, "_recovery", recovery_info)
+      else
+        strategy_config
+      end
 
     # Get strategy requirements to determine subscriptions
     requirements = Strategy.get_requirements(strategy, strategy_config)
-    Logger.info("Strategy requirements: ticks=#{requirements.ticks}, timers=#{inspect(requirements.timers)}, executions=#{requirements.executions}")
+
+    Logger.info(
+      "Strategy requirements: ticks=#{requirements.ticks}, timers=#{inspect(requirements.timers)}, executions=#{requirements.executions}"
+    )
 
     # Subscribe to ticker streams for ALL symbols if strategy needs ticks
-    subscribed_symbols = if requirements.ticks do
-      Enum.reduce(symbols, [], fn sym, acc ->
-        case DataCollector.TickerStream.subscribe(sym) do
-          {:ok, count} ->
-            Logger.info("Subscribed to ticker stream for #{sym} (subscribers: #{count})")
-            Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{sym}")
-            [sym | acc]
+    subscribed_symbols =
+      if requirements.ticks do
+        Enum.reduce(symbols, [], fn sym, acc ->
+          case DataCollector.TickerStream.subscribe(sym) do
+            {:ok, count} ->
+              Logger.info("Subscribed to ticker stream for #{sym} (subscribers: #{count})")
+              Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{sym}")
+              [sym | acc]
 
-          {:error, reason} ->
-            Logger.warning("Failed to subscribe to ticker stream for #{sym}: #{inspect(reason)}")
-            acc
-        end
-      end)
-    else
-      Logger.info("Strategy does not require ticks, skipping ticker subscription")
-      []
-    end
+            {:error, reason} ->
+              Logger.warning(
+                "Failed to subscribe to ticker stream for #{sym}: #{inspect(reason)}"
+              )
+
+              acc
+          end
+        end)
+      else
+        Logger.info("Strategy does not require ticks, skipping ticker subscription")
+        []
+      end
 
     # Subscribe to order updates if strategy needs executions
     if requirements.executions do
@@ -91,18 +102,20 @@ defmodule TradingEngine.Trader do
     end
 
     # Setup timers based on strategy requirements
-    timer_refs = for interval <- requirements.timers do
-      ref = make_ref()
-      Process.send_after(self(), {:strategy_timer, ref, interval}, interval)
-      Logger.info("Scheduled timer with interval #{interval}ms")
-      {ref, interval}
-    end
+    timer_refs =
+      for interval <- requirements.timers do
+        ref = make_ref()
+        Process.send_after(self(), {:strategy_timer, ref, interval}, interval)
+        Logger.info("Scheduled timer with interval #{interval}ms")
+        {ref, interval}
+      end
 
     # Initialize strategy
-    {initial_action, strategy_state} = case strategy.init(strategy_config) do
-      {:ok, state} -> {:noop, state}
-      {:ok, state, action} -> {action, state}
-    end
+    {initial_action, strategy_state} =
+      case strategy.init(strategy_config) do
+        {:ok, state} -> {:noop, state}
+        {:ok, state, action} -> {action, state}
+      end
 
     state = %{
       account_id: account_id,
@@ -113,8 +126,10 @@ defmodule TradingEngine.Trader do
       strategy_state: strategy_state,
       strategy_config: strategy_config,
       symbol: symbol,
-      symbols: symbols,                        # All required symbols
-      subscribed_symbols: subscribed_symbols,  # Successfully subscribed symbols
+      # All required symbols
+      symbols: symbols,
+      # Successfully subscribed symbols
+      subscribed_symbols: subscribed_symbols,
       positions: %{},
       orders: %{},
       subscribed_to_ticks: length(subscribed_symbols) > 0,
@@ -122,11 +137,12 @@ defmodule TradingEngine.Trader do
     }
 
     # Execute initial action if strategy returned one
-    final_state = if initial_action != :noop do
-      execute_action(initial_action, state)
-    else
-      state
-    end
+    final_state =
+      if initial_action != :noop do
+        execute_action(initial_action, state)
+      else
+        state
+      end
 
     {:ok, final_state}
   end
@@ -192,6 +208,7 @@ defmodule TradingEngine.Trader do
     case SharedData.Trading.create_order(attrs) do
       {:ok, _db_order} ->
         Logger.info("Order #{order["orderId"]} saved to database")
+
       {:error, changeset} ->
         Logger.error("Failed to save order to database: #{inspect(changeset.errors)}")
     end
@@ -216,8 +233,9 @@ defmodule TradingEngine.Trader do
 
   @impl true
   def handle_info({:execution_report, execution}, state) do
-    # Check if this execution belongs to this account
-    if execution["a"] == state.account_id do
+    # Binance executionReport carries NO account identifier (the "a" field is the
+    # commission asset, not the account), so route by order ownership instead.
+    if owns_execution?(execution, state) do
       # Update order status in database
       update_order_in_db(execution)
 
@@ -308,7 +326,9 @@ defmodule TradingEngine.Trader do
 
   @impl true
   def terminate(reason, state) do
-    Logger.info("Trader terminating for symbols #{inspect(state.symbols)}, reason: #{inspect(reason)}")
+    Logger.info(
+      "Trader terminating for symbols #{inspect(state.symbols)}, reason: #{inspect(reason)}"
+    )
 
     # Allow strategy to handle termination and save final state
     if function_exported?(state.strategy, :on_terminate, 2) do
@@ -342,13 +362,20 @@ defmodule TradingEngine.Trader do
     case BinanceClient.get_open_orders(state.api_key, state.secret_key, state.symbol) do
       {:ok, orders} when orders != [] ->
         Enum.each(orders, fn order ->
-          case BinanceClient.cancel_order(state.api_key, state.secret_key, state.symbol, order["orderId"]) do
+          case BinanceClient.cancel_order(
+                 state.api_key,
+                 state.secret_key,
+                 state.symbol,
+                 order["orderId"]
+               ) do
             {:ok, _} ->
               Logger.info("Cancelled order #{order["orderId"]}")
+
             {:error, reason} ->
               Logger.warning("Failed to cancel order #{order["orderId"]}: #{inspect(reason)}")
           end
         end)
+
         Logger.info("Grid cleanup: Cancelled #{length(orders)} orders")
 
       {:ok, []} ->
@@ -360,6 +387,26 @@ defmodule TradingEngine.Trader do
   end
 
   # Private functions
+
+  # An execution belongs to this Trader if it concerns an order we placed during
+  # this session (tracked in state.orders, keyed by Binance orderId) or an order
+  # persisted under this account. Binance executionReport has no account field,
+  # so ownership is resolved by order id rather than a (non-existent) account id.
+  defp owns_execution?(execution, state) do
+    order_id = execution["i"]
+
+    Map.has_key?(state.orders, order_id) or
+      order_belongs_to_account?(order_id, state.account_id)
+  end
+
+  defp order_belongs_to_account?(nil, _account_id), do: false
+
+  defp order_belongs_to_account?(order_id, account_id) do
+    case SharedData.Trading.get_order_by_binance_id(to_string(order_id)) do
+      %{account_id: ^account_id} -> true
+      _ -> false
+    end
+  end
 
   @doc false
   defp migrate_strategy_state(strategy_state) do
@@ -421,7 +468,10 @@ defmodule TradingEngine.Trader do
         if order["status"] == "FILLED" do
           Logger.info("Order #{order["orderId"]} was immediately filled, processing execution")
           execution = order_to_execution(order)
-          {action, final_strategy_state} = state.strategy.on_execution(execution, state_after_placed.strategy_state)
+
+          {action, final_strategy_state} =
+            state.strategy.on_execution(execution, state_after_placed.strategy_state)
+
           final_state = %{state_after_placed | strategy_state: final_strategy_state}
           execute_action(action, final_state)
         else
@@ -493,7 +543,11 @@ defmodule TradingEngine.Trader do
       open_orders ->
         # Found orphaned open orders - return info for strategy to handle
         symbols_with_orders = open_orders |> Enum.map(& &1["symbol"]) |> Enum.uniq()
-        Logger.warning("Found #{length(open_orders)} orphaned open orders for #{inspect(symbols_with_orders)}")
+
+        Logger.warning(
+          "Found #{length(open_orders)} orphaned open orders for #{inspect(symbols_with_orders)}"
+        )
+
         %{
           type: :orphaned_orders,
           orders: open_orders
@@ -501,7 +555,8 @@ defmodule TradingEngine.Trader do
     end
   end
 
-  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbols) when is_list(symbols) do
+  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
+       when is_list(symbols) do
     pending_order_id = chain_state.pending_order_id
 
     # Check all symbols for open orders (pending order might be on any symbol)
@@ -514,11 +569,12 @@ defmodule TradingEngine.Trader do
         end
       end)
 
-    pending_order = if pending_order_id do
-      Enum.find(all_open_orders, fn o ->
-        to_string(o["orderId"]) == pending_order_id
-      end)
-    end
+    pending_order =
+      if pending_order_id do
+        Enum.find(all_open_orders, fn o ->
+          to_string(o["orderId"]) == pending_order_id
+        end)
+      end
 
     %{
       type: :chain_state,
