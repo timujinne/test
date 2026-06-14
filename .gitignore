@@ -111,3 +111,13 @@ priv/cert/selfsigned*
 /priv/media/
 /.worktrees/
 *.patch
+
+# Per-app runtime media uploads & publishing caches (DB-based CMS, not source)
+/apps/*/priv/media/
+/apps/*/priv/publishing/
+
+# Local container home mount (Claude plugins cache, shell history, configs)
+/docker/
+
+# Claude Code local/private project instructions (not shared)
+CLAUDE.local.md

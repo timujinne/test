@@ -82,6 +82,9 @@ services:
       # SSH ключи (опционально, для git)
       - ${SSH_PATH:-~/.ssh}:/data/ssh:ro
 
+      # /root home (Claude плагины, bash history, конфиги)
+      - ./docker/root_home:/root
+
     working_dir: /app
 
     # Для разработки - оставляем контейнер запущенным
@@ -92,7 +95,6 @@ services:
 
     environment:
       - MIX_ENV=${MIX_ENV:-dev}
-      - ERL_AFLAGS=-kernel shell_history enabled
 
       # Database
       - DATABASE_URL=postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@postgres:5432/${APP_DB_NAME}
