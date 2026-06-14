@@ -356,11 +356,36 @@ defmodule TradingEngine.Trader do
   defp format_termination_reason({:shutdown, reason}), do: {:shutdown, reason}
   defp format_termination_reason(reason), do: {:crash, reason}
 
-  defp cancel_open_orders_on_stop(state) do
-    Logger.info("Grid cleanup: Cancelling open orders for #{state.symbol}")
+  # Cancel this trader's open orders on stop, then VERIFY by re-listing and retry
+  # any that survived (a cancel may fail on a transient error or a rate limit).
+  # Retries are bounded so terminate/2 can never loop forever; an adequate child
+  # `:shutdown` budget (see AccountSupervisor) gives this time to complete before
+  # a brutal kill. Whatever still remains is reconciled on the next strategy start
+  # (Trader.init adopts orphaned orders), so this is best-effort, not fund-critical.
+  @cancel_on_stop_attempts 3
 
+  defp cancel_open_orders_on_stop(state, attempts_left \\ @cancel_on_stop_attempts)
+
+  defp cancel_open_orders_on_stop(state, 0) do
+    Logger.error(
+      "Grid cleanup: open orders may still remain for #{state.symbol} after " <>
+        "#{@cancel_on_stop_attempts} attempts; they will be reconciled on next start"
+    )
+
+    :error
+  end
+
+  defp cancel_open_orders_on_stop(state, attempts_left) do
     case BinanceClient.get_open_orders(state.api_key, state.secret_key, state.symbol) do
-      {:ok, orders} when orders != [] ->
+      {:ok, []} ->
+        Logger.info("Grid cleanup: no open orders remain for #{state.symbol}")
+        :ok
+
+      {:ok, orders} ->
+        Logger.info(
+          "Grid cleanup: cancelling #{length(orders)} open order(s) for #{state.symbol}"
+        )
+
         Enum.each(orders, fn order ->
           case BinanceClient.cancel_order(
                  state.api_key,
@@ -376,13 +401,15 @@ defmodule TradingEngine.Trader do
           end
         end)
 
-        Logger.info("Grid cleanup: Cancelled #{length(orders)} orders")
-
-      {:ok, []} ->
-        Logger.info("Grid cleanup: No open orders to cancel")
+        # Re-check and retry any that survived the cancellation pass.
+        cancel_open_orders_on_stop(state, attempts_left - 1)
 
       {:error, reason} ->
-        Logger.error("Grid cleanup: Failed to get open orders: #{inspect(reason)}")
+        Logger.error(
+          "Grid cleanup: failed to list open orders for #{state.symbol}: #{inspect(reason)}; retrying"
+        )
+
+        cancel_open_orders_on_stop(state, attempts_left - 1)
     end
   end
 

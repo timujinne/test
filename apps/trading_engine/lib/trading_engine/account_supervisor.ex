@@ -14,7 +14,10 @@ defmodule TradingEngine.AccountSupervisor do
     child_spec = %{
       id: {:trader, setting_id},
       start: {TradingEngine.Trader, :start_link, [Keyword.put(opts, :account_id, account_id)]},
-      restart: :transient
+      restart: :transient,
+      # Give Trader.terminate/2 time to cancel open orders on stop instead of the
+      # default 5s, which can brutally kill it mid-cancellation and orphan orders.
+      shutdown: 30_000
     }
 
     DynamicSupervisor.start_child(__MODULE__, child_spec)
