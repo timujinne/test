@@ -561,11 +561,6 @@ defmodule DashboardWeb.SettingsLive do
     # First validate with AccountForm
     changeset = AccountForm.changeset(AccountForm.new(), params)
 
-    # Debug
-    IO.inspect(changeset, label: "CHANGESET")
-    IO.inspect(changeset.valid?, label: "VALID?")
-    IO.inspect(changeset.errors, label: "ERRORS")
-
     if changeset.valid? do
       # Extract credential params
       credential_params = %{
