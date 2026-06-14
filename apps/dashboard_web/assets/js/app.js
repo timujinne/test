@@ -5,7 +5,8 @@ import topbar from "../vendor/topbar.cjs"
 import { PriceChart, DepthChart } from "./hooks"
 
 // PhoenixKit JS - DO NOT REMOVE
-import "../../deps/phoenix_kit/priv/static/assets/phoenix_kit.js"
+// Umbrella app: deps live at the umbrella root, so four levels up from assets/js/
+import "../../../../deps/phoenix_kit/priv/static/assets/phoenix_kit.js"
 
 // Theme Toggle Hook for Phoenix LiveView
 // Handles theme switching between light and dark modes

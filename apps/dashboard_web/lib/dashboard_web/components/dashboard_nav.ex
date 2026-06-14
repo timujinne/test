@@ -35,7 +35,7 @@ defmodule DashboardWeb.Components.DashboardNav do
         ]}
       >
         <.nav_icon name={@icon} />
-        <span><%= @label %></span>
+        <span>{@label}</span>
       </.link>
     </li>
     """
@@ -134,7 +134,7 @@ defmodule DashboardWeb.Components.DashboardNav do
       <div
         tabindex="0"
         role="button"
-        class="btn btn-ghost btn-circle avatar placeholder"
+        class="btn btn-ghost btn-circle avatar"
       >
         <div class="bg-neutral text-neutral-content w-10 rounded-full flex items-center justify-center overflow-hidden">
           <%= if @avatar_url do %>
@@ -145,19 +145,19 @@ defmodule DashboardWeb.Components.DashboardNav do
               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
             />
             <div class="hidden w-full h-full bg-neutral flex items-center justify-center text-neutral-content font-bold">
-              <%= @user_initials %>
+              {@user_initials}
             </div>
           <% else %>
             <%= if @user do %>
-              <span class="font-bold"><%= @user_initials %></span>
+              <span class="font-bold">{@user_initials}</span>
             <% else %>
-              <span class={["hero-user", "w-6 h-6"]} />
+              <span class="hero-user w-6 h-6" />
             <% end %>
           <% end %>
         </div>
       </div>
       <ul
-        tabindex="0"
+        tabindex="-1"
         class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
       >
         <li>
@@ -249,7 +249,7 @@ defmodule DashboardWeb.Components.DashboardNav do
     <%= if @authenticated? do %>
       <%!-- Authenticated: show avatar dropdown --%>
       <div class="dropdown dropdown-end">
-        <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
           <div class="w-10 rounded-full overflow-hidden bg-primary flex items-center justify-center text-primary-content font-bold">
             <%= if @avatar_url do %>
               <img
@@ -259,15 +259,15 @@ defmodule DashboardWeb.Components.DashboardNav do
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
               />
               <div class="hidden w-full h-full bg-primary flex items-center justify-center text-primary-content font-bold">
-                <%= @user_initials %>
+                {@user_initials}
               </div>
             <% else %>
-              <%= @user_initials %>
+              {@user_initials}
             <% end %>
           </div>
-        </label>
+        </div>
         <ul
-          tabindex="0"
+          tabindex="-1"
           class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 mt-3 w-52 p-2 shadow-lg border border-base-300"
         >
           <li>
@@ -307,11 +307,9 @@ defmodule DashboardWeb.Components.DashboardNav do
       <%!-- Not authenticated: show login button with user icon --%>
       <.link
         href={PhoenixKit.Utils.Routes.path("/users/log-in")}
-        class="btn btn-ghost btn-circle avatar placeholder"
+        class="btn btn-ghost btn-circle"
       >
-        <div class="bg-neutral text-neutral-content w-10 rounded-full flex items-center justify-center">
-          <span class={["hero-user", "w-6 h-6"]} />
-        </div>
+        <span class="hero-user w-6 h-6" />
       </.link>
     <% end %>
     """
