@@ -1,0 +1,105 @@
+---
+slug: claude-code-setup-elixir
+status: published
+published_at: 2026-03-10T20:00:00Z
+featured_image_uuid: 019cd94a-01bf-7430-8bc0-5fcea017e7e7
+updated_by_uuid: 1
+updated_by_email: timujeen@gmail.com
+description: Полный набор плагинов и скиллов для Claude Code в Elixir/Phoenix контейнерах — superpowers, elixir-lsp, context7, agent teams и локальные скиллы под наш стек.
+---
+
+<Image file_uuid="019cd94a-01bf-7430-8bc0-5fcea017e7e7" alt="Claude Code setup для Elixir-разработки" />
+
+# Как мы настроили Claude Code для Elixir-разработки
+
+Мы используем Claude Code как основной инструмент в контейнерах с Elixir/Phoenix. Вот набор плагинов и скиллов, который реально работает.
+
+---
+
+## Плагины
+
+| Плагин | Для чего |
+|---|---|
+| **superpowers** | 14 скиллов для дисциплинированной разработки |
+| **elixir-lsp** | LSP-сервер (ElixirLS) — go-to-definition, references, hover |
+| **code-review** | Код-ревью пулл-реквестов |
+| **frontend-design** | Продакшн-качество UI-компонентов |
+| **skill-creator** | Создание и тестирование собственных скиллов |
+| **context7** | Актуальная документация пакетов (замена устаревшим знаниям модели) |
+| **claude-code-setup** | Анализ проекта и рекомендации по автоматизации |
+
+---
+
+## Скиллы superpowers (14 штук)
+
+Каждый скилл — строгий процесс, который Claude обязан выполнить перед действием.
+
+### Перед работой
+
+- **brainstorming** — исследование требований перед любой новой фичей
+- **writing-plans** — план по спецификации, до написания кода
+
+### Во время работы
+
+- **test-driven-development** — сначала тесты, потом реализация
+- **systematic-debugging** — диагностика до предложения фикса
+- **subagent-driven-development** — выполнение плана через команду агентов
+- **dispatching-parallel-agents** — параллельный запуск независимых задач
+- **executing-plans** — пошаговое выполнение с чекпоинтами
+- **using-git-worktrees** — изоляция фич в отдельных worktrees
+
+### После работы
+
+- **verification-before-completion** — запустить команды и показать вывод до "готово"
+- **requesting-code-review** — проверка перед merge
+- **receiving-code-review** — критическое осмысление фидбека, не слепое согласие
+- **finishing-a-development-branch** — merge, PR или cleanup
+
+### Мета
+
+- **using-superpowers** — выбор нужного скилла в начале разговора
+- **writing-skills** — создание новых скиллов
+
+---
+
+## Локальные скиллы (под наш стек)
+
+| Скилл | Описание |
+|---|---|
+| **daisyui-frontend** | DaisyUI 5 + Phoenix/HEEX: 61+ компонент |
+| **subagent-driven-development** | Локальная версия с Tidewave MCP и PhoenixKit-контекстом |
+| **mix-deps-organizer** | Организация зависимостей в mix.exs по категориям |
+| **phoenix-daisyui-upgrade** | Обновление daisyUI с проверкой breaking changes |
+| **plan-review** | Ревью плана перед реализацией |
+| **impl-review** | Ревью реализации по git diff |
+
+---
+
+## Agent Teams
+
+Агенты общаются между собой через `SendMessage`:
+
+```
+researcher → находит паттерны в кодовой базе
+    ↓
+implementer → пишет код
+    ↓
+reviewer → spec compliance + code quality
+    ↓
+elixir-debugger → проверяет в живом приложении через Tidewave MCP
+```
+
+Включается переменной окружения:
+
+```bash
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
+
+---
+
+## Что это даёт
+
+- Claude следует процессам: планирование → реализация → ревью → верификация
+- Агенты параллельно работают над независимыми задачами
+- LSP даёт реальный индекс проекта (9000+ символов) вместо угадывания
+- Скиллы предотвращают overengineering и "я уже готов" без доказательств
