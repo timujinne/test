@@ -14,7 +14,7 @@ defmodule DashboardWeb.SettingsLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Trading Accounts")
-      |> assign(current_path: "/app/accounts")
+      |> assign(url_path: "/admin/accounts")
       |> assign(accounts: [])
       # Account form state (includes API credentials)
       |> assign(show_account_form: false)

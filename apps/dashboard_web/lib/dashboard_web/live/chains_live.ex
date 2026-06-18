@@ -29,7 +29,7 @@ defmodule DashboardWeb.ChainsLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Conditional Chains")
-      |> assign(current_path: "/app/chains")
+      |> assign(url_path: "/admin/chains")
       |> assign(show_builder: false)
       |> assign(builder_mode: "create")
       |> assign(editing_chain_id: nil)

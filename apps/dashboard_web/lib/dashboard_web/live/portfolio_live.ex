@@ -28,7 +28,7 @@ defmodule DashboardWeb.PortfolioLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Portfolio")
-      |> assign(current_path: "/app/portfolio")
+      |> assign(url_path: "/admin/portfolio")
       |> assign(balances: [])
       |> assign(total_value: Decimal.new(0))
       |> assign(total_pnl: Decimal.new(0))

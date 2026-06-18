@@ -24,7 +24,7 @@ defmodule DashboardWeb.OrdersLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Orders")
-      |> assign(current_path: "/app/orders")
+      |> assign(url_path: "/admin/orders")
       |> assign(orders: [])
       |> assign(grouped_orders: %{})
       |> assign(available_symbols: [])

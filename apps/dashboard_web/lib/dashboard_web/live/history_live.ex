@@ -25,7 +25,7 @@ defmodule DashboardWeb.HistoryLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "History")
-      |> assign(current_path: "/app/history")
+      |> assign(url_path: "/admin/history")
       |> assign(orders: [])
       |> assign(trades: [])
       |> assign(available_symbols: available_symbols)

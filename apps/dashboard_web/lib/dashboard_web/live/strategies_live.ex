@@ -20,7 +20,7 @@ defmodule DashboardWeb.StrategiesLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Strategies")
-      |> assign(current_path: "/app/strategies")
+      |> assign(url_path: "/admin/strategies")
       |> assign(accounts: [])
       |> assign(strategies: [])
       |> assign(running_strategies: %{})

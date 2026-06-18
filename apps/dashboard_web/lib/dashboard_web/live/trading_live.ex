@@ -54,7 +54,7 @@ defmodule DashboardWeb.TradingLive do
       socket
       |> UserContext.assign_user_context()
       |> assign(page_title: "Trading")
-      |> assign(current_path: "/app/trading")
+      |> assign(url_path: "/admin/trading")
       |> assign(active_orders: [])
       |> assign(recent_trades: [])
       |> assign(current_price: nil)
