@@ -11,6 +11,7 @@ defmodule DashboardWeb.Application do
 
     children = [
       PhoenixKit.Supervisor,
+      DashboardWeb.NavInit,
       {Finch, [name: Swoosh.Finch]},
       DashboardWeb.Telemetry,
       # PubSub is started in DataCollector.Application as BinanceSystem.PubSub
