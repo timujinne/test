@@ -176,6 +176,120 @@ git commit -m "feat(nav): register trading pages as PhoenixKit admin tabs"
 
 ---
 
+## Task 1b: Register the Trading/Automation sidebar groups (added after Task 1 review)
+
+**Why:** `:admin_dashboard_tabs` config registers tabs and auto-generates routes, but tabs whose `group:` is not a *registered* group are **dropped from the sidebar** (`TabHelpers.sorted_groups/2` filters to registered groups). There is no config key for admin groups — they must be registered at runtime. The public `PhoenixKit.Dashboard.register_groups/1` **overwrites** the group list (it does not merge), and PhoenixKit loads its default groups (`:admin_main` p100, `:admin_modules` p500, `:admin_system` p900) asynchronously in the registry's `handle_continue`. So we register a small supervised initializer that waits until defaults are present, then re-registers `current_groups ++ our_groups` (priorities 10/20 < 100 → above PhoenixKit).
+
+**Files:**
+- Create: `apps/dashboard_web/lib/dashboard_web/nav_init.ex`
+- Modify: `apps/dashboard_web/lib/dashboard_web/application.ex`
+
+- [ ] **Step 1: Create the initializer**
+
+Create `apps/dashboard_web/lib/dashboard_web/nav_init.ex`:
+
+```elixir
+defmodule DashboardWeb.NavInit do
+  @moduledoc """
+  Registers the Trading/Automation sidebar groups into PhoenixKit's dashboard
+  registry so the trading admin tabs (config :phoenix_kit, :admin_dashboard_tabs)
+  render in the sidebar above PhoenixKit's built-in groups.
+
+  PhoenixKit's public `register_groups/1` OVERWRITES the group list and loads its
+  own defaults asynchronously, so we wait until the defaults (`:admin_main`) are
+  present, then re-register `current ++ ours` (merge by id). Idempotent.
+  """
+  use GenServer
+  require Logger
+
+  alias PhoenixKit.Dashboard
+
+  # priorities < admin_main's 100 => render above PhoenixKit groups
+  @trading_groups [
+    %{id: :trading, label: "Trading", priority: 10},
+    %{id: :trading_automation, label: "Automation", priority: 20}
+  ]
+
+  def start_link(_), do: GenServer.start_link(__MODULE__, %{tries: 0}, name: __MODULE__)
+
+  @impl true
+  def init(state), do: {:ok, state, {:continue, :register}}
+
+  @impl true
+  def handle_continue(:register, state), do: do_register(state)
+
+  @impl true
+  def handle_info(:retry, state), do: do_register(state)
+
+  defp do_register(state) do
+    groups = Dashboard.get_groups()
+
+    cond do
+      Enum.any?(groups, &(&1.id == :trading)) ->
+        {:noreply, state}
+
+      Enum.any?(groups, &(&1.id == :admin_main)) ->
+        missing = Enum.reject(@trading_groups, fn g -> Enum.any?(groups, &(&1.id == g.id)) end)
+        if missing != [], do: Dashboard.register_groups(groups ++ missing)
+        {:noreply, state}
+
+      state.tries < 100 ->
+        Process.send_after(self(), :retry, 100)
+        {:noreply, %{state | tries: state.tries + 1}}
+
+      true ->
+        Logger.warning("[NavInit] PhoenixKit dashboard groups not loaded; trading nav groups skipped")
+        {:noreply, state}
+    end
+  end
+end
+```
+
+- [ ] **Step 2: Add it to the supervision tree AFTER `PhoenixKit.Supervisor`**
+
+In `apps/dashboard_web/lib/dashboard_web/application.ex`, add `DashboardWeb.NavInit` to the `children` list immediately AFTER `PhoenixKit.Supervisor` (so the registry exists before it runs):
+
+```elixir
+    children = [
+      PhoenixKit.Supervisor,
+      DashboardWeb.NavInit,
+      {Finch, [name: Swoosh.Finch]},
+      DashboardWeb.Telemetry,
+      DashboardWeb.Endpoint,
+      {Oban, Application.get_env(:dashboard_web, Oban)}
+    ]
+```
+
+- [ ] **Step 3: Compile**
+
+Run: `cd /app && mix compile --warnings-as-errors 2>&1 | tail -3`
+Expected: EXIT 0.
+
+- [ ] **Step 4: Verify groups register without wiping defaults (eval against a booted app)**
+
+Run:
+```bash
+cd /app && cat > /tmp/navcheck.exs <<'EOF'
+Application.ensure_all_started(:dashboard_web)
+Process.sleep(800)
+groups = PhoenixKit.Dashboard.get_groups() |> Enum.map(&{&1.id, &1.priority})
+IO.inspect(groups, label: "groups")
+ids = Enum.map(groups, &elem(&1, 0))
+IO.puts(if Enum.all?([:trading, :trading_automation, :admin_main, :admin_modules, :admin_system], &(&1 in ids)), do: "OK: all groups present", else: "FAIL: missing groups")
+EOF
+mix run --no-start /tmp/navcheck.exs 2>&1 | tail -8
+```
+Expected: groups list includes `:trading` (10) and `:trading_automation` (20) **and** `:admin_main`/`:admin_modules`/`:admin_system` (defaults NOT wiped) → "OK: all groups present".
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd /app && git add apps/dashboard_web/lib/dashboard_web/nav_init.ex apps/dashboard_web/lib/dashboard_web/application.ex
+git commit -m "feat(nav): register Trading/Automation sidebar groups above PhoenixKit"
+```
+
+---
+
 ## Task 2: Remove the old `/app` live_session and add redirects
 
 Phoenix has **no built-in router redirect macro**, so we add a tiny controller that
