@@ -24,24 +24,9 @@ defmodule DashboardWeb.Router do
   scope "/", DashboardWeb do
     pipe_through :browser
     get "/", PageController, :home
-  end
 
-  # Protected routes - Trading App (authentication required)
-  # Note: phoenix_kit_ensure_authenticated includes mount_current_scope internally
-  scope "/app", DashboardWeb do
-    pipe_through :browser
-
-    live_session :trading_app,
-      layout: {DashboardWeb.Layouts, :trading_dashboard},
-      on_mount: [{PhoenixKitWeb.Users.Auth, :phoenix_kit_ensure_authenticated}] do
-      live "/trading", TradingLive
-      live "/portfolio", PortfolioLive
-      live "/orders", OrdersLive
-      live "/history", HistoryLive
-      live "/strategies", StrategiesLive
-      live "/chains", ChainsLive
-      live "/accounts", SettingsLive
-    end
+    # Permanent redirects from legacy /app/* trading URLs to /admin/*
+    get "/app/:page", LegacyRedirectController, :show
   end
 
   if Mix.env() in [:dev, :test] do
