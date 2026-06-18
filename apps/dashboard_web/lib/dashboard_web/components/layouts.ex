@@ -115,47 +115,4 @@ defmodule DashboardWeb.Layouts do
     </div>
     """
   end
-
-  # NOTE: trading_nav_link/1 and trading_nav_icon/1 are still used by the
-  # trading_dashboard.html.heex layout, which is deleted in a later task.
-  # They are kept here until that layout is removed to avoid breaking compilation.
-
-  @doc """
-  Navigation link component for trading dashboard sidebar.
-  Supports both heroicon names and custom icon names.
-  """
-  attr :href, :string, required: true
-  attr :icon, :string, required: true
-  attr :label, :string, required: true
-  attr :current_path, :string, default: ""
-
-  def trading_nav_link(assigns) do
-    assigns = assign(assigns, :active, assigns.current_path == assigns.href)
-
-    ~H"""
-    <.link
-      navigate={@href}
-      class={[
-        "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-        @active && "bg-primary text-primary-content",
-        !@active && "text-base-content hover:bg-base-200"
-      ]}
-    >
-      <.trading_nav_icon name={@icon} />
-      <span>{@label}</span>
-    </.link>
-    """
-  end
-
-  @doc """
-  Icon component for trading navigation.
-  Uses custom trading icons from DashboardNav.
-  """
-  attr :name, :string, required: true
-
-  def trading_nav_icon(assigns) do
-    ~H"""
-    <DashboardWeb.Components.DashboardNav.nav_icon name={@name} />
-    """
-  end
 end
