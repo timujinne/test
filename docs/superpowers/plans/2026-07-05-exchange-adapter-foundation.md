@@ -107,7 +107,7 @@ Expected: compiles cleanly with **zero** "function X required by behaviour Excha
 
 - [ ] **Step 3: Run existing Binance client tests to confirm no regression**
 
-Run: `mix test apps/data_collector/test/binance_client_test.exs`
+Run: `MIX_ENV=test mix test apps/data_collector/test/binance_client_test.exs`
 Expected: all existing tests still PASS (this change adds an annotation only, no behavior change).
 
 - [ ] **Step 4: Commit**
@@ -153,7 +153,7 @@ end
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mix test apps/data_collector/test/exchange_registry_test.exs`
+Run: `MIX_ENV=test mix test apps/data_collector/test/exchange_registry_test.exs`
 Expected: FAIL with "module DataCollector.ExchangeRegistry is not available" (or similar `UndefinedFunctionError`).
 
 - [ ] **Step 3: Write the implementation**
@@ -178,7 +178,7 @@ end
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `mix test apps/data_collector/test/exchange_registry_test.exs`
+Run: `MIX_ENV=test mix test apps/data_collector/test/exchange_registry_test.exs`
 Expected: PASS (3 tests, 0 failures).
 
 - [ ] **Step 5: Commit**
@@ -281,7 +281,7 @@ end
 
 - [ ] **Step 4: Run test to verify it fails**
 
-Run: `mix test apps/shared_data/test/schemas/api_credential_test.exs`
+Run: `MIX_ENV=test mix test apps/shared_data/test/schemas/api_credential_test.exs`
 Expected: FAIL — `Ecto.Changeset.get_field(changeset, :exchange) == "binance"` fails because the schema doesn't have the field yet (or returns `nil`), and the third test fails because there's no `validate_inclusion` yet to reject `"kraken"`.
 
 - [ ] **Step 5: Update the schema**
@@ -354,12 +354,12 @@ to:
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `mix test apps/shared_data/test/schemas/api_credential_test.exs`
+Run: `MIX_ENV=test mix test apps/shared_data/test/schemas/api_credential_test.exs`
 Expected: PASS (3 tests, 0 failures).
 
 - [ ] **Step 7: Run the full shared_data test suite to check for regressions**
 
-Run: `mix test apps/shared_data/test`
+Run: `MIX_ENV=test mix test apps/shared_data/test`
 Expected: all PASS, including the pre-existing `encrypted_binary_test.exs`.
 
 - [ ] **Step 8: Commit**
@@ -515,7 +515,7 @@ end
 
 - [ ] **Step 4: Run test to verify the first assertion fails**
 
-Run: `mix test apps/shared_data/test/schemas/order_test.exs`
+Run: `MIX_ENV=test mix test apps/shared_data/test/schemas/order_test.exs`
 Expected: FAIL on "the same order_id is allowed across two different accounts" — the old global unique index (if migration from Step 2 hadn't run yet) or the changeset's `unique_constraint(:order_id)` (targeting the old index name) would still reject the second insert. If Step 2 already ran, this failure instead comes from the changeset not knowing the new constraint name yet (next step).
 
 - [ ] **Step 5: Update the schema changeset**
@@ -536,12 +536,12 @@ to:
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `mix test apps/shared_data/test/schemas/order_test.exs`
+Run: `MIX_ENV=test mix test apps/shared_data/test/schemas/order_test.exs`
 Expected: PASS (2 tests, 0 failures).
 
 - [ ] **Step 7: Run the full shared_data test suite**
 
-Run: `mix test apps/shared_data/test`
+Run: `MIX_ENV=test mix test apps/shared_data/test`
 Expected: all PASS.
 
 - [ ] **Step 8: Commit**
@@ -1069,7 +1069,7 @@ Expected: clean compile. `alias DataCollector.BinanceClient` was removed in Step
 
 - [ ] **Step 8: Run the existing trading_engine test suite**
 
-Run: `mix test apps/trading_engine/test`
+Run: `MIX_ENV=test mix test apps/trading_engine/test`
 Expected: all PASS — `naive_test.exs`, `grid_test.exs`, `risk_manager_test.exs` don't exercise `Trader`'s GenServer directly (per current test coverage), so this mainly confirms nothing else in the app broke from the alias/compile changes.
 
 - [ ] **Step 9: Manual smoke test against testnet**
@@ -1098,7 +1098,7 @@ git commit -m "feat(trading_engine): Trader dispatches via ExchangeRegistry"
 
 - [ ] **Step 1: Run the full test suite**
 
-Run: `mix test`
+Run: `MIX_ENV=test mix test`
 Expected: all tests across all 4 apps PASS, zero failures.
 
 - [ ] **Step 2: Run credo and format check**
