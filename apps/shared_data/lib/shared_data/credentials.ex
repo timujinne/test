@@ -272,7 +272,13 @@ defmodule SharedData.Credentials do
   def test_credential(%ApiCredential{} = credential) do
     # Use runtime module lookup to avoid compile-time dependency on DataCollector
     # SharedData compiles before DataCollector, so we use apply/3
-    apply(DataCollector.BinanceClient, :get_account, [credential.api_key, credential.secret_key])
+    case apply(DataCollector.ExchangeRegistry, :client_for, [credential.exchange]) do
+      {:ok, client_module} ->
+        apply(client_module, :get_account, [credential.api_key, credential.secret_key])
+
+      {:error, _reason} = error ->
+        error
+    end
   end
 
   # Private functions
