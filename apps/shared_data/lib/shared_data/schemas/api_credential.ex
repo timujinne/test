@@ -11,18 +11,30 @@ defmodule SharedData.Schemas.ApiCredential do
     field :label, :string
     field :is_active, :boolean, default: true
     field :is_testnet, :boolean, default: false
+    field :exchange, :string, default: "binance"
 
     belongs_to :user, SharedData.Schemas.User
 
     timestamps()
   end
 
+  @supported_exchanges ["binance"]
+
   @doc false
   def changeset(api_credential, attrs) do
     api_credential
-    |> cast(attrs, [:api_key, :secret_key, :label, :is_active, :is_testnet, :user_id])
+    |> cast(attrs, [
+      :api_key,
+      :secret_key,
+      :label,
+      :is_active,
+      :is_testnet,
+      :exchange,
+      :user_id
+    ])
     |> validate_required([:api_key, :secret_key, :label])
     |> validate_length(:label, min: 1, max: 255)
+    |> validate_inclusion(:exchange, @supported_exchanges, message: "unsupported exchange")
     |> foreign_key_constraint(:user_id)
     |> ensure_only_one_active()
   end
