@@ -6,6 +6,8 @@ defmodule DashboardWeb.Forms.AccountForm do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @supported_exchanges ["binance"]
+
   @primary_key false
   embedded_schema do
     field :label, :string
@@ -14,6 +16,7 @@ defmodule DashboardWeb.Forms.AccountForm do
     field :is_testnet, :boolean, default: false
     field :binance_account_id, :string
     field :is_active, :boolean, default: true
+    field :exchange, :string, default: "binance"
   end
 
   @doc """
@@ -25,16 +28,26 @@ defmodule DashboardWeb.Forms.AccountForm do
     attrs = normalize_booleans(attrs)
 
     form
-    |> cast(attrs, [:label, :api_key, :secret_key, :is_testnet, :binance_account_id, :is_active])
+    |> cast(attrs, [
+      :label,
+      :api_key,
+      :secret_key,
+      :is_testnet,
+      :binance_account_id,
+      :is_active,
+      :exchange
+    ])
     |> validate_required([:label, :api_key, :secret_key])
     |> validate_length(:label, min: 1, max: 255)
     |> validate_length(:api_key, min: 10, message: "must be at least 10 characters")
     |> validate_length(:secret_key, min: 10, message: "must be at least 10 characters")
+    |> validate_inclusion(:exchange, @supported_exchanges, message: "unsupported exchange")
   end
 
   @doc """
   Changeset for editing existing account.
   API key and secret key are optional - leave empty to keep current values.
+  Exchange is intentionally not editable after creation.
   """
   def changeset_for_edit(form, attrs \\ %{}) do
     attrs = normalize_booleans(attrs)
@@ -95,7 +108,8 @@ defmodule DashboardWeb.Forms.AccountForm do
       label: account.label,
       binance_account_id: account.binance_account_id,
       is_active: account.is_active,
-      is_testnet: account.api_credential && account.api_credential.is_testnet
+      is_testnet: account.api_credential && account.api_credential.is_testnet,
+      exchange: (account.api_credential && account.api_credential.exchange) || "binance"
     }
   end
 end

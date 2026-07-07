@@ -274,6 +274,59 @@ defmodule DashboardWeb.SettingsLive do
                       <% end %>
                     </div>
 
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Exchange</span>
+                      </label>
+                      <select
+                        name="account[exchange]"
+                        class="select w-full"
+                        disabled={@editing_account != nil}
+                      >
+                        <option
+                          value="binance"
+                          selected={@account_form[:exchange].value in [nil, "binance"]}
+                        >
+                          Binance
+                        </option>
+                        <option
+                          value="kraken"
+                          disabled
+                          selected={@account_form[:exchange].value == "kraken"}
+                        >
+                          Kraken (coming soon)
+                        </option>
+                        <option
+                          value="okx"
+                          disabled
+                          selected={@account_form[:exchange].value == "okx"}
+                        >
+                          OKX (coming soon)
+                        </option>
+                        <option
+                          value="coinbase"
+                          disabled
+                          selected={@account_form[:exchange].value == "coinbase"}
+                        >
+                          Coinbase (coming soon)
+                        </option>
+                      </select>
+                      <%= if @editing_account do %>
+                        <label class="label">
+                          <span class="label-text-alt text-base-content/70">
+                            Exchange can't be changed after the account is created.
+                          </span>
+                        </label>
+                      <% end %>
+                      <%= if @account_form[:exchange] && @account_form[:exchange].errors != [] do %>
+                        <label class="label">
+                          <span class="label-text-alt text-error">
+                            {translate_error(@account_form[:exchange].errors)}
+                          </span>
+                        </label>
+                      <% end %>
+                    </div>
+
                     <div class="divider">API Credentials</div>
 
                     <div class="form-control">
@@ -569,7 +622,8 @@ defmodule DashboardWeb.SettingsLive do
         "secret_key" => params["secret_key"],
         "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true,
         "is_active" => true,
-        "user_id" => user_id
+        "user_id" => user_id,
+        "exchange" => params["exchange"] || "binance"
       }
 
       # Use Ecto.Multi for transaction
