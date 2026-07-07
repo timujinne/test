@@ -57,7 +57,10 @@ defmodule SharedData.Schemas.Order do
       "REJECTED",
       "EXPIRED"
     ])
-    |> unique_constraint(:order_id)
+    |> unique_constraint([:account_id, :order_id],
+      name: :orders_account_id_order_id_index,
+      error_key: :order_id
+    )
     |> foreign_key_constraint(:account_id)
   end
 end
