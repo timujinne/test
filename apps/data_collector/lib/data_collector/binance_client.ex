@@ -9,6 +9,8 @@ defmodule DataCollector.BinanceClient do
   process (e.g. a Trader GenServer) for the full window or recurse forever; it
   gives up with `{:error, :rate_limited}` and lets the caller decide.
   """
+  @behaviour DataCollector.ExchangeClient
+
   require Logger
 
   alias SharedData.Types
