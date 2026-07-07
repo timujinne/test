@@ -8,7 +8,7 @@ defmodule TradingEngine.Trader do
   use GenServer
   require Logger
 
-  alias DataCollector.BinanceClient
+  alias DataCollector.ExchangeRegistry
   alias TradingEngine.{RiskManager, Strategy}
   alias SharedData.{Config, Types}
 
@@ -38,6 +38,7 @@ defmodule TradingEngine.Trader do
   def init(opts) do
     account_id = Keyword.fetch!(opts, :account_id)
     setting_id = Keyword.fetch!(opts, :setting_id)
+    exchange = Keyword.fetch!(opts, :exchange)
     api_key = Keyword.fetch!(opts, :api_key)
     secret_key = Keyword.fetch!(opts, :secret_key)
     strategy = Keyword.fetch!(opts, :strategy)
@@ -56,7 +57,7 @@ defmodule TradingEngine.Trader do
 
     # Check for existing chain state and open orders (for recovery)
     # Pass all symbols for multi-symbol chain support
-    recovery_info = check_for_recovery(setting_id, api_key, secret_key, symbols)
+    recovery_info = check_for_recovery(setting_id, exchange, api_key, secret_key, symbols)
 
     strategy_config =
       if recovery_info do
@@ -120,6 +121,7 @@ defmodule TradingEngine.Trader do
     state = %{
       account_id: account_id,
       setting_id: setting_id,
+      exchange: exchange,
       api_key: api_key,
       secret_key: secret_key,
       strategy: strategy,
@@ -157,7 +159,7 @@ defmodule TradingEngine.Trader do
     # Check risk management before placing order
     case RiskManager.check_order(order_params, state) do
       :ok ->
-        case BinanceClient.create_order(state.api_key, state.secret_key, order_params) do
+        case exchange_client!(state).create_order(state.api_key, state.secret_key, order_params) do
           {:ok, order} ->
             new_orders = Map.put(state.orders, order["orderId"], order)
 
@@ -376,7 +378,9 @@ defmodule TradingEngine.Trader do
   end
 
   defp cancel_open_orders_on_stop(state, attempts_left) do
-    case BinanceClient.get_open_orders(state.api_key, state.secret_key, state.symbol) do
+    client = exchange_client!(state)
+
+    case client.get_open_orders(state.api_key, state.secret_key, state.symbol) do
       {:ok, []} ->
         Logger.info("Grid cleanup: no open orders remain for #{state.symbol}")
         :ok
@@ -387,7 +391,7 @@ defmodule TradingEngine.Trader do
         )
 
         Enum.each(orders, fn order ->
-          case BinanceClient.cancel_order(
+          case client.cancel_order(
                  state.api_key,
                  state.secret_key,
                  state.symbol,
@@ -524,12 +528,13 @@ defmodule TradingEngine.Trader do
 
   # Check for existing chain state and open orders for recovery
   # Accepts a list of symbols for multi-symbol chain support
-  defp check_for_recovery(setting_id, api_key, secret_key, symbols) when is_list(symbols) do
+  defp check_for_recovery(setting_id, exchange, api_key, secret_key, symbols)
+       when is_list(symbols) do
     # 1. Check for existing chain state in DB
     case SharedData.ChainStates.get_chain_state_by_setting(setting_id) do
       nil ->
         # No existing state, check for orphaned open orders across all symbols
-        check_orphaned_orders(api_key, secret_key, symbols)
+        check_orphaned_orders(exchange, api_key, secret_key, symbols)
 
       %{current_state: state} when state in ["completed", "error"] ->
         # Chain completed or errored, no recovery needed
@@ -538,26 +543,29 @@ defmodule TradingEngine.Trader do
       %{current_state: "stopped"} = chain_state ->
         # Chain was stopped cleanly - can recover if setting is active
         Logger.info("Found stopped chain state for setting #{setting_id}, allowing recovery")
-        verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
+        verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
 
       chain_state ->
         # Active chain state found - check if pending order still exists
         # Use all symbols for comprehensive order checking
-        verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
+        verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
     end
   end
 
   # Fallback for single symbol (backwards compatibility)
-  defp check_for_recovery(setting_id, api_key, secret_key, symbol) when is_binary(symbol) do
-    check_for_recovery(setting_id, api_key, secret_key, [symbol])
+  defp check_for_recovery(setting_id, exchange, api_key, secret_key, symbol)
+       when is_binary(symbol) do
+    check_for_recovery(setting_id, exchange, api_key, secret_key, [symbol])
   end
 
   # Check all symbols for orphaned orders
-  defp check_orphaned_orders(api_key, secret_key, symbols) when is_list(symbols) do
+  defp check_orphaned_orders(exchange, api_key, secret_key, symbols) when is_list(symbols) do
+    {:ok, client} = ExchangeRegistry.client_for(exchange)
+
     all_orders =
       symbols
       |> Enum.flat_map(fn symbol ->
-        case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+        case client.get_open_orders(api_key, secret_key, symbol) do
           {:ok, orders} -> orders
           {:error, _} -> []
         end
@@ -582,15 +590,16 @@ defmodule TradingEngine.Trader do
     end
   end
 
-  defp verify_and_build_recovery(chain_state, api_key, secret_key, symbols)
+  defp verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
        when is_list(symbols) do
     pending_order_id = chain_state.pending_order_id
+    {:ok, client} = ExchangeRegistry.client_for(exchange)
 
     # Check all symbols for open orders (pending order might be on any symbol)
     all_open_orders =
       symbols
       |> Enum.flat_map(fn symbol ->
-        case BinanceClient.get_open_orders(api_key, secret_key, symbol) do
+        case client.get_open_orders(api_key, secret_key, symbol) do
           {:ok, orders} -> orders
           {:error, _} -> []
         end
@@ -615,5 +624,18 @@ defmodule TradingEngine.Trader do
   @spec via_tuple(Types.account_id()) :: Types.genserver_name()
   defp via_tuple(account_id) do
     {:via, Registry, {TradingEngine.TraderRegistry, account_id}}
+  end
+
+  # Resolves state.exchange to its adapter module. Raises on an unsupported
+  # exchange rather than returning an error tuple: by the time a Trader is
+  # running, its account's exchange has already passed ApiCredential's
+  # validate_inclusion, so this can only fail from stale/corrupt state, which
+  # should crash the Trader loudly rather than silently no-op an order call.
+  @spec exchange_client!(map()) :: module()
+  defp exchange_client!(state) do
+    case ExchangeRegistry.client_for(state.exchange) do
+      {:ok, client} -> client
+      {:error, reason} -> raise "Trader for account #{state.account_id}: #{inspect(reason)}"
+    end
   end
 end
