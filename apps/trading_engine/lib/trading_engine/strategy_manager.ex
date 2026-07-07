@@ -319,6 +319,7 @@ defmodule TradingEngine.StrategyManager do
             opts = [
               setting_id: setting.id,
               account_id: account.id,
+              exchange: account.api_credential.exchange,
               api_key: account.api_credential.api_key,
               secret_key: account.api_credential.secret_key,
               strategy: strategy_module,
