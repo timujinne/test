@@ -8,6 +8,7 @@ defmodule SharedData.Schemas.ApiCredential do
   schema "api_credentials" do
     field :api_key, SharedData.Encrypted.Binary
     field :secret_key, SharedData.Encrypted.Binary
+    field :passphrase, SharedData.Encrypted.Binary
     field :label, :string
     field :is_active, :boolean, default: true
     field :is_testnet, :boolean, default: false
@@ -26,6 +27,7 @@ defmodule SharedData.Schemas.ApiCredential do
     |> cast(attrs, [
       :api_key,
       :secret_key,
+      :passphrase,
       :label,
       :is_active,
       :is_testnet,
