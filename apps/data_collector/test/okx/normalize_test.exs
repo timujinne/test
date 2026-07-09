@@ -171,4 +171,123 @@ defmodule DataCollector.OKX.NormalizeTest do
              }
     end
   end
+
+  describe "ticker_event/2" do
+    # OKX's own canonical `tickers` channel push example, reproduced in
+    # docs/superpowers/notes/okx-api-verified.md §10.
+    @okx_ticker %{
+      "instType" => "SPOT",
+      "instId" => "BTC-USDT",
+      "last" => "9999.99",
+      "lastSz" => "0.1",
+      "askPx" => "9999.99",
+      "askSz" => "11",
+      "bidPx" => "8888.88",
+      "bidSz" => "5",
+      "open24h" => "9000",
+      "high24h" => "10000",
+      "low24h" => "8888.88",
+      "volCcy24h" => "2222",
+      "vol24h" => "3333",
+      "sodUtc0" => "2222",
+      "sodUtc8" => "2222",
+      "ts" => "1597026383085"
+    }
+
+    test "maps to the Binance 24hrTicker key contract TickerStream produces" do
+      assert Normalize.ticker_event(@okx_ticker, "BTCUSDT") == %{
+               "e" => "24hrTicker",
+               "s" => "BTCUSDT",
+               "c" => "9999.99",
+               "o" => "9000",
+               "h" => "10000",
+               "l" => "8888.88",
+               "v" => "3333",
+               "q" => "2222"
+             }
+    end
+  end
+
+  describe "execution_report/2" do
+    # OKX's own canonical `orders` channel push example (SPOT-adapted:
+    # tdMode "cash", empty lever/posSide), reproduced in
+    # docs/superpowers/notes/okx-api-verified.md §10.
+    @okx_order_push %{
+      "accFillSz" => "1",
+      "avgPx" => "50912.4",
+      "cTime" => "1615170596148",
+      "clOrdId" => "testBTC0123",
+      "fee" => "-0.1018248",
+      "feeCcy" => "USDT",
+      "fillPx" => "50912.4",
+      "fillSz" => "1",
+      "fillTime" => "1615170598021",
+      "instId" => "BTC-USDT",
+      "instType" => "SPOT",
+      "lever" => "",
+      "ordId" => "288981657420439575",
+      "ordType" => "limit",
+      "posSide" => "",
+      "px" => "50912.4",
+      "side" => "buy",
+      "state" => "filled",
+      "sz" => "1",
+      "tdMode" => "cash",
+      "tgtCcy" => "",
+      "tradeId" => "60477021",
+      "uTime" => "1615170598022"
+    }
+
+    test "maps a filled push to the Binance executionReport key contract, exec type TRADE" do
+      assert Normalize.execution_report(@okx_order_push, "BTCUSDT") == %{
+               "e" => "executionReport",
+               "i" => "288981657420439575",
+               "s" => "BTCUSDT",
+               "S" => "BUY",
+               "X" => "FILLED",
+               "x" => "TRADE",
+               "l" => "1",
+               "L" => "50912.4",
+               "z" => "1",
+               "q" => "1"
+             }
+    end
+
+    test "maps a partially_filled push to exec type TRADE" do
+      push = %{@okx_order_push | "state" => "partially_filled", "accFillSz" => "0.5"}
+
+      result = Normalize.execution_report(push, "BTCUSDT")
+
+      assert result["X"] == "PARTIALLY_FILLED"
+      assert result["x"] == "TRADE"
+      assert result["z"] == "0.5"
+    end
+
+    test "maps a live push to exec type NEW" do
+      push = %{@okx_order_push | "state" => "live", "fillSz" => "0", "accFillSz" => "0"}
+
+      result = Normalize.execution_report(push, "BTCUSDT")
+
+      assert result["X"] == "NEW"
+      assert result["x"] == "NEW"
+    end
+
+    test "maps a canceled push to exec type CANCELED" do
+      push = %{@okx_order_push | "state" => "canceled"}
+
+      result = Normalize.execution_report(push, "BTCUSDT")
+
+      assert result["X"] == "CANCELED"
+      assert result["x"] == "CANCELED"
+    end
+
+    test "maps an mmp_canceled push to CANCELED status and exec type" do
+      push = %{@okx_order_push | "state" => "mmp_canceled"}
+
+      result = Normalize.execution_report(push, "BTCUSDT")
+
+      assert result["X"] == "CANCELED"
+      assert result["x"] == "CANCELED"
+    end
+  end
 end

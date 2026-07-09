@@ -77,7 +77,7 @@ defmodule TradingEngine.Trader do
     subscribed_symbols =
       if requirements.ticks do
         Enum.reduce(symbols, [], fn sym, acc ->
-          case DataCollector.TickerStream.subscribe(sym) do
+          case DataCollector.MarketStream.subscribe(exchange, sym) do
             {:ok, count} ->
               Logger.info("Subscribed to ticker stream for #{sym} (subscribers: #{count})")
               Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "market:#{sym}")
@@ -99,6 +99,18 @@ defmodule TradingEngine.Trader do
     # Subscribe to order updates if strategy needs executions
     if requirements.executions do
       Phoenix.PubSub.subscribe(BinanceSystem.PubSub, "order_updates")
+
+      if exchange == "okx" do
+        case DataCollector.OKXPrivateStream.ensure_started(account_id, credentials) do
+          {:ok, _pid} ->
+            Logger.info("OKX private order stream ready for account #{account_id}")
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to start OKX private order stream for account #{account_id}: #{inspect(reason)}"
+            )
+        end
+      end
     end
 
     # Setup timers based on strategy requirements

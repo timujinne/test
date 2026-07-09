@@ -159,4 +159,87 @@ defmodule DataCollector.OKX.Normalize do
       ]
     }
   end
+
+  @doc """
+  A single `tickers` channel push data item (verified notes §10) ->
+  the Binance-shaped `24hrTicker` map `DataCollector.TickerStream` produces,
+  which is all `market_data["c"]`/`market_data["s"]`-reading strategy code
+  expects (see plan §1). `concat_symbol` is the already-resolved
+  Binance-style symbol for `instId` (via `DataCollector.OKX.Symbols.to_concat/1`).
+  """
+  @spec ticker_event(map(), String.t()) :: map()
+  def ticker_event(
+        %{
+          "last" => last,
+          "open24h" => open24h,
+          "high24h" => high24h,
+          "low24h" => low24h,
+          "vol24h" => vol24h,
+          "volCcy24h" => vol_ccy_24h
+        },
+        concat_symbol
+      )
+      when is_binary(concat_symbol) do
+    %{
+      "e" => "24hrTicker",
+      "s" => concat_symbol,
+      "c" => last,
+      "o" => open24h,
+      "h" => high24h,
+      "l" => low24h,
+      "v" => vol24h,
+      "q" => vol_ccy_24h
+    }
+  end
+
+  @doc """
+  A single `orders` channel push data item (verified notes §10) -> the
+  Binance-shaped `executionReport` map `TradingEngine.Trader` and the
+  strategy layer expect (`"i"`, `"s"`, `"S"`, `"X"`, `"x"`, `"l"`, `"L"`,
+  `"z"`, `"q"`, per plan §1). `concat_symbol` is the already-resolved
+  Binance-style symbol for `instId`.
+
+  OKX has no separate exec-type field the way Binance does — `"x"` is
+  derived from `state` (see `exec_type/1`).
+  """
+  @spec execution_report(map(), String.t()) :: map()
+  def execution_report(
+        %{
+          "ordId" => ord_id,
+          "side" => side,
+          "state" => state,
+          "fillSz" => fill_sz,
+          "fillPx" => fill_px,
+          "accFillSz" => acc_fill_sz,
+          "sz" => sz
+        },
+        concat_symbol
+      )
+      when is_binary(concat_symbol) do
+    %{
+      "e" => "executionReport",
+      "i" => ord_id,
+      "s" => concat_symbol,
+      "S" => String.upcase(side),
+      "X" => order_status(state),
+      "x" => exec_type(state),
+      "l" => fill_sz,
+      "L" => fill_px,
+      "z" => acc_fill_sz,
+      "q" => sz
+    }
+  end
+
+  @doc """
+  Derives the Binance-style exec-type (`"NEW"`/`"TRADE"`/`"CANCELED"`) from
+  an OKX order `state`, since OKX doesn't push a separate exec-type field
+  (verified notes §10).
+  """
+  @spec exec_type(String.t()) :: String.t()
+  def exec_type("live"), do: "NEW"
+  def exec_type("partially_filled"), do: "TRADE"
+  def exec_type("filled"), do: "TRADE"
+  def exec_type("canceled"), do: "CANCELED"
+  def exec_type("mmp_canceled"), do: "CANCELED"
+  def exec_type(other), do: String.upcase(other)
 end
