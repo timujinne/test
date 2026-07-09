@@ -7,6 +7,27 @@ config :binance,
   secret_key: System.get_env("BINANCE_SECRET_KEY") || "test_secret_key",
   end_point: System.get_env("BINANCE_BASE_URL") || "https://testnet.binance.vision"
 
+# OKX API configuration for development (demo trading by default — set
+# OKX_DEMO=false to point at live OKX; base_url is the same host either way,
+# demo mode is toggled via the x-simulated-trading header at call sites).
+okx_demo_dev = (System.get_env("OKX_DEMO") || "true") in ~w(true 1)
+
+config :data_collector, :okx,
+  base_url: System.get_env("OKX_BASE_URL") || "https://www.okx.com",
+  demo: okx_demo_dev,
+  ws_public_url:
+    System.get_env("OKX_WS_PUBLIC_URL") ||
+      if(okx_demo_dev,
+        do: "wss://wspap.okx.com:8443/ws/v5/public",
+        else: "wss://ws.okx.com:8443/ws/v5/public"
+      ),
+  ws_private_url:
+    System.get_env("OKX_WS_PRIVATE_URL") ||
+      if(okx_demo_dev,
+        do: "wss://wspap.okx.com:8443/ws/v5/private",
+        else: "wss://ws.okx.com:8443/ws/v5/private"
+      )
+
 # Cloak encryption for development
 config :shared_data, SharedData.Vault,
   ciphers: [

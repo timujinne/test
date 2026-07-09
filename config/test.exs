@@ -7,6 +7,14 @@ config :binance,
   secret_key: "test_secret_key",
   end_point: "https://testnet.binance.vision"
 
+# OKX API configuration for testing (mock values, always demo — deterministic
+# regardless of any OKX_* env vars set in the host/CI environment)
+config :data_collector, :okx,
+  base_url: "https://www.okx.com",
+  demo: true,
+  ws_public_url: "wss://wspap.okx.com:8443/ws/v5/public",
+  ws_private_url: "wss://wspap.okx.com:8443/ws/v5/private"
+
 # Cloak encryption for testing
 config :shared_data, SharedData.Vault,
   ciphers: [

@@ -14,7 +14,8 @@ defmodule DataCollector.Application do
       {Registry, keys: :unique, name: DataCollector.StreamRegistry},
       DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
-      DataCollector.MarketData
+      DataCollector.MarketData,
+      DataCollector.OKX.Symbols
     ]
 
     opts = [strategy: :one_for_one, name: DataCollector.Supervisor]

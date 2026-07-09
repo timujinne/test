@@ -14,6 +14,33 @@ if config_env() == :prod do
     secret_key: System.fetch_env!("BINANCE_SECRET_KEY"),
     end_point: System.get_env("BINANCE_BASE_URL", "https://api.binance.com")
 
+  # OKX API configuration (optional — only required if OKX accounts are
+  # actually used; unlike Binance, no fetch_env!/credential requirement here
+  # since not every deployment will onboard OKX). demo defaults to true so a
+  # misconfigured deployment fails safe against OKX's demo environment
+  # rather than live trading.
+  okx_demo = System.get_env("OKX_DEMO", "true") in ~w(true 1)
+
+  config :data_collector, :okx,
+    base_url: System.get_env("OKX_BASE_URL", "https://www.okx.com"),
+    demo: okx_demo,
+    ws_public_url:
+      System.get_env(
+        "OKX_WS_PUBLIC_URL",
+        if(okx_demo,
+          do: "wss://wspap.okx.com:8443/ws/v5/public",
+          else: "wss://ws.okx.com:8443/ws/v5/public"
+        )
+      ),
+    ws_private_url:
+      System.get_env(
+        "OKX_WS_PRIVATE_URL",
+        if(okx_demo,
+          do: "wss://wspap.okx.com:8443/ws/v5/private",
+          else: "wss://ws.okx.com:8443/ws/v5/private"
+        )
+      )
+
   # Database configuration
   database_url =
     System.get_env("DATABASE_URL") ||
