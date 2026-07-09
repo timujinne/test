@@ -39,8 +39,7 @@ defmodule TradingEngine.Trader do
     account_id = Keyword.fetch!(opts, :account_id)
     setting_id = Keyword.fetch!(opts, :setting_id)
     exchange = Keyword.fetch!(opts, :exchange)
-    api_key = Keyword.fetch!(opts, :api_key)
-    secret_key = Keyword.fetch!(opts, :secret_key)
+    credentials = Keyword.fetch!(opts, :credentials)
     strategy = Keyword.fetch!(opts, :strategy)
     strategy_config = Keyword.fetch!(opts, :strategy_config)
 
@@ -57,7 +56,7 @@ defmodule TradingEngine.Trader do
 
     # Check for existing chain state and open orders (for recovery)
     # Pass all symbols for multi-symbol chain support
-    recovery_info = check_for_recovery(setting_id, exchange, api_key, secret_key, symbols)
+    recovery_info = check_for_recovery(setting_id, exchange, credentials, symbols)
 
     strategy_config =
       if recovery_info do
@@ -122,8 +121,7 @@ defmodule TradingEngine.Trader do
       account_id: account_id,
       setting_id: setting_id,
       exchange: exchange,
-      api_key: api_key,
-      secret_key: secret_key,
+      credentials: credentials,
       strategy: strategy,
       strategy_state: strategy_state,
       strategy_config: strategy_config,
@@ -159,7 +157,7 @@ defmodule TradingEngine.Trader do
     # Check risk management before placing order
     case RiskManager.check_order(order_params, state) do
       :ok ->
-        case exchange_client!(state).create_order(state.api_key, state.secret_key, order_params) do
+        case exchange_client!(state).create_order(state.credentials, order_params) do
           {:ok, order} ->
             new_orders = Map.put(state.orders, order["orderId"], order)
 
@@ -380,7 +378,7 @@ defmodule TradingEngine.Trader do
   defp cancel_open_orders_on_stop(state, attempts_left) do
     client = exchange_client!(state)
 
-    case client.get_open_orders(state.api_key, state.secret_key, state.symbol) do
+    case client.get_open_orders(state.credentials, state.symbol) do
       {:ok, []} ->
         Logger.info("Grid cleanup: no open orders remain for #{state.symbol}")
         :ok
@@ -392,8 +390,7 @@ defmodule TradingEngine.Trader do
 
         Enum.each(orders, fn order ->
           case client.cancel_order(
-                 state.api_key,
-                 state.secret_key,
+                 state.credentials,
                  state.symbol,
                  order["orderId"]
                ) do
@@ -528,13 +525,13 @@ defmodule TradingEngine.Trader do
 
   # Check for existing chain state and open orders for recovery
   # Accepts a list of symbols for multi-symbol chain support
-  defp check_for_recovery(setting_id, exchange, api_key, secret_key, symbols)
+  defp check_for_recovery(setting_id, exchange, credentials, symbols)
        when is_list(symbols) do
     # 1. Check for existing chain state in DB
     case SharedData.ChainStates.get_chain_state_by_setting(setting_id) do
       nil ->
         # No existing state, check for orphaned open orders across all symbols
-        check_orphaned_orders(exchange, api_key, secret_key, symbols)
+        check_orphaned_orders(exchange, credentials, symbols)
 
       %{current_state: state} when state in ["completed", "error"] ->
         # Chain completed or errored, no recovery needed
@@ -543,29 +540,29 @@ defmodule TradingEngine.Trader do
       %{current_state: "stopped"} = chain_state ->
         # Chain was stopped cleanly - can recover if setting is active
         Logger.info("Found stopped chain state for setting #{setting_id}, allowing recovery")
-        verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
+        verify_and_build_recovery(chain_state, exchange, credentials, symbols)
 
       chain_state ->
         # Active chain state found - check if pending order still exists
         # Use all symbols for comprehensive order checking
-        verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
+        verify_and_build_recovery(chain_state, exchange, credentials, symbols)
     end
   end
 
   # Fallback for single symbol (backwards compatibility)
-  defp check_for_recovery(setting_id, exchange, api_key, secret_key, symbol)
+  defp check_for_recovery(setting_id, exchange, credentials, symbol)
        when is_binary(symbol) do
-    check_for_recovery(setting_id, exchange, api_key, secret_key, [symbol])
+    check_for_recovery(setting_id, exchange, credentials, [symbol])
   end
 
   # Check all symbols for orphaned orders
-  defp check_orphaned_orders(exchange, api_key, secret_key, symbols) when is_list(symbols) do
+  defp check_orphaned_orders(exchange, credentials, symbols) when is_list(symbols) do
     {:ok, client} = ExchangeRegistry.client_for(exchange)
 
     all_orders =
       symbols
       |> Enum.flat_map(fn symbol ->
-        case client.get_open_orders(api_key, secret_key, symbol) do
+        case client.get_open_orders(credentials, symbol) do
           {:ok, orders} -> orders
           {:error, _} -> []
         end
@@ -590,7 +587,7 @@ defmodule TradingEngine.Trader do
     end
   end
 
-  defp verify_and_build_recovery(chain_state, exchange, api_key, secret_key, symbols)
+  defp verify_and_build_recovery(chain_state, exchange, credentials, symbols)
        when is_list(symbols) do
     pending_order_id = chain_state.pending_order_id
     {:ok, client} = ExchangeRegistry.client_for(exchange)
@@ -599,7 +596,7 @@ defmodule TradingEngine.Trader do
     all_open_orders =
       symbols
       |> Enum.flat_map(fn symbol ->
-        case client.get_open_orders(api_key, secret_key, symbol) do
+        case client.get_open_orders(credentials, symbol) do
           {:ok, orders} -> orders
           {:error, _} -> []
         end

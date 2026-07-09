@@ -12,16 +12,25 @@ defmodule DataCollector.ExchangeClient do
 
   alias SharedData.Types
 
-  @callback get_account(Types.api_key(), Types.secret_key()) :: Types.result(map())
+  @typedoc """
+  Credentials map passed to every private-endpoint callback instead of
+  separate `api_key`/`secret_key` positional args. `passphrase` is `nil`
+  for exchanges that don't require one (e.g. Binance); OKX requires it.
+  """
+  @type credentials :: %{
+          api_key: Types.api_key(),
+          secret_key: Types.secret_key(),
+          passphrase: String.t() | nil
+        }
 
-  @callback create_order(Types.api_key(), Types.secret_key(), Types.order_params()) ::
-              Types.result(Types.order())
+  @callback get_account(credentials()) :: Types.result(map())
 
-  @callback cancel_order(Types.api_key(), Types.secret_key(), Types.symbol(), Types.order_id()) ::
+  @callback create_order(credentials(), Types.order_params()) :: Types.result(Types.order())
+
+  @callback cancel_order(credentials(), Types.symbol(), Types.order_id()) ::
               Types.result(map())
 
-  @callback get_open_orders(Types.api_key(), Types.secret_key(), Types.symbol() | nil) ::
-              Types.result([map()])
+  @callback get_open_orders(credentials(), Types.symbol() | nil) :: Types.result([map()])
 
   @callback get_exchange_info(Types.symbol()) :: Types.result(map())
 end

@@ -274,7 +274,13 @@ defmodule SharedData.Credentials do
     # SharedData compiles before DataCollector, so we use apply/3
     case apply(DataCollector.ExchangeRegistry, :client_for, [credential.exchange]) do
       {:ok, client_module} ->
-        apply(client_module, :get_account, [credential.api_key, credential.secret_key])
+        credentials_map = %{
+          api_key: credential.api_key,
+          secret_key: credential.secret_key,
+          passphrase: credential.passphrase
+        }
+
+        apply(client_module, :get_account, [credentials_map])
 
       {:error, _reason} = error ->
         error

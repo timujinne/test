@@ -13,6 +13,7 @@ defmodule DataCollector.BinanceClient do
 
   require Logger
 
+  alias DataCollector.ExchangeClient
   alias SharedData.Types
 
   @base_url Application.compile_env(:binance, :end_point, "https://api.binance.com")
@@ -59,6 +60,17 @@ defmodule DataCollector.BinanceClient do
       end)
 
     log_response(result, "/api/v3/account")
+  end
+
+  @doc """
+  `ExchangeClient` behaviour implementation: destructures the credentials
+  map and delegates to `get_account/2`, which stays the canonical
+  implementation (dashboard_web calls it directly with two args).
+  """
+  @impl true
+  @spec get_account(ExchangeClient.credentials()) :: Types.result(map())
+  def get_account(%{api_key: api_key, secret_key: secret_key}) do
+    get_account(api_key, secret_key)
   end
 
   @doc """
@@ -122,6 +134,18 @@ defmodule DataCollector.BinanceClient do
   end
 
   @doc """
+  `ExchangeClient` behaviour implementation: destructures the credentials
+  map and delegates to `create_order/3`, which stays the canonical
+  implementation (dashboard_web calls it directly).
+  """
+  @impl true
+  @spec create_order(ExchangeClient.credentials(), Types.order_params()) ::
+          Types.result(Types.order())
+  def create_order(%{api_key: api_key, secret_key: secret_key}, params) do
+    create_order(api_key, secret_key, params)
+  end
+
+  @doc """
   Cancel an order.
   """
   @spec cancel_order(Types.api_key(), Types.secret_key(), Types.symbol(), Types.order_id()) ::
@@ -163,6 +187,18 @@ defmodule DataCollector.BinanceClient do
       end)
 
     log_response(result, "/api/v3/order")
+  end
+
+  @doc """
+  `ExchangeClient` behaviour implementation: destructures the credentials
+  map and delegates to `cancel_order/4`, which stays the canonical
+  implementation (dashboard_web calls it directly).
+  """
+  @impl true
+  @spec cancel_order(ExchangeClient.credentials(), Types.symbol(), Types.order_id()) ::
+          Types.result(map())
+  def cancel_order(%{api_key: api_key, secret_key: secret_key}, symbol, order_id) do
+    cancel_order(api_key, secret_key, symbol, order_id)
   end
 
   @doc """
@@ -229,6 +265,7 @@ defmodule DataCollector.BinanceClient do
   Get exchange info for a specific symbol.
   Returns symbol information including filters and precision.
   """
+  @impl true
   @spec get_exchange_info(Types.symbol()) :: Types.result(map())
   def get_exchange_info(symbol) do
     with_rate_limit(10, fn ->
@@ -413,7 +450,10 @@ defmodule DataCollector.BinanceClient do
   ## Parameters
   - api_key: Binance API key
   - secret_key: Binance secret key
-  - symbol: (Optional) Trading pair symbol (e.g., "BTCUSDT"). If omitted, returns all open orders.
+  - symbol: Trading pair symbol (e.g., "BTCUSDT"), or `nil` to return all open orders.
+    No default — pass `nil` explicitly (kept required so this function's arity
+    doesn't collide with the credentials-map `get_open_orders/2` behaviour
+    implementation below).
 
   ## Response
   Returns a list of open order maps with order details including:
@@ -430,7 +470,7 @@ defmodule DataCollector.BinanceClient do
   """
   @spec get_open_orders(Types.api_key(), Types.secret_key(), Types.symbol() | nil) ::
           Types.result([map()])
-  def get_open_orders(api_key, secret_key, symbol \\ nil) do
+  def get_open_orders(api_key, secret_key, symbol) do
     params =
       %{
         timestamp: timestamp(),
@@ -467,6 +507,18 @@ defmodule DataCollector.BinanceClient do
       end)
 
     log_response(result, "/api/v3/openOrders")
+  end
+
+  @doc """
+  `ExchangeClient` behaviour implementation: destructures the credentials
+  map and delegates to `get_open_orders/3`, which stays the canonical
+  implementation (dashboard_web calls it directly).
+  """
+  @impl true
+  @spec get_open_orders(ExchangeClient.credentials(), Types.symbol() | nil) ::
+          Types.result([map()])
+  def get_open_orders(%{api_key: api_key, secret_key: secret_key}, symbol) do
+    get_open_orders(api_key, secret_key, symbol)
   end
 
   @doc """

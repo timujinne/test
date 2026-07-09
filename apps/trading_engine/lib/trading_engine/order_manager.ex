@@ -8,15 +8,15 @@ defmodule TradingEngine.OrderManager do
   alias SharedData.Repo
   alias SharedData.Schemas.Order
 
-  def create_order(account_id, exchange, api_key, secret_key, order_params) do
+  def create_order(account_id, exchange, credentials, order_params) do
     with {:ok, client} <- ExchangeRegistry.client_for(exchange) do
-      dispatch_create_order(client, account_id, api_key, secret_key, order_params)
+      dispatch_create_order(client, account_id, credentials, order_params)
     end
   end
 
-  defp dispatch_create_order(client, account_id, api_key, secret_key, order_params) do
+  defp dispatch_create_order(client, account_id, credentials, order_params) do
     # Create order on the account's exchange
-    case client.create_order(api_key, secret_key, order_params) do
+    case client.create_order(credentials, order_params) do
       {:ok, binance_order} ->
         # Save to database
         order_attrs = %{
@@ -42,14 +42,14 @@ defmodule TradingEngine.OrderManager do
     end
   end
 
-  def cancel_order(account_id, exchange, api_key, secret_key, symbol, order_id) do
+  def cancel_order(account_id, exchange, credentials, symbol, order_id) do
     with {:ok, client} <- ExchangeRegistry.client_for(exchange) do
-      dispatch_cancel_order(client, account_id, api_key, secret_key, symbol, order_id)
+      dispatch_cancel_order(client, account_id, credentials, symbol, order_id)
     end
   end
 
-  defp dispatch_cancel_order(client, account_id, api_key, secret_key, symbol, order_id) do
-    case client.cancel_order(api_key, secret_key, symbol, order_id) do
+  defp dispatch_cancel_order(client, account_id, credentials, symbol, order_id) do
+    case client.cancel_order(credentials, symbol, order_id) do
       {:ok, canceled_order} ->
         # Update order in database
         order = Repo.get_by(Order, order_id: order_id, account_id: account_id)

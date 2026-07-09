@@ -316,12 +316,17 @@ defmodule TradingEngine.StrategyManager do
             # Prepare config with symbol default if missing
             config = ensure_symbol_in_config(setting.config)
 
+            credential = account.api_credential
+
             opts = [
               setting_id: setting.id,
               account_id: account.id,
-              exchange: account.api_credential.exchange,
-              api_key: account.api_credential.api_key,
-              secret_key: account.api_credential.secret_key,
+              exchange: credential.exchange,
+              credentials: %{
+                api_key: credential.api_key,
+                secret_key: credential.secret_key,
+                passphrase: credential.passphrase
+              },
               strategy: strategy_module,
               strategy_config: config
             ]
