@@ -19,7 +19,7 @@ defmodule SharedData.Schemas.ApiCredential do
     timestamps()
   end
 
-  @supported_exchanges ["binance"]
+  @supported_exchanges ["binance", "okx"]
 
   @doc false
   def changeset(api_credential, attrs) do

@@ -142,6 +142,7 @@ defmodule TradingEngine.Strategies.ConditionalChain do
       symbols: symbols,
       current_symbol: current_symbol,
       symbol: config["symbol"],
+      exchange: config["exchange"] || "binance",
       setting_id: chain_state.setting_id,
       chain_id: chain_state.chain_id,
       steps: steps,
@@ -221,6 +222,7 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         symbols: symbols,
         current_symbol: initial_symbol,
         symbol: config["symbol"],
+        exchange: config["exchange"] || "binance",
         setting_id: config["setting_id"],
         chain_id: chain_id,
         steps: steps,
@@ -253,6 +255,7 @@ defmodule TradingEngine.Strategies.ConditionalChain do
         symbols: symbols,
         current_symbol: initial_symbol,
         symbol: config["symbol"],
+        exchange: config["exchange"] || "binance",
         setting_id: config["setting_id"],
         chain_id: chain_id,
         steps: steps,
@@ -685,7 +688,7 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   defp build_order_params(step_config, state) do
     # Use step-specific symbol, fallback to current_symbol or legacy symbol
     symbol = step_config["symbol"] || state.current_symbol || state.symbol
-    {price_precision, qty_precision} = get_symbol_precision(symbol)
+    {price_precision, qty_precision} = get_symbol_precision(state[:exchange] || "binance", symbol)
 
     price = to_decimal(step_config["price"], "0") |> Decimal.round(price_precision)
 
@@ -763,8 +766,8 @@ defmodule TradingEngine.Strategies.ConditionalChain do
   defp to_decimal(%Decimal{} = value, _default), do: value
 
   # Symbol precision for price and quantity
-  defp get_symbol_precision(symbol) do
-    TradingEngine.SymbolInfo.get_precision(symbol)
+  defp get_symbol_precision(exchange, symbol) do
+    TradingEngine.SymbolInfo.get_precision(exchange, symbol)
   end
 
   # Persist state to database for recovery after restart

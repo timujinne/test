@@ -54,6 +54,10 @@ defmodule TradingEngine.Trader do
     # Add setting_id to strategy config for state persistence
     strategy_config = Map.put(strategy_config, "setting_id", setting_id)
 
+    # Let strategies know which exchange they're trading on (e.g. for
+    # exchange-aware symbol precision lookups)
+    strategy_config = Map.put(strategy_config, "exchange", exchange)
+
     # Check for existing chain state and open orders (for recovery)
     # Pass all symbols for multi-symbol chain support
     recovery_info = check_for_recovery(setting_id, exchange, credentials, symbols)

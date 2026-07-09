@@ -8,6 +8,10 @@ defmodule DataCollector.ExchangeRegistryTest do
       assert {:ok, DataCollector.BinanceClient} = ExchangeRegistry.client_for("binance")
     end
 
+    test "resolves \"okx\" to DataCollector.OKXClient" do
+      assert {:ok, DataCollector.OKXClient} = ExchangeRegistry.client_for("okx")
+    end
+
     test "returns an error for an unsupported exchange" do
       assert {:error, {:unsupported_exchange, "kraken"}} =
                ExchangeRegistry.client_for("kraken")

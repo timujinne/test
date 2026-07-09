@@ -44,6 +44,19 @@ defmodule SharedData.Schemas.ApiCredentialTest do
       assert changeset.valid?
     end
 
+    test "accepts \"okx\" as a supported exchange" do
+      changeset =
+        ApiCredential.changeset(%ApiCredential{}, %{
+          api_key: "key",
+          secret_key: "secret",
+          passphrase: "passphrase",
+          label: "OKX account",
+          exchange: "okx"
+        })
+
+      assert changeset.valid?
+    end
+
     test "rejects an unsupported exchange" do
       changeset =
         ApiCredential.changeset(%ApiCredential{}, %{

@@ -298,10 +298,9 @@ defmodule DashboardWeb.SettingsLive do
                         </option>
                         <option
                           value="okx"
-                          disabled
                           selected={@account_form[:exchange].value == "okx"}
                         >
-                          OKX (coming soon)
+                          OKX
                         </option>
                         <option
                           value="coinbase"
@@ -394,6 +393,41 @@ defmodule DashboardWeb.SettingsLive do
                         </label>
                       <% end %>
                     </div>
+
+                    <%= if @account_form[:exchange].value == "okx" do %>
+                      <div class="form-control">
+                        <label class="label">
+                          <span class="label-text">Passphrase</span>
+                        </label>
+                        <input
+                          type="password"
+                          name="account[passphrase]"
+                          value={@account_form[:passphrase].value}
+                          placeholder={
+                            if @editing_account,
+                              do: "Leave empty to keep current passphrase",
+                              else: "Enter your OKX API passphrase"
+                          }
+                          class="input w-full font-mono"
+                        />
+                        <%= if @account_form[:passphrase].errors != [] do %>
+                          <label class="label">
+                            <span class="label-text-alt text-error">
+                              {translate_error(@account_form[:passphrase].errors)}
+                            </span>
+                          </label>
+                        <% end %>
+                        <%= if @editing_account && @editing_account.api_credential do %>
+                          <label class="label">
+                            <span class="label-text-alt text-base-content/70">
+                              Current: {CredentialHelper.mask_key(
+                                @editing_account.api_credential.passphrase
+                              )}
+                            </span>
+                          </label>
+                        <% end %>
+                      </div>
+                    <% end %>
 
                     <div class="form-control">
                       <label class="label cursor-pointer justify-start gap-2">
@@ -620,6 +654,7 @@ defmodule DashboardWeb.SettingsLive do
         "label" => params["label"],
         "api_key" => params["api_key"],
         "secret_key" => params["secret_key"],
+        "passphrase" => params["passphrase"],
         "is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true,
         "is_active" => true,
         "user_id" => user_id,
@@ -705,6 +740,13 @@ defmodule DashboardWeb.SettingsLive do
           }
         else
           %{"is_testnet" => params["is_testnet"] == "on" || params["is_testnet"] == true}
+        end
+
+      credential_updates =
+        if params["passphrase"] && params["passphrase"] != "" do
+          Map.put(credential_updates, "passphrase", params["passphrase"])
+        else
+          credential_updates
         end
 
       result =

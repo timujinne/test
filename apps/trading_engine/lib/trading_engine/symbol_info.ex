@@ -1,10 +1,13 @@
 defmodule TradingEngine.SymbolInfo do
   @moduledoc """
   Caches information about trading pairs (precision for price and quantity).
-  Loads data from Binance API on first request.
+  Loads data from the exchange's API (via `DataCollector.ExchangeRegistry`) on
+  first request, per (exchange, symbol) pair.
   """
   use GenServer
   require Logger
+
+  alias DataCollector.ExchangeRegistry
 
   @table :symbol_info_cache
 
@@ -15,13 +18,23 @@ defmodule TradingEngine.SymbolInfo do
   end
 
   @doc """
-  Get precision for symbol.
+  Get precision for a symbol on the default exchange ("binance").
   Returns {price_precision, qty_precision}.
   """
   def get_precision(symbol) do
-    case :ets.lookup(@table, symbol) do
-      [{^symbol, precision}] -> precision
-      [] -> GenServer.call(__MODULE__, {:fetch_precision, symbol})
+    get_precision("binance", symbol)
+  end
+
+  @doc """
+  Get precision for symbol on the given exchange.
+  Returns {price_precision, qty_precision}.
+  """
+  def get_precision(exchange, symbol) do
+    key = {exchange, symbol}
+
+    case :ets.lookup(@table, key) do
+      [{^key, precision}] -> precision
+      [] -> GenServer.call(__MODULE__, {:fetch_precision, exchange, symbol})
     end
   end
 
@@ -34,22 +47,22 @@ defmodule TradingEngine.SymbolInfo do
   end
 
   @impl true
-  def handle_call({:fetch_precision, symbol}, _from, state) do
-    precision = fetch_and_cache(symbol)
+  def handle_call({:fetch_precision, exchange, symbol}, _from, state) do
+    precision = fetch_and_cache(exchange, symbol)
     {:reply, precision, state}
   end
 
-  defp fetch_and_cache(symbol) do
-    case DataCollector.BinanceClient.get_exchange_info(symbol) do
-      {:ok, info} ->
-        precision = extract_precision(info)
-        :ets.insert(@table, {symbol, precision})
-        Logger.info("Cached precision for #{symbol}: #{inspect(precision)}")
-        precision
-
+  defp fetch_and_cache(exchange, symbol) do
+    with {:ok, client} <- ExchangeRegistry.client_for(exchange),
+         {:ok, info} <- client.get_exchange_info(symbol) do
+      precision = extract_precision(info)
+      :ets.insert(@table, {{exchange, symbol}, precision})
+      Logger.info("Cached precision for #{exchange}:#{symbol}: #{inspect(precision)}")
+      precision
+    else
       {:error, reason} ->
         Logger.warning(
-          "Failed to fetch precision for #{symbol}: #{inspect(reason)}, using defaults"
+          "Failed to fetch precision for #{exchange}:#{symbol}: #{inspect(reason)}, using defaults"
         )
 
         {5, 2}

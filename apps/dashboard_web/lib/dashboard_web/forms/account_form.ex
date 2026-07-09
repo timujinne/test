@@ -6,13 +6,14 @@ defmodule DashboardWeb.Forms.AccountForm do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @supported_exchanges ["binance"]
+  @supported_exchanges ["binance", "okx"]
 
   @primary_key false
   embedded_schema do
     field :label, :string
     field :api_key, :string
     field :secret_key, :string
+    field :passphrase, :string
     field :is_testnet, :boolean, default: false
     field :binance_account_id, :string
     field :is_active, :boolean, default: true
@@ -32,6 +33,7 @@ defmodule DashboardWeb.Forms.AccountForm do
       :label,
       :api_key,
       :secret_key,
+      :passphrase,
       :is_testnet,
       :binance_account_id,
       :is_active,
@@ -42,6 +44,7 @@ defmodule DashboardWeb.Forms.AccountForm do
     |> validate_length(:api_key, min: 10, message: "must be at least 10 characters")
     |> validate_length(:secret_key, min: 10, message: "must be at least 10 characters")
     |> validate_inclusion(:exchange, @supported_exchanges, message: "unsupported exchange")
+    |> validate_passphrase_required_for_okx()
   end
 
   @doc """
@@ -53,7 +56,15 @@ defmodule DashboardWeb.Forms.AccountForm do
     attrs = normalize_booleans(attrs)
 
     form
-    |> cast(attrs, [:label, :api_key, :secret_key, :is_testnet, :binance_account_id, :is_active])
+    |> cast(attrs, [
+      :label,
+      :api_key,
+      :secret_key,
+      :passphrase,
+      :is_testnet,
+      :binance_account_id,
+      :is_active
+    ])
     |> validate_required([:label])
     |> validate_length(:label, min: 1, max: 255)
     |> maybe_validate_keys()
@@ -72,6 +83,14 @@ defmodule DashboardWeb.Forms.AccountForm do
       nil -> Map.put(attrs, key, default)
       val when is_boolean(val) -> attrs
       _ -> Map.put(attrs, key, default)
+    end
+  end
+
+  defp validate_passphrase_required_for_okx(changeset) do
+    if get_field(changeset, :exchange) == "okx" do
+      validate_required(changeset, [:passphrase])
+    else
+      changeset
     end
   end
 
