@@ -133,6 +133,12 @@ defmodule DataCollector.OKXPublicStream do
   def handle_connect(_conn, state) do
     Logger.info("OKXPublicStream: connected successfully")
     schedule_ping()
+    # OKX multiplexes all subscriptions over one connection and does NOT
+    # preserve them across reconnects. Re-subscribe every symbol that still
+    # has active subscribers so ticker broadcasts resume after any reconnect
+    # (and to cover the cold-start race where subscribe/1 may send its op
+    # before this connect fires).
+    send(self(), :resubscribe)
     {:ok, %{state | reconnect_attempts: 0, decode_errors: 0}}
   end
 
@@ -167,6 +173,33 @@ defmodule DataCollector.OKXPublicStream do
   @impl true
   def handle_frame({:ping, _}, state) do
     {:reply, :pong, state}
+  end
+
+  @impl true
+  def handle_info(:resubscribe, state) do
+    args =
+      @subscribers_table
+      |> :ets.tab2list()
+      |> Enum.flat_map(fn
+        {concat, count} when count > 0 ->
+          case Symbols.to_inst_id(concat) do
+            {:ok, inst_id} -> [%{channel: "tickers", instId: inst_id}]
+            {:error, _} -> []
+          end
+
+        _ ->
+          []
+      end)
+
+    case args do
+      [] ->
+        {:ok, state}
+
+      _ ->
+        Logger.info("OKXPublicStream: re-subscribing #{length(args)} symbol(s) after connect")
+        frame = Jason.encode!(%{op: "subscribe", args: args})
+        {:reply, {:text, frame}, state}
+    end
   end
 
   @impl true

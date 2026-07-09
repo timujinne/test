@@ -52,7 +52,7 @@ defmodule DataCollector.OKX.Auth do
   """
   @spec timestamp() :: String.t()
   def timestamp do
-    DateTime.utc_now() |> DateTime.to_iso8601()
+    DateTime.utc_now() |> DateTime.truncate(:millisecond) |> DateTime.to_iso8601()
   end
 
   @doc """
