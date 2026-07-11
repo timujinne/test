@@ -6,7 +6,7 @@ defmodule DashboardWeb.Forms.AccountForm do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @supported_exchanges ["binance", "okx"]
+  @supported_exchanges ["binance", "okx", "kraken"]
 
   @primary_key false
   embedded_schema do

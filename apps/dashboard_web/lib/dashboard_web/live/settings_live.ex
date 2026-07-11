@@ -291,10 +291,9 @@ defmodule DashboardWeb.SettingsLive do
                         </option>
                         <option
                           value="kraken"
-                          disabled
                           selected={@account_form[:exchange].value == "kraken"}
                         >
-                          Kraken (coming soon)
+                          Kraken
                         </option>
                         <option
                           value="okx"

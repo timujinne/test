@@ -42,7 +42,7 @@ defmodule DashboardWeb.Forms.AccountFormTest do
       assert changeset.valid?
     end
 
-    test "kraken is still rejected as unsupported" do
+    test "kraken does not require a passphrase" do
       changeset =
         AccountForm.changeset(AccountForm.new(), %{
           "label" => "Main",
@@ -51,8 +51,7 @@ defmodule DashboardWeb.Forms.AccountFormTest do
           "exchange" => "kraken"
         })
 
-      refute changeset.valid?
-      assert %{exchange: ["unsupported exchange"]} = errors_on(changeset)
+      assert changeset.valid?
     end
   end
 

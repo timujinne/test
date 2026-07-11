@@ -12,9 +12,13 @@ defmodule DataCollector.ExchangeRegistryTest do
       assert {:ok, DataCollector.OKXClient} = ExchangeRegistry.client_for("okx")
     end
 
+    test "resolves \"kraken\" to DataCollector.KrakenClient" do
+      assert {:ok, DataCollector.KrakenClient} = ExchangeRegistry.client_for("kraken")
+    end
+
     test "returns an error for an unsupported exchange" do
-      assert {:error, {:unsupported_exchange, "kraken"}} =
-               ExchangeRegistry.client_for("kraken")
+      assert {:error, {:unsupported_exchange, "coinbase"}} =
+               ExchangeRegistry.client_for("coinbase")
     end
 
     test "returns an error for garbage input" do

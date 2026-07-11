@@ -12,5 +12,6 @@ defmodule DataCollector.ExchangeRegistry do
           {:ok, module()} | {:error, {:unsupported_exchange, String.t()}}
   def client_for("binance"), do: {:ok, DataCollector.BinanceClient}
   def client_for("okx"), do: {:ok, DataCollector.OKXClient}
+  def client_for("kraken"), do: {:ok, DataCollector.KrakenClient}
   def client_for(other), do: {:error, {:unsupported_exchange, other}}
 end

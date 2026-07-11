@@ -115,6 +115,18 @@ defmodule TradingEngine.Trader do
             )
         end
       end
+
+      if exchange == "kraken" do
+        case DataCollector.KrakenPrivateStream.ensure_started(account_id, credentials) do
+          {:ok, _pid} ->
+            Logger.info("Kraken private order stream ready for account #{account_id}")
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to start Kraken private order stream for account #{account_id}: #{inspect(reason)}"
+            )
+        end
+      end
     end
 
     # Setup timers based on strategy requirements

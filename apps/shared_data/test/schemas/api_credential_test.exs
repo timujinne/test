@@ -57,13 +57,25 @@ defmodule SharedData.Schemas.ApiCredentialTest do
       assert changeset.valid?
     end
 
+    test "accepts \"kraken\" as a supported exchange without a passphrase" do
+      changeset =
+        ApiCredential.changeset(%ApiCredential{}, %{
+          api_key: "key",
+          secret_key: "secret",
+          label: "Kraken account",
+          exchange: "kraken"
+        })
+
+      assert changeset.valid?
+    end
+
     test "rejects an unsupported exchange" do
       changeset =
         ApiCredential.changeset(%ApiCredential{}, %{
           api_key: "key",
           secret_key: "secret",
           label: "Main account",
-          exchange: "kraken"
+          exchange: "coinbase"
         })
 
       refute changeset.valid?

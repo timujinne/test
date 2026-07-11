@@ -13,14 +13,16 @@ defmodule TradingEngine.SymbolInfoTest do
 
   describe "get_precision/2 (exchange-aware)" do
     test "falls back to defaults for an unsupported exchange without raising" do
-      assert {5, 2} = SymbolInfo.get_precision("kraken", "BTCUSDT")
+      # "coinbase" is not yet wired into ExchangeRegistry (until its own task
+      # lands), so this exercises the fallback path without a client call.
+      assert {5, 2} = SymbolInfo.get_precision("coinbase", "BTCUSDT")
     end
 
     test "caches per (exchange, symbol) key so different exchanges don't collide" do
       # Both requests resolve to the same fallback for an unsupported exchange,
       # but exercise the {exchange, symbol} ETS key independently.
-      assert {5, 2} = SymbolInfo.get_precision("kraken", "ETHUSDT")
       assert {5, 2} = SymbolInfo.get_precision("coinbase", "ETHUSDT")
+      assert {5, 2} = SymbolInfo.get_precision("not_a_real_exchange", "ETHUSDT")
     end
   end
 end
