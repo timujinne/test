@@ -34,6 +34,9 @@ defmodule DataCollector.MixProject do
       # httpoison is already included as a dependency of binance (~> 1.4)
       {:jason, "~> 1.4"},
       {:phoenix_pubsub, "~> 2.1"},
+      # Already locked at 1.11.12 transitively (via ueberauth_apple); pinned
+      # explicitly here for Coinbase's ES256 JWT auth (DataCollector.Coinbase.Auth).
+      {:jose, "~> 1.11"},
       {:shared_data, in_umbrella: true}
     ]
   end

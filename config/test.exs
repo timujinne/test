@@ -21,6 +21,13 @@ config :data_collector, :kraken,
   base_url: "https://api.kraken.com",
   ws_url: "wss://ws.kraken.com/v2"
 
+# Coinbase API configuration for testing (mock values, deterministic
+# regardless of any COINBASE_* env vars set in the host/CI environment)
+config :data_collector, :coinbase,
+  base_url: "https://api.coinbase.com",
+  ws_public_url: "wss://advanced-trade-ws.coinbase.com",
+  ws_user_url: "wss://advanced-trade-ws-user.coinbase.com"
+
 # Cloak encryption for testing
 config :shared_data, SharedData.Vault,
   ciphers: [

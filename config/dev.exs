@@ -34,6 +34,17 @@ config :data_collector, :kraken,
   base_url: System.get_env("KRAKEN_BASE_URL") || "https://api.kraken.com",
   ws_url: System.get_env("KRAKEN_WS_URL") || "wss://ws.kraken.com/v2"
 
+# Coinbase API configuration for development. No demo/sandbox flag here —
+# the sandbox host (api-sandbox.coinbase.com) returns static/input-ignoring
+# responses unsuitable for any real usage path, so it is never selected by
+# app config (manual-E2E-only concern, see docs/superpowers/notes/coinbase-api-verified.md §5).
+config :data_collector, :coinbase,
+  base_url: System.get_env("COINBASE_BASE_URL") || "https://api.coinbase.com",
+  ws_public_url:
+    System.get_env("COINBASE_WS_PUBLIC_URL") || "wss://advanced-trade-ws.coinbase.com",
+  ws_user_url:
+    System.get_env("COINBASE_WS_USER_URL") || "wss://advanced-trade-ws-user.coinbase.com"
+
 # Cloak encryption for development
 config :shared_data, SharedData.Vault,
   ciphers: [

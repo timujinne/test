@@ -40,7 +40,10 @@ defmodule DataCollector.Application do
       DataCollector.RateLimiter,
       DataCollector.MarketData,
       DataCollector.OKX.Symbols,
-      DataCollector.Kraken.Symbols
+      DataCollector.Kraken.Symbols,
+      # Lookup-only, like OKX.Symbols/Kraken.Symbols — the ETS table it
+      # needs is created in its own init/1, no separate table wiring here.
+      DataCollector.Coinbase.Products
     ]
 
     opts = [strategy: :one_for_one, name: DataCollector.Supervisor]

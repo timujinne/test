@@ -48,6 +48,18 @@ if config_env() == :prod do
     base_url: System.get_env("KRAKEN_BASE_URL", "https://api.kraken.com"),
     ws_url: System.get_env("KRAKEN_WS_URL", "wss://ws.kraken.com/v2")
 
+  # Coinbase API configuration (optional — only required if Coinbase
+  # accounts are actually used). No demo/sandbox flag here — the sandbox
+  # host (api-sandbox.coinbase.com) returns static/input-ignoring responses
+  # unsuitable for any real usage path, so it is never selected by app
+  # config (manual-E2E-only concern).
+  config :data_collector, :coinbase,
+    base_url: System.get_env("COINBASE_BASE_URL", "https://api.coinbase.com"),
+    ws_public_url:
+      System.get_env("COINBASE_WS_PUBLIC_URL", "wss://advanced-trade-ws.coinbase.com"),
+    ws_user_url:
+      System.get_env("COINBASE_WS_USER_URL", "wss://advanced-trade-ws-user.coinbase.com")
+
   # Database configuration
   database_url =
     System.get_env("DATABASE_URL") ||
