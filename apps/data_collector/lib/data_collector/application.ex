@@ -25,6 +25,11 @@ defmodule DataCollector.Application do
     # :okx_public_subscribers above).
     :ets.new(:kraken_public_subscribers, [:named_table, :public, :set])
 
+    # Same, for DataCollector.CoinbasePublicStream's single-connection
+    # subscriber counts (see its moduledoc — same rationale as
+    # :okx_public_subscribers/:kraken_public_subscribers above).
+    :ets.new(:coinbase_public_subscribers, [:named_table, :public, :set])
+
     children = [
       {Phoenix.PubSub, name: BinanceSystem.PubSub},
       {Registry, keys: :unique, name: DataCollector.StreamRegistry},
@@ -36,6 +41,10 @@ defmodule DataCollector.Application do
       # DynamicSupervisor below (see KrakenPrivateStream's moduledoc).
       {Registry, keys: :unique, name: DataCollector.KrakenPrivateRegistry},
       DataCollector.KrakenPrivateSupervisor,
+      # account_id -> DataCollector.CoinbasePrivateStream pid, paired with
+      # the DynamicSupervisor below (see CoinbasePrivateStream's moduledoc).
+      {Registry, keys: :unique, name: DataCollector.CoinbasePrivateRegistry},
+      DataCollector.CoinbasePrivateSupervisor,
       DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
       DataCollector.MarketData,

@@ -21,6 +21,9 @@ defmodule DataCollector.MarketStream do
   def subscribe("kraken", concat_symbol),
     do: DataCollector.KrakenPublicStream.subscribe(concat_symbol)
 
+  def subscribe("coinbase", concat_symbol),
+    do: DataCollector.CoinbasePublicStream.subscribe(concat_symbol)
+
   def subscribe(other, _concat_symbol), do: {:error, {:unsupported_exchange, other}}
 
   @doc """
@@ -36,6 +39,9 @@ defmodule DataCollector.MarketStream do
 
   def unsubscribe("kraken", concat_symbol),
     do: DataCollector.KrakenPublicStream.unsubscribe(concat_symbol)
+
+  def unsubscribe("coinbase", concat_symbol),
+    do: DataCollector.CoinbasePublicStream.unsubscribe(concat_symbol)
 
   def unsubscribe(other, _concat_symbol), do: {:error, {:unsupported_exchange, other}}
 end
