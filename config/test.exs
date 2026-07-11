@@ -53,6 +53,12 @@ config :shared_data, SharedData.Repo,
 # run against the Sandbox-owned Repo (avoids ownership errors / flaky boots).
 config :dashboard_web, Oban, testing: :manual
 
+# Same reasoning as above: StrategyManager's 1s-delayed :restore_active_strategies
+# boot restoration has no Sandbox checkout and would eventually raise
+# DBConnection.OwnershipError against the Sandbox-owned Repo once any test
+# run in this VM takes longer than ~1s (see strategy_manager.ex's init/1).
+config :trading_engine, :restore_on_boot, false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

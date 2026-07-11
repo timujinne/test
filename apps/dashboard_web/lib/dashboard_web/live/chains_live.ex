@@ -860,11 +860,18 @@ defmodule DashboardWeb.ChainsLive do
         # Activate the setting
         case SharedData.Settings.update_setting(setting, %{is_active: true}) do
           {:ok, updated_setting} ->
-            # Start the trader for this setting
-            TradingEngine.AccountSupervisor.start_trader(
-              updated_setting.account_id,
-              setting_id: updated_setting.id
-            )
+            # Start the trader for this setting via StrategyManager — the
+            # only setting_id-only public API that builds the *full* Trader
+            # opts (exchange/credentials/strategy/strategy_config), registers
+            # the crash monitor (add_running_trader/3), and wires
+            # StopConditionsMonitor. Calling AccountSupervisor.start_trader/2
+            # directly with only `setting_id:` in opts (the previous code
+            # here) leaves Trader.init/1's Keyword.fetch!(opts, :exchange)
+            # (and :credentials/:strategy/:strategy_config) to raise
+            # KeyError, and — even if opts were fixed by hand — the trader
+            # would still be invisible to StrategyManager.running_traders/
+            # is_running?/1.
+            TradingEngine.StrategyManager.start_strategy(updated_setting.id)
 
           error ->
             error
@@ -883,8 +890,11 @@ defmodule DashboardWeb.ChainsLive do
         # Deactivate the setting
         SharedData.Settings.update_setting(setting, %{is_active: false})
 
-        # Stop the trader
-        TradingEngine.AccountSupervisor.stop_trader(setting.id)
+        # Stop the trader via StrategyManager so its own bookkeeping
+        # (running_traders/monitors/StopConditionsMonitor) stays consistent
+        # — see start_chain_execution/1 for why AccountSupervisor must not
+        # be called directly here either.
+        TradingEngine.StrategyManager.stop_strategy(setting.id)
 
         {:ok, :stopped}
     end
@@ -902,9 +912,9 @@ defmodule DashboardWeb.ChainsLive do
           completed_at: DateTime.utc_now()
         })
 
-        # Stop the trader if running
+        # Stop the trader if running (see start_chain_execution/1)
         setting = chain_state.setting
-        TradingEngine.AccountSupervisor.stop_trader(setting.id)
+        TradingEngine.StrategyManager.stop_strategy(setting.id)
 
         {:ok, :cancelled}
     end

@@ -84,8 +84,15 @@ defmodule TradingEngine.StrategyManager do
     # Subscribe to strategy updates
     Phoenix.PubSub.subscribe(BinanceSystem.PubSub, @topic)
 
-    # Schedule startup restoration (give other services time to start)
-    Process.send_after(self(), :restore_active_strategies, 1000)
+    # Schedule startup restoration (give other services time to start).
+    # Disabled under test (config :trading_engine, :restore_on_boot, false in
+    # config/test.exs, mirroring that file's Oban/Cron/Pruner test-disable
+    # precedent) — this process has no Ecto Sandbox checkout, so querying the
+    # DB from here once the timer fires raises DBConnection.OwnershipError
+    # against the Sandbox-owned Repo.
+    if Application.get_env(:trading_engine, :restore_on_boot, true) do
+      Process.send_after(self(), :restore_active_strategies, 1000)
+    end
 
     state = %{
       running_traders: %{},
