@@ -1,8 +1,25 @@
 defmodule TradingEngine.TraderTest do
   use ExUnit.Case, async: true
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias TradingEngine.RiskManager
   alias TradingEngine.Trader
+
+  # `handle_info({:execution_report, ...})` goes through the pre-existing
+  # `owns_execution?/2` / `update_order_in_db/1`, which fall back to real
+  # `SharedData.Repo` queries (`order_belongs_to_account?/2`,
+  # `SharedData.Trading.update_order_status/3`). Umbrella-wide `mix test`
+  # runs every app's suite in one BEAM session against the same
+  # `SharedData.Repo` pool; once any other app's `test_helper.exs` (e.g.
+  # shared_data's or dashboard_web's) puts the sandbox into `:manual` mode,
+  # these tests need their own explicit checkout — otherwise they raise
+  # `DBConnection.OwnershipError` whenever they happen to run after that
+  # mode switch. Checking out here (rather than relying on the pool's
+  # default `:auto` mode) makes these tests correct and DB-isolated
+  # regardless of run order or which other suites already ran.
+  setup do
+    :ok = Sandbox.checkout(SharedData.Repo)
+  end
 
   # Minimal strategy stub — Trader.handle_info/2 and Trader.terminate/2 both
   # call into `state.strategy`, so a real (if trivial) module implementing
