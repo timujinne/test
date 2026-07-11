@@ -161,8 +161,10 @@ defmodule DataCollector.KrakenSymbolsTest do
 
       on_exit(fn -> Application.put_env(:data_collector, :kraken, original) end)
 
-      start_supervised!(DataCollector.Kraken.Symbols)
-
+      # DataCollector.Kraken.Symbols is supervised by DataCollector.Application
+      # (same as DataCollector.OKX.Symbols), so it's already running by the
+      # time the test suite boots — no start_supervised! here (that would
+      # conflict with the already-registered name).
       @fixture
       |> Symbols.parse_instruments()
       |> Enum.each(&Symbols.cache_entry/1)

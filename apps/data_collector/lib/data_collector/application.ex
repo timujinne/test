@@ -39,7 +39,8 @@ defmodule DataCollector.Application do
       DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
       DataCollector.MarketData,
-      DataCollector.OKX.Symbols
+      DataCollector.OKX.Symbols,
+      DataCollector.Kraken.Symbols
     ]
 
     opts = [strategy: :one_for_one, name: DataCollector.Supervisor]
