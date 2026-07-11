@@ -303,10 +303,9 @@ defmodule DashboardWeb.SettingsLive do
                         </option>
                         <option
                           value="coinbase"
-                          disabled
                           selected={@account_form[:exchange].value == "coinbase"}
                         >
-                          Coinbase (coming soon)
+                          Coinbase
                         </option>
                       </select>
                       <%= if @editing_account do %>
@@ -329,16 +328,29 @@ defmodule DashboardWeb.SettingsLive do
 
                     <div class="form-control">
                       <label class="label">
-                        <span class="label-text">API Key</span>
+                        <span class="label-text">
+                          <%= if @account_form[:exchange].value == "coinbase" do %>
+                            Key Name (organizations/.../apiKeys/...)
+                          <% else %>
+                            API Key
+                          <% end %>
+                        </span>
                       </label>
                       <input
                         type="text"
                         name="account[api_key]"
                         value={@account_form[:api_key].value}
                         placeholder={
-                          if @editing_account,
-                            do: "Leave empty to keep current key",
-                            else: "Enter your Binance API key"
+                          cond do
+                            @editing_account ->
+                              "Leave empty to keep current key"
+
+                            @account_form[:exchange].value == "coinbase" ->
+                              "organizations/.../apiKeys/..."
+
+                            true ->
+                              "Enter your Binance API key"
+                          end
                         }
                         class="input w-full font-mono"
                       />
@@ -362,19 +374,39 @@ defmodule DashboardWeb.SettingsLive do
 
                     <div class="form-control">
                       <label class="label">
-                        <span class="label-text">Secret Key</span>
+                        <span class="label-text">
+                          <%= if @account_form[:exchange].value == "coinbase" do %>
+                            EC Private Key (PEM, starts with -----BEGIN EC PRIVATE KEY-----)
+                          <% else %>
+                            Secret Key
+                          <% end %>
+                        </span>
                       </label>
-                      <input
-                        type="password"
-                        name="account[secret_key]"
-                        value={@account_form[:secret_key].value}
-                        placeholder={
-                          if @editing_account,
-                            do: "Leave empty to keep current key",
-                            else: "Enter your Binance secret key"
-                        }
-                        class="input w-full font-mono"
-                      />
+                      <%= if @account_form[:exchange].value == "coinbase" do %>
+                        <textarea
+                          name="account[secret_key]"
+                          placeholder={
+                            if @editing_account,
+                              do: "Leave empty to keep current key",
+                              else:
+                                "-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----"
+                          }
+                          class="textarea w-full font-mono"
+                          rows="4"
+                        >{@account_form[:secret_key].value}</textarea>
+                      <% else %>
+                        <input
+                          type="password"
+                          name="account[secret_key]"
+                          value={@account_form[:secret_key].value}
+                          placeholder={
+                            if @editing_account,
+                              do: "Leave empty to keep current key",
+                              else: "Enter your Binance secret key"
+                          }
+                          class="input w-full font-mono"
+                        />
+                      <% end %>
                       <%= if @account_form[:secret_key].errors != [] do %>
                         <label class="label">
                           <span class="label-text-alt text-error">

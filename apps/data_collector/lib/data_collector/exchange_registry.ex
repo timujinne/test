@@ -13,5 +13,6 @@ defmodule DataCollector.ExchangeRegistry do
   def client_for("binance"), do: {:ok, DataCollector.BinanceClient}
   def client_for("okx"), do: {:ok, DataCollector.OKXClient}
   def client_for("kraken"), do: {:ok, DataCollector.KrakenClient}
+  def client_for("coinbase"), do: {:ok, DataCollector.CoinbaseClient}
   def client_for(other), do: {:error, {:unsupported_exchange, other}}
 end

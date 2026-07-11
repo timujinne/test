@@ -127,6 +127,18 @@ defmodule TradingEngine.Trader do
             )
         end
       end
+
+      if exchange == "coinbase" do
+        case DataCollector.CoinbasePrivateStream.ensure_started(account_id, credentials) do
+          {:ok, _pid} ->
+            Logger.info("Coinbase private order stream ready for account #{account_id}")
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to start Coinbase private order stream for account #{account_id}: #{inspect(reason)}"
+            )
+        end
+      end
     end
 
     # Setup timers based on strategy requirements

@@ -53,6 +53,18 @@ defmodule DashboardWeb.Forms.AccountFormTest do
 
       assert changeset.valid?
     end
+
+    test "coinbase does not require a passphrase" do
+      changeset =
+        AccountForm.changeset(AccountForm.new(), %{
+          "label" => "Main",
+          "api_key" => "organizations/1/apiKeys/2",
+          "secret_key" => "-----BEGIN EC PRIVATE KEY-----\nfake\n-----END EC PRIVATE KEY-----",
+          "exchange" => "coinbase"
+        })
+
+      assert changeset.valid?
+    end
   end
 
   describe "changeset_for_edit/2" do
