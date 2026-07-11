@@ -121,6 +121,23 @@ defmodule DataCollector.KrakenClient do
     end
   end
 
+  @doc """
+  Mints a private WebSocket auth token via `POST
+  /0/private/GetWebSocketsToken` (verified notes §4) -- the same
+  HMAC-SHA512 private-REST plumbing as every other call in this module,
+  just with an empty extra-params body (`nonce` is the only required
+  param, added by `post/3` as usual). Used by `DataCollector.KrakenPrivateStream`
+  to authenticate the `executions` WS channel subscription, since Kraken
+  has no separate WS-level login op the way OKX does. Never log the
+  returned token.
+  """
+  @spec get_ws_token(ExchangeClient.credentials()) :: Types.result(String.t())
+  def get_ws_token(credentials) do
+    with {:ok, %{"token" => token}} <- post(credentials, "/0/private/GetWebSocketsToken", %{}) do
+      {:ok, token}
+    end
+  end
+
   # -- private --
 
   defp resolve_open_order({txid, %{"descr" => %{"pair" => pair}} = entry}) do

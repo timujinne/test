@@ -17,6 +17,10 @@ defmodule DataCollector.MarketStream do
   @spec subscribe(String.t(), String.t()) :: {:ok, pos_integer()} | {:error, term()}
   def subscribe("binance", concat_symbol), do: DataCollector.TickerStream.subscribe(concat_symbol)
   def subscribe("okx", concat_symbol), do: DataCollector.OKXPublicStream.subscribe(concat_symbol)
+
+  def subscribe("kraken", concat_symbol),
+    do: DataCollector.KrakenPublicStream.subscribe(concat_symbol)
+
   def subscribe(other, _concat_symbol), do: {:error, {:unsupported_exchange, other}}
 
   @doc """
@@ -29,6 +33,9 @@ defmodule DataCollector.MarketStream do
 
   def unsubscribe("okx", concat_symbol),
     do: DataCollector.OKXPublicStream.unsubscribe(concat_symbol)
+
+  def unsubscribe("kraken", concat_symbol),
+    do: DataCollector.KrakenPublicStream.unsubscribe(concat_symbol)
 
   def unsubscribe(other, _concat_symbol), do: {:error, {:unsupported_exchange, other}}
 end

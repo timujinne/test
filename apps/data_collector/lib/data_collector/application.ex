@@ -20,6 +20,11 @@ defmodule DataCollector.Application do
     # "always increasing, never resettable" nonce requirement.
     :ets.new(:kraken_nonce, [:named_table, :public, :set])
 
+    # Same, for DataCollector.KrakenPublicStream's single-connection
+    # subscriber counts (see its moduledoc — same rationale as
+    # :okx_public_subscribers above).
+    :ets.new(:kraken_public_subscribers, [:named_table, :public, :set])
+
     children = [
       {Phoenix.PubSub, name: BinanceSystem.PubSub},
       {Registry, keys: :unique, name: DataCollector.StreamRegistry},
@@ -27,6 +32,10 @@ defmodule DataCollector.Application do
       # DynamicSupervisor below (see OKXPrivateStream's moduledoc).
       {Registry, keys: :unique, name: DataCollector.OKXPrivateRegistry},
       DataCollector.OKXPrivateSupervisor,
+      # account_id -> DataCollector.KrakenPrivateStream pid, paired with the
+      # DynamicSupervisor below (see KrakenPrivateStream's moduledoc).
+      {Registry, keys: :unique, name: DataCollector.KrakenPrivateRegistry},
+      DataCollector.KrakenPrivateSupervisor,
       DataCollector.CircuitBreaker,
       DataCollector.RateLimiter,
       DataCollector.MarketData,
