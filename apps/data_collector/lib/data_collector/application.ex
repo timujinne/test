@@ -14,6 +14,12 @@ defmodule DataCollector.Application do
     # than one process per symbol like TickerStream).
     :ets.new(:okx_public_subscribers, [:named_table, :public, :set])
 
+    # Monotonic counter backing DataCollector.Kraken.Auth.next_nonce/0 — see
+    # its moduledoc for why a public ETS counter (rather than per-call
+    # wall-clock reads) is the safe, race-free way to satisfy Kraken's
+    # "always increasing, never resettable" nonce requirement.
+    :ets.new(:kraken_nonce, [:named_table, :public, :set])
+
     children = [
       {Phoenix.PubSub, name: BinanceSystem.PubSub},
       {Registry, keys: :unique, name: DataCollector.StreamRegistry},

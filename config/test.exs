@@ -15,6 +15,12 @@ config :data_collector, :okx,
   ws_public_url: "wss://wspap.okx.com:8443/ws/v5/public",
   ws_private_url: "wss://wspap.okx.com:8443/ws/v5/private"
 
+# Kraken API configuration for testing (mock values, deterministic
+# regardless of any KRAKEN_* env vars set in the host/CI environment)
+config :data_collector, :kraken,
+  base_url: "https://api.kraken.com",
+  ws_url: "wss://ws.kraken.com/v2"
+
 # Cloak encryption for testing
 config :shared_data, SharedData.Vault,
   ciphers: [

@@ -41,6 +41,13 @@ if config_env() == :prod do
         )
       )
 
+  # Kraken API configuration (optional — only required if Kraken accounts
+  # are actually used). Kraken has no demo/testnet host — there is nothing
+  # to gate, unlike OKX's demo flag.
+  config :data_collector, :kraken,
+    base_url: System.get_env("KRAKEN_BASE_URL", "https://api.kraken.com"),
+    ws_url: System.get_env("KRAKEN_WS_URL", "wss://ws.kraken.com/v2")
+
   # Database configuration
   database_url =
     System.get_env("DATABASE_URL") ||

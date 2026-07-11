@@ -28,6 +28,12 @@ config :data_collector, :okx,
         else: "wss://ws.okx.com:8443/ws/v5/private"
       )
 
+# Kraken API configuration for development. Kraken has no demo/testnet
+# host — there is nothing to gate, unlike OKX's demo flag.
+config :data_collector, :kraken,
+  base_url: System.get_env("KRAKEN_BASE_URL") || "https://api.kraken.com",
+  ws_url: System.get_env("KRAKEN_WS_URL") || "wss://ws.kraken.com/v2"
+
 # Cloak encryption for development
 config :shared_data, SharedData.Vault,
   ciphers: [
