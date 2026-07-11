@@ -171,6 +171,12 @@ defmodule TradingEngine.Trader do
       # Successfully subscribed symbols
       subscribed_symbols: subscribed_symbols,
       positions: %{},
+      # order_id => last-seen cumulative filled qty ("z"), so execution_report
+      # handling can compute the incremental fill delta instead of
+      # double-counting the raw cumulative value on repeated PARTIALLY_FILLED
+      # pushes for the same order. Never reset: Trader state is per-process
+      # and dies with the order-tracking lifecycle.
+      last_cum_qty_by_order: %{},
       orders: %{},
       subscribed_to_ticks: length(subscribed_symbols) > 0,
       timer_refs: timer_refs
@@ -279,6 +285,10 @@ defmodule TradingEngine.Trader do
       # Update order status in database
       update_order_in_db(execution)
 
+      # Track filled quantity per symbol so RiskManager.check_position_size/2
+      # (via calculate_position_size/1) actually enforces the position cap.
+      state = update_position(execution, state)
+
       # Broadcast order status updates
       order_status = execution["X"]
 
@@ -381,9 +391,12 @@ defmodule TradingEngine.Trader do
       cancel_open_orders_on_stop(state)
     end
 
-    # Unsubscribe from ALL ticker streams
+    # Unsubscribe from ALL ticker streams via the exchange-aware facade —
+    # NOT the Binance-only TickerStream directly, which would silently leak
+    # a subscription per stop on every non-Binance exchange (init/1's
+    # subscribe call above already goes through MarketStream correctly).
     Enum.each(state.subscribed_symbols || [], fn sym ->
-      DataCollector.TickerStream.unsubscribe(sym)
+      DataCollector.MarketStream.unsubscribe(state.exchange, sym)
     end)
 
     :ok
@@ -504,6 +517,61 @@ defmodule TradingEngine.Trader do
         Logger.warning("Failed to update order #{order_id}: #{inspect(reason)}")
     end
   end
+
+  # Updates state.positions from an owned execution report, computing the
+  # incremental fill delta (this execution's cumulative "z" minus whatever
+  # cumulative qty was last recorded for that order_id) rather than adding
+  # the raw cumulative value, to avoid double-counting on repeated
+  # PARTIALLY_FILLED pushes for the same order. Works uniformly across
+  # Binance/OKX/Kraken/Coinbase since every adapter normalizes "z" into the
+  # same Binance-shaped key.
+  defp update_position(execution, state) do
+    order_id = execution["i"]
+    symbol = execution["s"]
+    side = execution["S"]
+    cum_qty = to_decimal_or_zero(execution["z"])
+
+    last_cum_qty = Map.get(state.last_cum_qty_by_order, order_id, Decimal.new(0))
+    delta = Decimal.sub(cum_qty, last_cum_qty)
+
+    state = %{
+      state
+      | last_cum_qty_by_order: Map.put(state.last_cum_qty_by_order, order_id, cum_qty)
+    }
+
+    signed_delta =
+      case side do
+        "BUY" -> delta
+        "SELL" -> Decimal.negate(delta)
+        _ -> Decimal.new(0)
+      end
+
+    apply_position_delta(state, symbol, signed_delta)
+  end
+
+  defp apply_position_delta(state, nil, _delta), do: state
+
+  defp apply_position_delta(state, symbol, delta) do
+    if Decimal.compare(delta, Decimal.new(0)) == :eq do
+      state
+    else
+      current_qty =
+        case Map.get(state.positions, symbol) do
+          %{quantity: qty} when not is_nil(qty) -> qty
+          _ -> Decimal.new(0)
+        end
+
+      new_positions =
+        Map.put(state.positions, symbol, %{quantity: Decimal.add(current_qty, delta)})
+
+      %{state | positions: new_positions}
+    end
+  end
+
+  defp to_decimal_or_zero(nil), do: Decimal.new(0)
+  defp to_decimal_or_zero(%Decimal{} = value), do: value
+  defp to_decimal_or_zero(value) when is_binary(value), do: Decimal.new(value)
+  defp to_decimal_or_zero(value) when is_integer(value), do: Decimal.new(value)
 
   @spec execute_action(Types.strategy_action(), map()) :: map()
   defp execute_action(:noop, state), do: state
