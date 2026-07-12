@@ -564,6 +564,11 @@ defmodule DashboardWeb.SettingsLive do
                           ]}>
                             {if account.is_active, do: "Active", else: "Inactive"}
                           </span>
+                          <%= if account.api_credential do %>
+                            <span class="badge badge-info badge-outline">
+                              {exchange_display_name(account.api_credential.exchange)}
+                            </span>
+                          <% end %>
                           <%= if account.api_credential && account.api_credential.is_testnet do %>
                             <span class="badge badge-warning">Testnet</span>
                           <% end %>
@@ -577,7 +582,7 @@ defmodule DashboardWeb.SettingsLive do
                           <% end %>
                           <%= if account.binance_account_id do %>
                             <p class="text-sm text-base-content/70">
-                              <span class="font-medium">Binance ID:</span> {account.binance_account_id}
+                              <span class="font-medium">Exchange Account ID:</span> {account.binance_account_id}
                             </p>
                           <% end %>
                           <p class="text-xs text-base-content/50">
@@ -652,6 +657,13 @@ defmodule DashboardWeb.SettingsLive do
     end)
     |> Enum.join(", ")
   end
+
+  defp exchange_display_name("binance"), do: "Binance"
+  defp exchange_display_name("okx"), do: "OKX"
+  defp exchange_display_name("kraken"), do: "Kraken"
+  defp exchange_display_name("coinbase"), do: "Coinbase"
+  defp exchange_display_name(other) when is_binary(other), do: other
+  defp exchange_display_name(_), do: "Unknown"
 
   defp format_timestamp(nil), do: "N/A"
 
